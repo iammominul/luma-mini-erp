@@ -1,0 +1,39 @@
+{
+  "name": "luma-mini-erp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Interim billing, receipts, and statements for a knit dyeing trader. Runs until the full ERP takes over.",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "next dev -p 5174",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:cov": "vitest run --coverage",
+    "db:setup": "node scripts/setup-db.mjs"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "next": "^16.2.12",
+    "pg": "^8.22.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitest/coverage-v8": "^2.1.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

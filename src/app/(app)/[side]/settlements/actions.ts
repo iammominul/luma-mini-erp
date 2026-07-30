@@ -1,0 +1,103 @@
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import { z } from 'zod';
+import {
+  InputError,
+  createPayment,
+  deletePayment,
+  updatePayment,
+} from '@/lib/mutations';
+import { deleteSchema, firstError, paymentFormSchema } from '@/lib/schemas';
+import { isSide } from '@/lib/side';
+
+export type PaymentFormState = { error?: string };
+
+function text(formData: FormData, key: string): string {
+  return String(formData.get(key) ?? '').trim();
+}
+
+function sideOf(formData: FormData): string {
+  const side = text(formData, 'side');
+  return isSide(side) ? side : 'customer';
+}
+
+function readPayment(formData: FormData) {
+  return paymentFormSchema.safeParse({
+    partyId: text(formData, 'partyId'),
+    paidOn: text(formData, 'paidOn'),
+    amount: text(formData, 'amount'),
+    mode: text(formData, 'mode'),
+    reference: text(formData, 'reference'),
+    notes: text(formData, 'notes'),
+    reason: text(formData, 'reason'),
+  });
+}
+
+function message(error: unknown): string {
+  if (error instanceof InputError) return error.message;
+  if (error instanceof z.ZodError) return firstError(error);
+  return `Could not save the entry: ${(error as Error).message}`;
+}
+
+export async function createPaymentAction(
+  _previous: PaymentFormState,
+  formData: FormData,
+): Promise<PaymentFormState> {
+  const side = sideOf(formData);
+  const parsed = readPayment(formData);
+  if (!parsed.success) return { error: firstError(parsed.error) };
+
+  try {
+    await createPayment(parsed.data);
+  } catch (error) {
+    return { error: message(error) };
+  }
+
+  revalidatePath('/', 'layout');
+  redirect(`/${side}/settlements`);
+}
+
+export async function updatePaymentAction(
+  _previous: PaymentFormState,
+  formData: FormData,
+): Promise<PaymentFormState> {
+  const side = sideOf(formData);
+  const id = text(formData, 'id');
+  const parsed = readPayment(formData);
+  if (!parsed.success) return { error: firstError(parsed.error) };
+  if (!parsed.data.reason) {
+    return { error: 'State why this entry is being edited.' };
+  }
+
+  try {
+    await updatePayment(id, parsed.data);
+  } catch (error) {
+    return { error: message(error) };
+  }
+
+  revalidatePath('/', 'layout');
+  redirect(`/${side}/settlements`);
+}
+
+export async function deletePaymentAction(
+  _previous: PaymentFormState,
+  formData: FormData,
+): Promise<PaymentFormState> {
+  const side = sideOf(formData);
+  const parsed = deleteSchema.safeParse({
+    id: text(formData, 'id'),
+    reason: text(formData, 'reason'),
+  });
+  if (!parsed.success) return { error: firstError(parsed.error) };
+
+  try {
+    await deletePayment(parsed.data.id, parsed.data.reason);
+  } catch (error) {
+    return { error: message(error) };
+  }
+
+  revalidatePath('/', 'layout');
+  redirect(`/${side}/settlements`);
+}

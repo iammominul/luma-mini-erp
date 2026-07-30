@@ -1,0 +1,50 @@
+@import 'tailwindcss';
+
+/* Brand tokens match the approved prototype and the real ERP frontend, so this
+   interim tool looks like the same product: navy, Inter, classic office. */
+@theme {
+  --color-navy: #142b40;
+  --color-navy-600: #1d3a54;
+  --color-ink: #1a1a1a;
+  --color-muted: #7a7a85;
+  --color-line: #d9dce1;
+  --color-canvas: #f4f5f7;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Figures line up column to column on screen and on paper. */
+.numeric {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* A printed bill or statement is an A4 document: white, no screen furniture. */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+
+  body {
+    background: #fff;
+    font-size: 11pt;
+  }
+
+  a[href]::after {
+    content: '';
+  }
+}
