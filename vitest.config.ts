@@ -9,9 +9,13 @@ export default defineConfig({
   },
   test: {
     globals: false,
-    // The money and statement logic, the session cookie, and (when a Postgres
-    // is configured) every SQL statement and server action.
-    include: ['src/lib/**/*.test.ts', 'src/app/**/*.test.ts'],
+    // The money and statement logic, the session cookie, the schema splitter,
+    // and (when a Postgres is configured) every SQL statement and server action.
+    include: [
+      'src/lib/**/*.test.ts',
+      'src/app/**/*.test.ts',
+      'scripts/**/*.test.ts',
+    ],
     coverage: {
       provider: 'v8',
       include: [

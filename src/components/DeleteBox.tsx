@@ -28,7 +28,7 @@ export function DeleteBox({
   );
 
   return (
-    <details className="rounded border border-red-200 bg-white print:hidden">
+    <details className="rounded border border-red-200 bg-white">
       <summary className="cursor-pointer px-3 py-1.5 text-sm font-medium text-red-700">
         {title}
       </summary>

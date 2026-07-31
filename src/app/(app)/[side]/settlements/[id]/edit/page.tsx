@@ -18,9 +18,9 @@ export default async function EditSettlementPage({
 
   const [payment, parties] = await Promise.all([
     getPayment(id),
-    listParties({ type: side, includeInactive: true }),
+    listParties({ role: copy.role, includeInactive: true }),
   ]);
-  if (!payment || payment.partyType !== side) notFound();
+  if (!payment || payment.direction !== copy.paymentDirection) notFound();
 
   return (
     <>
@@ -39,6 +39,7 @@ export default async function EditSettlementPage({
         paymentId={payment.id}
         values={{
           partyId: payment.partyId,
+          narration: payment.narration ?? '',
           paidOn: payment.paidOn,
           amount: payment.amount.toDecimalString(),
           mode: payment.mode,

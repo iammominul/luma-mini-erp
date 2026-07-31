@@ -24,22 +24,30 @@ export async function exportEverything(): Promise<ExportBundle> {
       'exportedAt', to_char(now() AT TIME ZONE 'Asia/Dhaka', 'YYYY-MM-DD"T"HH24:MI:SS'),
       'parties', (
         SELECT COALESCE(jsonb_agg(jsonb_build_object(
-          'id', p.id, 'name', p.name, 'type', p.type,
+          'id', p.id, 'code', p.code, 'name', p.name,
+          'isCustomer', p.is_customer, 'isSubcontractor', p.is_subcontractor,
+          'isSupplier', p.is_supplier,
           'contactPerson', p.contact_person, 'phone', p.phone,
           'address', p.address, 'openingBalance', p.opening_balance::text,
           'openingAsOf', to_char(p.opening_as_of, 'YYYY-MM-DD'),
-          'active', p.active) ORDER BY p.type, p.name), '[]'::jsonb)
+          'active', p.active) ORDER BY p.name), '[]'::jsonb)
         FROM party p),
       'bills', (
         SELECT COALESCE(jsonb_agg(jsonb_build_object(
-          'id', b.id, 'billNo', b.bill_no,
+          'id', b.id, 'billNo', b.bill_no, 'bookNo', b.book_no,
+          'docNo', b.doc_no,
           'billDate', to_char(b.bill_date, 'YYYY-MM-DD'),
-          'partyId', b.party_id, 'partyName', pt.name, 'partyType', pt.type,
-          'reference', b.reference, 'notes', b.notes, 'total', b.total::text,
+          'partyId', b.party_id, 'partyName', pt.name,
+          'direction', b.direction,
+          'reference', b.reference, 'narration', b.narration,
+          'notes', b.notes, 'total', b.total::text,
           'lines', (
             SELECT COALESCE(jsonb_agg(jsonb_build_object(
               'lineNo', l.line_no, 'description', l.description,
-              'qtyKg', l.qty_kg::text, 'rate', l.rate::text,
+              'fabricType', l.fabric_type, 'color', l.color,
+              'challanNo', l.challan_no, 'orderNo', l.order_no,
+              'greyKg', l.grey_kg::text, 'finishedKg', l.finished_kg::text,
+              'rate', l.rate::text,
               'amount', l.amount::text) ORDER BY l.line_no), '[]'::jsonb)
             FROM bill_line l WHERE l.bill_id = b.id)
           ) ORDER BY b.bill_date, b.bill_no), '[]'::jsonb)
@@ -47,9 +55,11 @@ export async function exportEverything(): Promise<ExportBundle> {
       'payments', (
         SELECT COALESCE(jsonb_agg(jsonb_build_object(
           'id', pay.id, 'partyId', pay.party_id, 'partyName', pt.name,
-          'partyType', pt.type, 'paidOn', to_char(pay.paid_on, 'YYYY-MM-DD'),
+          'direction', pay.direction,
+          'paidOn', to_char(pay.paid_on, 'YYYY-MM-DD'),
           'amount', pay.amount::text, 'mode', pay.mode,
-          'reference', pay.reference, 'notes', pay.notes)
+          'reference', pay.reference, 'narration', pay.narration,
+          'notes', pay.notes)
           ORDER BY pay.paid_on), '[]'::jsonb)
         FROM payment pay JOIN party pt ON pt.id = pay.party_id),
       'activityLog', (
@@ -95,7 +105,10 @@ export function toCsv(
 }
 
 type BillRow = {
+  direction: string;
   billNo: string;
+  bookNo: string | null;
+  docNo: string | null;
   billDate: string;
   partyName: string;
   partyType: string;
@@ -104,7 +117,12 @@ type BillRow = {
   lines: {
     lineNo: number;
     description: string;
-    qtyKg: string;
+    fabricType: string | null;
+    color: string | null;
+    challanNo: string | null;
+    orderNo: string | null;
+    greyKg: string;
+    finishedKg: string | null;
     rate: string;
     amount: string;
   }[];
@@ -113,7 +131,7 @@ type BillRow = {
 type PaymentRow = {
   paidOn: string;
   partyName: string;
-  partyType: string;
+  direction: string;
   amount: string;
   mode: string;
   reference: string | null;
@@ -121,8 +139,11 @@ type PaymentRow = {
 };
 
 type PartyRow = {
+  code: string | null;
   name: string;
-  type: string;
+  isCustomer: boolean;
+  isSubcontractor: boolean;
+  isSupplier: boolean;
   contactPerson: string | null;
   phone: string | null;
   address: string | null;
@@ -139,12 +160,19 @@ export function billsCsv(bundle: ExportBundle): string {
       rows.push([
         bill.billDate,
         bill.billNo,
-        bill.partyType,
+        bill.bookNo,
+        bill.docNo,
+        bill.direction,
         bill.partyName,
         bill.reference,
         line.lineNo,
         line.description,
-        line.qtyKg,
+        line.fabricType,
+        line.color,
+        line.challanNo,
+        line.orderNo,
+        line.greyKg,
+        line.finishedKg,
         line.rate,
         line.amount,
         bill.total,
@@ -155,12 +183,19 @@ export function billsCsv(bundle: ExportBundle): string {
     [
       'Bill Date',
       'Bill No',
-      'Party Type',
+      'Book No',
+      'Our Ref',
+      'Direction',
       'Party',
       'Reference',
       'Line',
       'Description',
-      'Weight Kg',
+      'Fabric Type',
+      'Color',
+      'Challan No',
+      'Order No',
+      'G/Weight Kg',
+      'F/Weight Kg',
       'Rate',
       'Line Amount',
       'Bill Total',
@@ -171,10 +206,10 @@ export function billsCsv(bundle: ExportBundle): string {
 
 export function paymentsCsv(bundle: ExportBundle): string {
   return toCsv(
-    ['Date', 'Party Type', 'Party', 'Amount', 'Mode', 'Reference', 'Notes'],
+    ['Date', 'Direction', 'Party', 'Amount', 'Mode', 'Reference', 'Notes'],
     (bundle.payments as PaymentRow[]).map((payment) => [
       payment.paidOn,
-      payment.partyType,
+      payment.direction,
       payment.partyName,
       payment.amount,
       payment.mode,
@@ -187,8 +222,9 @@ export function paymentsCsv(bundle: ExportBundle): string {
 export function partiesCsv(bundle: ExportBundle): string {
   return toCsv(
     [
+      'Party Code',
       'Name',
-      'Type',
+      'Roles',
       'Contact Person',
       'Phone',
       'Address',
@@ -197,8 +233,15 @@ export function partiesCsv(bundle: ExportBundle): string {
       'Status',
     ],
     (bundle.parties as PartyRow[]).map((party) => [
+      party.code,
       party.name,
-      party.type,
+      [
+        party.isCustomer ? 'customer' : '',
+        party.isSubcontractor ? 'subcontractor' : '',
+        party.isSupplier ? 'supplier' : '',
+      ]
+        .filter(Boolean)
+        .join(', '),
       party.contactPerson,
       party.phone,
       party.address,

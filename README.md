@@ -60,15 +60,23 @@ pnpm db:setup
 
 ### 4. Environment variables
 
-| Variable          | What it is                                                             |
-| ----------------- | ---------------------------------------------------------------------- |
-| `DATABASE_URL`    | The Neon pooled connection string.                                     |
-| `APP_PASSWORD`    | The one shared password that opens the app. Use 12 characters or more. |
-| `SESSION_SECRET`  | Random string that signs the session cookie. See below.                |
-| `COMPANY_NAME`    | Printed on the letterhead of every bill and statement.                 |
-| `COMPANY_ADDRESS` | Printed under the name.                                                |
-| `COMPANY_PHONE`   | Printed under the address.                                             |
-| `COMPANY_EMAIL`   | Printed under the address.                                             |
+| Variable          | What it is                                                                  |
+| ----------------- | --------------------------------------------------------------------------- |
+| `DATABASE_URL`    | The Neon pooled connection string.                                          |
+| `APP_PASSWORD`    | The one shared password that opens the app. Use 12 characters or more.      |
+| `SESSION_SECRET`  | Random string that signs the session cookie. See below.                     |
+| `COMPANY_NAME`    | Used on the letterhead when no logo file is present, and in the top bar.    |
+| `COMPANY_ADDRESS` | Printed under the logo on every document.                                   |
+| `COMPANY_PHONE`   | Printed on the contact line. More than one number is fine, comma separated. |
+| `COMPANY_EMAIL`   | Printed on the contact line.                                                |
+| `COMPANY_WEB`     | Printed on the contact line. Leave unset to omit it.                        |
+
+The logo on the documents is `assets/letterhead-logo.svg`, committed with the
+app rather than configured. Replace that file to put another company on every
+document, or point `PDF_LOGO_PATH` at a different one; with no file at all the
+letterhead sets `COMPANY_NAME` as type instead. The file has three constraints
+written at the top of it, because the PDF renderer applies no stylesheet and has
+no access to a design font.
 
 Generate a session secret with:
 
@@ -103,6 +111,19 @@ Open the deployment URL, sign in with `APP_PASSWORD`, then:
 
 Points worth knowing:
 
+- **Documents download as real A4 PDFs**, rendered on the server, not as the
+  browser's print of a screen. The Customer Bill, the Bill Received and the
+  Statement of Account all come off one letterhead system, so they are the same
+  piece of paper with different bodies.
+- **A bill keeps its hand-written number.** Bills are still written by hand from
+  the bill book and sent out on paper, so the book number and the book it came
+  from are recorded and are what the customer sees on a statement and on the PDF.
+  The system issues its own gapless `CB-26-0001` series alongside, as the internal
+  reference an auditor can follow.
+- **The statement reads as a ledger:** Date, Reference, Particulars, Debit,
+  Credit and a running Balance carrying `Dr` or `Cr`. A customer bill is a debit
+  and money received is a credit; a subcontractor's bill is a credit and money
+  paid to them is a debit. The two sides are mirror images of one calculation.
 - **Balances are never stored.** Every figure on screen is computed from the
   bills and receipts on read, so nothing can drift out of step.
 - **Money never becomes a JS number.** It is read as text, held as integer

@@ -1,30 +1,44 @@
 import { Money } from './money';
+import { formatTaka } from './format';
 
 /**
- * Statement assembly. Pure: dates are 'YYYY-MM-DD' text and amounts are Money,
- * so this file has no database, no timezone, and no framework in it, and the
- * running balance can be tested on its own.
+ * Party ledger assembly. Pure: dates are 'YYYY-MM-DD' text and amounts are
+ * Money, so this file has no database, no timezone, and no framework in it, and
+ * the running balance can be tested on its own.
  *
- * Balance is always in the party's natural direction. A bill raises it, a
- * settlement lowers it. For a customer, a positive closing balance is what the
- * customer still owes; for a subcontractor, it is what we still owe them.
+ * One sign convention, everywhere: a positive balance is receivable, money the
+ * party owes us, and shows as Dr. A negative balance is payable, money we owe
+ * them, and shows as Cr.
+ *
+ * Which way a movement pushes that balance belongs to the movement, not to the
+ * party. A bill we issued is a debit; a bill we received is a credit; money in
+ * is a credit; money out is a debit. That is what lets one party hold more than
+ * one role: a dye house that processes our fabric and also sells us yarn has one
+ * ledger and one net balance, and every row in it still knows its own direction.
  */
 
 export type MovementKind = 'bill' | 'payment';
 
+/** Which column a movement lands in, and therefore which way it moves the balance. */
+export type MovementSide = 'debit' | 'credit';
+
 export type Movement = {
   id: string;
   kind: MovementKind;
+  side: MovementSide;
   /** 'YYYY-MM-DD' */
   date: string;
+  /** What the row is, in words: "Dyeing & Finishing Bill / Order 75-T". */
   particulars: string;
+  /** The document it points at: a bill number, a money receipt serial. */
   reference: string | null;
   amount: Money;
 };
 
 export type StatementRow = Movement & {
-  billed: Money | null;
-  settled: Money | null;
+  debit: Money | null;
+  credit: Money | null;
+  /** Running balance: positive receivable, negative payable. */
   balance: Money;
 };
 
@@ -32,8 +46,12 @@ export type Statement = {
   /** Balance carried into the period, opening balance plus everything before it. */
   opening: Money;
   rows: StatementRow[];
+  /** Everything billed and everything settled in the period, either direction. */
   totalBilled: Money;
   totalSettled: Money;
+  /** The two ledger columns. */
+  totalDebit: Money;
+  totalCredit: Money;
   closing: Money;
 };
 
@@ -56,7 +74,7 @@ function compare(a: Movement, b: Movement): number {
 }
 
 function signed(movement: Movement): Money {
-  return movement.kind === 'bill'
+  return movement.side === 'debit'
     ? movement.amount
     : Money.ZERO.subtract(movement.amount);
 }
@@ -70,9 +88,7 @@ export function buildStatement({
   const ordered = [...movements].sort(compare);
 
   let opening = openingBalance;
-  const rows: StatementRow[] = [];
-  let totalBilled = Money.ZERO;
-  let totalSettled = Money.ZERO;
+  const inPeriod: Movement[] = [];
 
   for (const movement of ordered) {
     if (from && movement.date < from) {
@@ -80,51 +96,95 @@ export function buildStatement({
       continue;
     }
     if (to && movement.date > to) continue;
-    rows.push({
-      ...movement,
-      billed: null,
-      settled: null,
-      balance: Money.ZERO,
-    });
+    inPeriod.push(movement);
   }
 
   let balance = opening;
-  const withBalance = rows.map((row) => {
-    balance = balance.add(signed(row));
-    if (row.kind === 'bill') {
-      totalBilled = totalBilled.add(row.amount);
-      return { ...row, billed: row.amount, settled: null, balance };
+  let totalBilled = Money.ZERO;
+  let totalSettled = Money.ZERO;
+  let totalDebit = Money.ZERO;
+  let totalCredit = Money.ZERO;
+
+  const rows = inPeriod.map((movement): StatementRow => {
+    balance = balance.add(signed(movement));
+
+    if (movement.kind === 'bill') {
+      totalBilled = totalBilled.add(movement.amount);
+    } else {
+      totalSettled = totalSettled.add(movement.amount);
     }
-    totalSettled = totalSettled.add(row.amount);
-    return { ...row, billed: null, settled: row.amount, balance };
+
+    if (movement.side === 'debit') {
+      totalDebit = totalDebit.add(movement.amount);
+      return { ...movement, debit: movement.amount, credit: null, balance };
+    }
+    totalCredit = totalCredit.add(movement.amount);
+    return { ...movement, debit: null, credit: movement.amount, balance };
   });
 
   return {
     opening,
-    rows: withBalance,
+    rows,
     totalBilled,
     totalSettled,
+    totalDebit,
+    totalCredit,
     closing: balance,
   };
 }
 
-/** Column headings and wording differ by side; the arithmetic does not. */
-export function statementLabels(partyType: 'customer' | 'subcontractor') {
-  return partyType === 'customer'
-    ? {
-        billed: 'Bill Amount',
-        settled: 'Amount Received',
-        balance: 'Balance Due',
-        closing: 'Closing Balance Receivable',
-        settlementWord: 'Receipt',
-        opening: 'Opening Balance',
-      }
-    : {
-        billed: 'Bill Amount',
-        settled: 'Amount Paid',
-        balance: 'Balance Payable',
-        closing: 'Closing Balance Payable',
-        settlementWord: 'Payment',
-        opening: 'Opening Balance',
-      };
+/**
+ * Which side of the ledger a balance sits on. Straight from the sign now that
+ * there is one convention: owed to us is a debit balance, owed by us a credit.
+ */
+export function balanceSide(balance: Money): 'Dr' | 'Cr' | '' {
+  if (balance.isZero()) return '';
+  return balance.isNegative() ? 'Cr' : 'Dr';
+}
+
+/**
+ * "4,27,230.00 Dr", the way a ledger states a balance. The sign is carried by
+ * the Dr or Cr, never by a minus, which is what an accounts person expects.
+ */
+export function formatBalance(balance: Money): string {
+  const magnitude = balance.isNegative()
+    ? Money.ZERO.subtract(balance)
+    : balance;
+  const side = balanceSide(balance);
+  const figure = formatTaka(magnitude);
+  return side ? `${figure} ${side}` : figure;
+}
+
+/**
+ * Wording for the view a ledger is being read through. The arithmetic no longer
+ * differs by side, only what the money is called: a customer pays us, we pay a
+ * subcontractor, and the closing label follows the balance rather than the view.
+ */
+export function statementLabels(lens: 'customer' | 'subcontractor') {
+  return {
+    debit: 'Debit',
+    credit: 'Credit',
+    balance: 'Balance',
+    opening: 'Opening Balance',
+    openingCarried: 'Opening Balance (B/F)',
+    closingCarried: 'Closing Balance (C/F)',
+    totalBilled: 'Total Billed',
+    totalSettled: lens === 'customer' ? 'Total Received' : 'Total Paid',
+    billed: 'Billed in Period',
+    settled: lens === 'customer' ? 'Received in Period' : 'Paid in Period',
+    settlementWord: lens === 'customer' ? 'Receipt' : 'Payment',
+  };
+}
+
+/** What a closing balance is called, which follows the sign and not the view. */
+export function closingLabel(balance: Money): string {
+  if (balance.isZero()) return 'Closing Balance';
+  return balance.isNegative()
+    ? 'Closing Balance Payable'
+    : 'Closing Balance Receivable';
+}
+
+/** The outstanding figure, named for which way it runs. */
+export function netLabel(balance: Money): string {
+  return balance.isNegative() ? 'Net Payable' : 'Net Receivable';
 }

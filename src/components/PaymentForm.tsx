@@ -10,6 +10,7 @@ export type PaymentFormState = { error?: string };
 
 export type PaymentFormValues = {
   partyId: string;
+  narration: string;
   paidOn: string;
   amount: string;
   mode: string;
@@ -106,6 +107,18 @@ export function PaymentForm({
               name="reference"
               defaultValue={values.reference}
               maxLength={80}
+            />
+          </Field>
+
+          <Field
+            label="Narration"
+            hint="Shown on the ledger after the mode, as Payment Received / LC / UCB. Blank shows the mode alone."
+          >
+            <TextInput
+              name="narration"
+              defaultValue={values.narration}
+              maxLength={200}
+              placeholder="UCB / BTB LC"
             />
           </Field>
 

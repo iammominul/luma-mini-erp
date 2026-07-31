@@ -16,9 +16,9 @@ export default async function EditBillPage({
 
   const [bill, parties] = await Promise.all([
     getBill(id),
-    listParties({ type: side, includeInactive: true }),
+    listParties({ role: copy.role, includeInactive: true }),
   ]);
-  if (!bill || bill.partyType !== side) notFound();
+  if (!bill || bill.direction !== copy.billDirection) notFound();
 
   return (
     <>
@@ -36,13 +36,22 @@ export default async function EditBillPage({
         billId={bill.id}
         values={{
           partyId: bill.partyId,
+          status: bill.status,
+          natureOfWork: bill.natureOfWork,
+          narration: bill.narration ?? '',
           billNo: bill.billNo,
+          bookNo: bill.bookNo ?? '',
           billDate: bill.billDate,
           reference: bill.reference ?? '',
           notes: bill.notes ?? '',
           lines: bill.lines.map((line) => ({
             description: line.description,
-            qtyKg: line.qtyKg,
+            fabricType: line.fabricType ?? '',
+            color: line.color ?? '',
+            challanNo: line.challanNo ?? '',
+            orderNo: line.orderNo ?? '',
+            greyKg: line.greyKg,
+            finishedKg: line.finishedKg ?? '',
             rate: line.rate,
           })),
         }}

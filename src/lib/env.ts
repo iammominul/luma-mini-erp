@@ -7,7 +7,7 @@ export function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
     throw new Error(
-      `Missing environment variable ${name}. See interim-billing/.env.example.`,
+      `Missing environment variable ${name}. See .env.example.`,
     );
   }
   return value;
@@ -18,11 +18,13 @@ export type Company = {
   address: string;
   phone: string;
   email: string;
+  web: string;
 };
 
 /**
  * The letterhead. Nothing about the company is hard-coded, so this app can
- * serve any dyeing trader, not only the first one.
+ * serve any dyeing trader, not only the first one. The logo is the same idea in
+ * file form: see pdf/letterhead-logo.ts.
  */
 export function company(): Company {
   return {
@@ -30,5 +32,6 @@ export function company(): Company {
     address: process.env.COMPANY_ADDRESS ?? '',
     phone: process.env.COMPANY_PHONE ?? '',
     email: process.env.COMPANY_EMAIL ?? '',
+    web: process.env.COMPANY_WEB ?? '',
   };
 }

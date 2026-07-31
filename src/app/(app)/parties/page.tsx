@@ -12,7 +12,7 @@ import {
 } from '@/components/ui';
 import { todayInDhaka } from '@/lib/dates';
 import { listParties } from '@/lib/queries';
-import { partyTypeLabel } from '@/lib/types';
+import { rolesLabel } from '@/lib/types';
 import { createPartyAction, togglePartyActiveAction } from './actions';
 
 export default async function PartiesPage() {
@@ -33,7 +33,8 @@ export default async function PartiesPage() {
             submitLabel="Add Party"
             values={{
               name: '',
-              type: 'customer',
+              code: '',
+              roles: ['customer'],
               contactPerson: '',
               phone: '',
               address: '',
@@ -49,8 +50,9 @@ export default async function PartiesPage() {
         <Table>
           <thead>
             <tr>
+              <Th className="w-24">Code</Th>
               <Th>Name</Th>
-              <Th>Type</Th>
+              <Th>Roles</Th>
               <Th>Contact</Th>
               <Th>Phone</Th>
               <Th numeric>Opening Balance</Th>
@@ -60,10 +62,13 @@ export default async function PartiesPage() {
           </thead>
           <tbody>
             {parties.length === 0 ? (
-              <EmptyRow columns={7}>No parties yet</EmptyRow>
+              <EmptyRow columns={8}>No parties yet</EmptyRow>
             ) : (
               parties.map((party) => (
                 <tr key={party.id}>
+                  <Td className="text-[var(--color-muted)]">
+                    {party.code ?? ''}
+                  </Td>
                   <Td>
                     <Link
                       href={`/parties/${party.id}`}
@@ -72,7 +77,7 @@ export default async function PartiesPage() {
                       {party.name}
                     </Link>
                   </Td>
-                  <Td>{partyTypeLabel(party.type)}</Td>
+                  <Td>{rolesLabel(party.roles)}</Td>
                   <Td>{party.contactPerson ?? ''}</Td>
                   <Td>{party.phone ?? ''}</Td>
                   <Td numeric>{formatTaka(party.openingBalance)}</Td>
@@ -90,7 +95,7 @@ export default async function PartiesPage() {
                   <Td>
                     <div className="flex items-center gap-3">
                       <Link
-                        href={`/${party.type}/statement/${party.id}`}
+                        href={`/${party.roles.customer ? 'customer' : 'subcontractor'}/statement/${party.code ?? party.id}`}
                         className="text-sm text-[var(--color-navy)] hover:underline"
                       >
                         Statement

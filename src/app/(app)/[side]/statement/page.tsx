@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { formatTaka } from '@/lib/format';
 import { Card, EmptyRow, PageTitle, Table, Td, Th } from '@/components/ui';
 import { formatDate } from '@/lib/dates';
 import { listPartyBalances } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
+import { formatBalance } from '@/lib/statement';
 
 export default async function StatementIndexPage({
   params,
@@ -14,13 +14,13 @@ export default async function StatementIndexPage({
   const { side } = await params;
   if (!isSide(side)) notFound();
   const copy = copyFor(side);
-  const balances = await listPartyBalances(side);
+  const balances = await listPartyBalances(copy.role);
 
   return (
     <>
       <PageTitle
-        title="Statements"
-        subtitle={`Open a ${copy.partyWord.toLowerCase()} to print a statement of account for any period.`}
+        title="Party Ledger"
+        subtitle={`Open a ${copy.partyWord.toLowerCase()} for its running ledger, and download the Party Ledger for any period.`}
       />
 
       <Card>
@@ -44,7 +44,7 @@ export default async function StatementIndexPage({
                 <tr key={row.party.id}>
                   <Td>
                     <Link
-                      href={`/${side}/statement/${row.party.id}`}
+                      href={`/${side}/statement/${row.party.code ?? row.party.id}`}
                       className="font-medium text-[var(--color-navy)] hover:underline"
                     >
                       {row.party.name}
@@ -58,13 +58,13 @@ export default async function StatementIndexPage({
                   <Td className="text-[var(--color-muted)]">
                     {formatDate(row.lastActivity)}
                   </Td>
-                  <Td numeric>{formatTaka(row.balance)}</Td>
+                  <Td numeric>{formatBalance(row.balance)}</Td>
                   <Td>
                     <Link
-                      href={`/${side}/statement/${row.party.id}`}
+                      href={`/${side}/statement/${row.party.code ?? row.party.id}`}
                       className="text-sm text-[var(--color-navy)] hover:underline"
                     >
-                      Open Statement
+                      Open Ledger
                     </Link>
                   </Td>
                 </tr>

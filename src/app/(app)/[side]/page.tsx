@@ -15,7 +15,7 @@ export default async function SideOutstandingPage({
   const { side } = await params;
   if (!isSide(side)) notFound();
   const copy = copyFor(side);
-  const balances = await listPartyBalances(side);
+  const balances = await listPartyBalances(copy.role);
 
   const totals = balances.reduce(
     (sum, row) => ({
@@ -80,7 +80,7 @@ export default async function SideOutstandingPage({
                 <tr key={row.party.id}>
                   <Td>
                     <Link
-                      href={`/${side}/statement/${row.party.id}`}
+                      href={`/${side}/statement/${row.party.code ?? row.party.id}`}
                       className="font-medium text-[var(--color-navy)] hover:underline"
                     >
                       {row.party.name}
@@ -103,7 +103,7 @@ export default async function SideOutstandingPage({
                   </Td>
                   <Td>
                     <Link
-                      href={`/${side}/statement/${row.party.id}`}
+                      href={`/${side}/statement/${row.party.code ?? row.party.id}`}
                       className="text-sm text-[var(--color-navy)] hover:underline"
                     >
                       Statement

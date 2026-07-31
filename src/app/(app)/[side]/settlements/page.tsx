@@ -23,9 +23,9 @@ export default async function SettlementsPage({
   const filters = await searchParams;
 
   const [parties, payments] = await Promise.all([
-    listParties({ type: side, includeInactive: true }),
+    listParties({ role: copy.role, includeInactive: true }),
     listPayments({
-      type: side,
+      direction: copy.paymentDirection,
       partyId: filters.party || null,
       from: filters.from || null,
       to: filters.to || null,

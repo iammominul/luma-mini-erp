@@ -1,15 +1,28 @@
-import type { PartyType } from './types';
+import type { BillDirection, PartyRole, PaymentDirection } from './types';
 
 /**
- * The app has two mirror-image sides: what customers owe us, and what we owe
- * subcontractors. The arithmetic is identical, so the pages are shared and only
- * the wording changes. All of that wording lives here.
+ * The two lenses the app is read through, and what each one means.
+ *
+ * A lens is not a property of a party any more. It is a view: which role we are
+ * looking at, and therefore which way a bill or a payment created here runs. A
+ * party who is both a customer and a subcontractor appears under both lenses,
+ * with the documents raised in each keeping their own direction, and one ledger
+ * adding them all up.
+ *
+ * A supplier lens will slot in here when there is a supplier to trade with. It
+ * behaves exactly as the subcontractor lens does: bills received, money out.
  */
 
-export type Side = PartyType;
+export type Side = 'customer' | 'subcontractor';
 
 export type SideCopy = {
   side: Side;
+  /** The party role this lens looks at. */
+  role: PartyRole;
+  /** Which way a bill raised under this lens runs. */
+  billDirection: BillDirection;
+  /** Which way money moves under this lens. */
+  paymentDirection: PaymentDirection;
   partyWord: string;
   partyPlural: string;
   billTitle: string;
@@ -29,6 +42,9 @@ export type SideCopy = {
 const COPY: Record<Side, SideCopy> = {
   customer: {
     side: 'customer',
+    role: 'customer',
+    billDirection: 'issued',
+    paymentDirection: 'in',
     partyWord: 'Customer',
     partyPlural: 'Customers',
     billTitle: 'Customer Bills',
@@ -43,6 +59,9 @@ const COPY: Record<Side, SideCopy> = {
   },
   subcontractor: {
     side: 'subcontractor',
+    role: 'subcontractor',
+    billDirection: 'received',
+    paymentDirection: 'out',
     partyWord: 'Subcontractor',
     partyPlural: 'Subcontractors',
     billTitle: 'Bills Received',

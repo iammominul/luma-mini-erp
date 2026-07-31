@@ -1,14 +1,24 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { amountInWords, formatTaka } from '@/lib/format';
-import { Letterhead, SignatureBlock } from '@/components/Letterhead';
-import { PrintButton } from '@/components/PrintButton';
-import { Card, Table, Td, Th } from '@/components/ui';
+import { formatTaka } from '@/lib/format';
+import {
+  Card,
+  CardHeader,
+  DownloadButton,
+  StatTile,
+  Table,
+  Td,
+  Th,
+} from '@/components/ui';
 import { formatDate, todayInDhaka } from '@/lib/dates';
-import { getParty, listMovements } from '@/lib/queries';
+import { findParty, listMovements } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
-import { buildStatement } from '@/lib/statement';
-import { paymentModeLabel, settlementLabel } from '@/lib/types';
+import {
+  buildStatement,
+  closingLabel,
+  formatBalance,
+  statementLabels,
+} from '@/lib/statement';
 
 type Search = { from?: string; to?: string };
 
@@ -16,6 +26,12 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const clean = (value: string | undefined): string | null =>
   value && DATE_PATTERN.test(value) ? value : null;
 
+/**
+ * The Party Ledger: a running statement, computed on read. It reads the way the
+ * people who receive it expect a ledger to read, Debit and Credit with a running
+ * balance carrying Dr or Cr, and the official copy is the PDF download rather
+ * than a print of this screen.
+ */
 export default async function StatementPage({
   params,
   searchParams,
@@ -27,12 +43,12 @@ export default async function StatementPage({
   if (!isSide(side)) notFound();
   const copy = copyFor(side);
 
-  const [party, movements, filters] = await Promise.all([
-    getParty(partyId),
-    listMovements(partyId),
+  const [party, filters] = await Promise.all([
+    findParty(partyId),
     searchParams,
   ]);
-  if (!party || party.type !== side) notFound();
+  if (!party || !party.roles[copy.role]) notFound();
+  const movements = await listMovements(party.id);
 
   const from = clean(filters.from);
   const to = clean(filters.to);
@@ -42,6 +58,7 @@ export default async function StatementPage({
     from,
     to,
   });
+  const labels = statementLabels(side);
 
   const period =
     from && to
@@ -52,9 +69,82 @@ export default async function StatementPage({
           ? `Up to ${formatDate(to)}`
           : 'All entries to date';
 
+  const query = new URLSearchParams();
+  if (from) query.set('from', from);
+  if (to) query.set('to', to);
+  // Links stay on the handle the URL already carries, so the address bar does
+  // not change under the person using it.
+  const handle = party.code ?? party.id;
+  const pdfHref = `/${side}/statement/${handle}/pdf${
+    query.size > 0 ? `?${query}` : ''
+  }`;
+
+  const billCount = statement.rows.filter((r) => r.kind === 'bill').length;
+  const settlementCount = statement.rows.length - billCount;
+
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3 print:hidden">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold">Party Ledger: {party.name}</h1>
+          <p className="mt-0.5 text-sm text-[var(--color-muted)]">
+            {copy.partyWord} | {period} | As of {formatDate(todayInDhaka())}{' '}
+            (Asia/Dhaka)
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/${side}/bills/new?party=${party.id}`}
+            className="rounded border border-[var(--color-line)] bg-white px-3 py-1.5 text-sm font-medium hover:bg-gray-50"
+          >
+            New {copy.billSingular}
+          </Link>
+          <Link
+            href={`/${side}/settlements/new?party=${party.id}`}
+            className="rounded border border-[var(--color-line)] bg-white px-3 py-1.5 text-sm font-medium hover:bg-gray-50"
+          >
+            New {copy.settlementSingular}
+          </Link>
+          <DownloadButton href={pdfHref}>Party Ledger PDF</DownloadButton>
+        </div>
+      </div>
+
+      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile
+          label={closingLabel(statement.closing)}
+          value={formatBalance(statement.closing)}
+          note={
+            statement.closing.isNegative() ? 'we owe them' : 'they owe us'
+          }
+        />
+        <StatTile
+          label={labels.billed}
+          value={formatTaka(statement.totalBilled)}
+          note={`${billCount} ${billCount === 1 ? 'bill' : 'bills'}`}
+        />
+        <StatTile
+          label={labels.settled}
+          value={formatTaka(statement.totalSettled)}
+          note={`${settlementCount} ${
+            settlementCount === 1
+              ? copy.settlementSingular.toLowerCase()
+              : copy.settlementTitle.toLowerCase()
+          }`}
+        />
+        <StatTile
+          label={labels.opening}
+          value={formatBalance(statement.opening)}
+          note={
+            from
+              ? `carried into ${formatDate(from)}`
+              : party.openingAsOf
+                ? `as of ${formatDate(party.openingAsOf)}`
+                : 'brought forward'
+          }
+        />
+      </div>
+
+      <Card className="mb-4 p-3">
         <form className="flex flex-wrap items-end gap-3">
           <label className="block">
             <span className="mb-1 block text-xs font-medium">From</span>
@@ -78,142 +168,87 @@ export default async function StatementPage({
             Apply
           </button>
           <Link
-            href={`/${side}/statement/${party.id}`}
+            href={`/${side}/statement/${handle}`}
             className="rounded border border-[var(--color-line)] bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
           >
             All Entries
           </Link>
         </form>
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/${side}/bills/new?party=${party.id}`}
-            className="rounded border border-[var(--color-line)] bg-white px-3 py-1.5 text-sm font-medium hover:bg-gray-50"
-          >
-            New {copy.billSingular}
-          </Link>
-          <Link
-            href={`/${side}/settlements/new?party=${party.id}`}
-            className="rounded border border-[var(--color-line)] bg-white px-3 py-1.5 text-sm font-medium hover:bg-gray-50"
-          >
-            New {copy.settlementSingular}
-          </Link>
-          <PrintButton label="Print Statement" />
-        </div>
-      </div>
+      </Card>
 
-      <Card className="mx-auto max-w-5xl p-8 print:max-w-none print:border-0 print:p-0">
-        <Letterhead
-          documentTitle="Statement of Account"
-          meta={[
-            { label: 'Period', value: period },
-            { label: 'Printed On', value: formatDate(todayInDhaka()) },
-          ]}
-        />
-
-        <div className="mt-4 text-sm">
-          <div className="text-xs uppercase tracking-wide text-[var(--color-muted)]">
-            {copy.partyWord}
-          </div>
-          <div className="font-semibold">{party.name}</div>
-          {party.address ? <div>{party.address}</div> : null}
-          {party.phone ? <div>Phone: {party.phone}</div> : null}
-        </div>
-
-        <div className="mt-4 border border-[var(--color-line)]">
-          <Table>
-            <thead>
-              <tr>
-                <Th className="w-28">Date</Th>
-                <Th>Particulars</Th>
-                <Th>Reference</Th>
-                <Th numeric className="w-32">
-                  Bill Amount
-                </Th>
-                <Th numeric className="w-32">
-                  {copy.settlementColumn}
-                </Th>
-                <Th numeric className="w-36">
-                  {copy.balanceWord}
-                </Th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <Td className="whitespace-nowrap">
-                  {formatDate(from) || formatDate(party.openingAsOf)}
+      <Card>
+        <CardHeader title="Ledger Account" />
+        <Table>
+          <thead>
+            <tr>
+              <Th className="w-28">Date</Th>
+              <Th className="w-32">Reference</Th>
+              <Th>Particulars</Th>
+              <Th numeric className="w-32">
+                {labels.debit}
+              </Th>
+              <Th numeric className="w-32">
+                {labels.credit}
+              </Th>
+              <Th numeric className="w-36">
+                {labels.balance}
+              </Th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <Td className="whitespace-nowrap">
+                {formatDate(from) || formatDate(party.openingAsOf)}
+              </Td>
+              <Td />
+              <Td className="font-medium">{labels.opening}</Td>
+              <Td />
+              <Td />
+              <Td numeric className="font-medium">
+                {formatBalance(statement.opening)}
+              </Td>
+            </tr>
+            {statement.rows.map((row) => (
+              <tr key={`${row.kind}-${row.id}`}>
+                <Td className="whitespace-nowrap">{formatDate(row.date)}</Td>
+                <Td className="text-[var(--color-muted)]">
+                  {row.reference ?? ''}
                 </Td>
-                <Td className="font-medium">Opening Balance</Td>
-                <Td />
-                <Td />
-                <Td />
-                <Td numeric className="font-medium">
-                  {formatTaka(statement.opening)}
+                <Td>{row.particulars}</Td>
+                <Td numeric>{row.debit ? formatTaka(row.debit) : ''}</Td>
+                <Td numeric>{row.credit ? formatTaka(row.credit) : ''}</Td>
+                <Td numeric>{formatBalance(row.balance)}</Td>
+              </tr>
+            ))}
+            {statement.rows.length === 0 ? (
+              <tr>
+                <Td
+                  colSpan={6}
+                  className="text-center text-[var(--color-muted)]"
+                >
+                  No entries in this period
                 </Td>
               </tr>
-              {statement.rows.map((row) => (
-                <tr key={`${row.kind}-${row.id}`}>
-                  <Td className="whitespace-nowrap">{formatDate(row.date)}</Td>
-                  <Td>
-                    {row.kind === 'bill'
-                      ? `${copy.billSingular} ${row.particulars}`
-                      : `${settlementLabel(side)} by ${paymentModeLabel(row.particulars)}`}
-                  </Td>
-                  <Td className="text-[var(--color-muted)]">
-                    {row.reference ?? ''}
-                  </Td>
-                  <Td numeric>{row.billed ? formatTaka(row.billed) : ''}</Td>
-                  <Td numeric>{row.settled ? formatTaka(row.settled) : ''}</Td>
-                  <Td numeric>{formatTaka(row.balance)}</Td>
-                </tr>
-              ))}
-              {statement.rows.length === 0 ? (
-                <tr>
-                  <Td
-                    colSpan={6}
-                    className="text-center text-[var(--color-muted)]"
-                  >
-                    No entries in this period
-                  </Td>
-                </tr>
-              ) : null}
-            </tbody>
-            <tfoot>
-              <tr className="bg-[var(--color-canvas)] font-semibold">
-                <Td colSpan={3}>Period Total</Td>
-                <Td numeric>{formatTaka(statement.totalBilled)}</Td>
-                <Td numeric>{formatTaka(statement.totalSettled)}</Td>
-                <Td numeric>{formatTaka(statement.closing)}</Td>
-              </tr>
-            </tfoot>
-          </Table>
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-start justify-between gap-4 text-sm">
-          <div className="max-w-xl">
-            <span className="font-medium">In Words: </span>
-            {amountInWords(statement.closing)}
-          </div>
-          <div className="border border-[var(--color-navy)] px-4 py-2 text-right">
-            <div className="text-xs uppercase tracking-wide text-[var(--color-muted)]">
-              {copy.balanceWord}
-            </div>
-            <div className="text-lg font-semibold">
-              {formatTaka(statement.closing)}
-            </div>
-          </div>
-        </div>
-
+            ) : null}
+          </tbody>
+          <tfoot>
+            <tr className="bg-[var(--color-canvas)] font-semibold">
+              <Td colSpan={3}>Total</Td>
+              <Td numeric>{formatTaka(statement.totalDebit)}</Td>
+              <Td numeric>{formatTaka(statement.totalCredit)}</Td>
+              <Td numeric>{formatBalance(statement.closing)}</Td>
+            </tr>
+          </tfoot>
+        </Table>
         {statement.closing.isNegative() ? (
-          <p className="mt-2 text-xs text-[var(--color-muted)]">
-            A negative balance means an advance is held{' '}
+          <p className="border-t border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-muted)]">
+            This closing balance is an advance held{' '}
             {side === 'customer'
               ? 'from the customer'
               : 'with the subcontractor'}
             .
           </p>
         ) : null}
-
-        <SignatureBlock left="Prepared By" right="Received and Accepted" />
       </Card>
     </>
   );

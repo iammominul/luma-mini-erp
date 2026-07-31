@@ -33,6 +33,69 @@ export function Button({
   );
 }
 
+/**
+ * A download, styled as a button. A plain anchor rather than a Link: the target
+ * is a PDF route that streams a file, and Next's client router would try to
+ * navigate to it.
+ */
+export function DownloadButton({
+  href,
+  children,
+  variant = 'primary',
+}: {
+  href: string;
+  children: ReactNode;
+  variant?: ButtonVariant;
+}) {
+  return (
+    <a
+      href={href}
+      className={`inline-flex items-center justify-center rounded px-3 py-1.5 text-sm font-medium transition-colors ${BUTTON_STYLES[variant]}`}
+    >
+      {children}
+    </a>
+  );
+}
+
+/**
+ * A download, as an icon in a row of actions. One outline glyph, drawn inline:
+ * an icon font or a sprite would be another asset to ship for a single mark.
+ * The label stays in the title and for screen readers, so the action is never
+ * only a shape.
+ */
+export function DownloadIcon({
+  href,
+  label = 'Download PDF',
+}: {
+  href: string;
+  label?: string;
+}) {
+  return (
+    <a
+      href={href}
+      title={label}
+      aria-label={label}
+      className="inline-flex h-7 w-7 items-center justify-center rounded border border-[var(--color-line)] bg-white text-[var(--color-navy)] hover:bg-gray-50"
+    >
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 16 16"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M8 2v8" />
+        <path d="M4.5 7 8 10.5 11.5 7" />
+        <path d="M2.5 13.5h11" />
+      </svg>
+    </a>
+  );
+}
+
 const CONTROL =
   'w-full rounded border border-[var(--color-line)] bg-white px-2.5 py-1.5 text-sm outline-none focus:border-[var(--color-navy)] focus:ring-1 focus:ring-[var(--color-navy)]';
 
@@ -132,10 +195,23 @@ export function PageTitle({
   );
 }
 
-/** A dense bordered data table, the way an accounts screen reads. */
-export function Table({ children }: { children: ReactNode }) {
+/**
+ * A dense bordered data table, the way an accounts screen reads.
+ *
+ * `sticky` keeps the headings in view on a long list. It needs the wrapper to
+ * be the scrolling element, because a horizontally scrolling box cannot also
+ * let a header stick to the page behind it: setting overflow on one axis makes
+ * the browser scroll the other one too.
+ */
+export function Table({
+  children,
+  sticky = false,
+}: {
+  children: ReactNode;
+  sticky?: boolean;
+}) {
   return (
-    <div className="overflow-x-auto">
+    <div className={sticky ? 'max-h-[70vh] overflow-auto' : 'overflow-x-auto'}>
       <table className="w-full border-collapse text-sm">{children}</table>
     </div>
   );
@@ -152,7 +228,7 @@ export function Th({
 }) {
   return (
     <th
-      className={`border-b border-[var(--color-line)] bg-[var(--color-canvas)] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)] ${
+      className={`sticky top-0 z-10 border-b border-[var(--color-line)] bg-[var(--color-canvas)] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)] ${
         numeric ? 'text-right' : 'text-left'
       } ${className}`}
     >

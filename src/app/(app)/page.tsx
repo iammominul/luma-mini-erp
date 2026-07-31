@@ -65,7 +65,7 @@ function OutstandingCard({
               <tr key={row.party.id}>
                 <Td>
                   <Link
-                    href={`/${side}/statement/${row.party.id}`}
+                    href={`/${side}/statement/${row.party.code ?? row.party.id}`}
                     className="text-[var(--color-navy)] hover:underline"
                   >
                     {row.party.name}

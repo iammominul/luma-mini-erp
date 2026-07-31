@@ -1,8 +1,12 @@
 import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { SideNav } from '@/components/SideNav';
-import { copyFor, isSide } from '@/lib/side';
+import { isSide } from '@/lib/side';
 
+/**
+ * Guards the side segment so a bad URL is a 404 rather than a crash deeper in.
+ * Navigation between the two sides is in the left sidebar, which lists both, so
+ * there is no tab strip here.
+ */
 export default async function SideLayout({
   children,
   params,
@@ -12,19 +16,5 @@ export default async function SideLayout({
 }) {
   const { side } = await params;
   if (!isSide(side)) notFound();
-  const copy = copyFor(side);
-
-  return (
-    <>
-      <SideNav
-        items={[
-          { href: `/${side}`, label: 'Outstanding', exact: true },
-          { href: `/${side}/bills`, label: copy.billTitle },
-          { href: `/${side}/settlements`, label: copy.settlementTitle },
-          { href: `/${side}/statement`, label: 'Statements' },
-        ]}
-      />
-      {children}
-    </>
-  );
+  return <>{children}</>;
 }

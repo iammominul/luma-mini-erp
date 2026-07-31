@@ -14,3 +14,9 @@ next-env.d.ts
 
 # test / coverage
 coverage/
+
+# Generated documents and data dumps. These carry real figures, so they stay
+# out of the repo. Keep the backups somewhere off this machine as well: they are
+# the only copy of the book that does not depend on the local Postgres.
+sample-pdfs/
+backups/

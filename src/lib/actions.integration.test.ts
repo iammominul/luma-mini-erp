@@ -46,9 +46,14 @@ async function expectRedirect(
   }
 }
 
-function form(fields: Record<string, string>): FormData {
+function form(fields: Record<string, string | string[]>): FormData {
   const data = new FormData();
-  for (const [key, value] of Object.entries(fields)) data.append(key, value);
+  for (const [key, value] of Object.entries(fields)) {
+    // A repeated field, such as the party's roles, posts once per value.
+    for (const one of Array.isArray(value) ? value : [value]) {
+      data.append(key, one);
+    }
+  }
   return data;
 }
 
@@ -91,8 +96,8 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
       createPartyAction(
         {},
         form({
-          name: 'Meghna Knitwear',
-          type: 'customer',
+          name: 'Bangla Japan Trading Ltd.',
+          roles: ['customer'],
           contactPerson: 'Mr Hasan',
           phone: '01900000000',
           address: 'Ashulia',
@@ -103,7 +108,7 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
     );
 
     const [customer] = await listPartyBalances('customer');
-    expect(customer!.party.name).toBe('Meghna Knitwear');
+    expect(customer!.party.name).toBe('Bangla Japan Trading Ltd.');
 
     // The bill form posts its line grid as JSON in a hidden field.
     const target = await expectRedirect(() =>
@@ -112,33 +117,60 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
         form({
           side: 'customer',
           partyId: customer!.party.id,
+          direction: 'issued',
+          status: 'posted' as const,
+          billNo: '1105',
+          bookNo: '7',
           billDate: '2026-07-08',
-          reference: 'Challan 2201',
+          reference: '',
           notes: 'July program',
           linesJson: JSON.stringify([
             {
-              description: 'Red, Lot 31, Tube',
-              qtyKg: '640.250',
+              description: 'S/J 100% Cotton, Lot 31',
+              fabricType: 'S/J',
+              color: 'Red',
+              challanNo: '2201',
+              orderNo: 'MK-14',
+              greyKg: '640.250',
+              finishedKg: '622.500',
               rate: '48.75',
             },
-            { description: 'Grey Melange, Lot 32', qtyKg: '210', rate: '39.5' },
+            {
+              description: '1x1 Rib, Lot 32',
+              fabricType: '1x1 Rib',
+              color: 'Grey Melange',
+              challanNo: '2202',
+              orderNo: 'MK-14',
+              greyKg: '210',
+              finishedKg: '',
+              rate: '39.5',
+            },
           ]),
         }),
       ),
     );
 
-    const bills = await listBills({ type: 'customer' });
+    const { bills } = await listBills({ direction: 'issued' });
     expect(bills).toHaveLength(1);
     expect(target).toBe(`/customer/bills/${bills[0]!.id}`);
     // 640.25 x 48.75 = 31212.19 (rounded half up from 31212.1875), 210 x 39.5 = 8295
     expect(bills[0]!.total.toDecimalString()).toBe('39507.19');
-    expect(bills[0]!.billNo).toBe('CB-26-0001');
+    expect(bills[0]!.billNo).toBe('1105');
+    expect(bills[0]!.bookNo).toBe('7');
+    expect(bills[0]!.docNo).toBe('CB-26-0001');
 
     const bill = await getBill(bills[0]!.id);
     expect(bill!.lines.map((line) => line.amount.toDecimalString())).toEqual([
       '31212.19',
       '8295.00',
     ]);
+    expect(bill!.lines[0]!.fabricType).toBe('S/J');
+    expect(bill!.lines[0]!.color).toBe('Red');
+    expect(bill!.lines[0]!.challanNo).toBe('2201');
+    expect(bill!.lines[0]!.orderNo).toBe('MK-14');
+    expect(bill!.lines[0]!.finishedKg).toBe('622.500');
+    // An empty finished weight in the grid is stored as absent, not as zero.
+    expect(bill!.lines[1]!.finishedKg).toBeNull();
 
     // An edit without a reason is refused rather than silently accepted.
     const refused = await updateBillAction(
@@ -147,13 +179,54 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
         side: 'customer',
         id: bill!.id,
         partyId: customer!.party.id,
+        direction: 'issued',
+        status: 'posted' as const,
+        billNo: '1105',
+        bookNo: '7',
         billDate: '2026-07-08',
         linesJson: JSON.stringify([
-          { description: 'Red, Lot 31, Tube', qtyKg: '640.250', rate: '50' },
+          {
+            description: 'S/J 100% Cotton, Lot 31',
+            fabricType: 'S/J',
+            color: 'Red',
+            challanNo: '2201',
+            orderNo: 'MK-14',
+            greyKg: '640.250',
+            finishedKg: '',
+            rate: '50',
+          },
         ]),
       }),
     );
     expect(refused.error).toBe('State why this bill is being edited.');
+
+    // A bill with no hand-written number is refused: it is the number the
+    // customer holds on paper, so it cannot be left off.
+    const noBillNo = await createBillAction(
+      {},
+      form({
+        side: 'customer',
+        partyId: customer!.party.id,
+        direction: 'issued',
+        status: 'posted' as const,
+        billNo: '',
+        bookNo: '7',
+        billDate: '2026-07-09',
+        linesJson: JSON.stringify([
+          {
+            description: 'Black, Lot 40',
+            fabricType: '',
+            color: '',
+            challanNo: '',
+            orderNo: '',
+            greyKg: '100',
+            finishedKg: '',
+            rate: '40',
+          },
+        ]),
+      }),
+    );
+    expect(noBillNo.error).toMatch(/bill number/i);
 
     // The receipt form posts these names.
     await expectRedirect(() =>
@@ -162,6 +235,8 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
         form({
           side: 'customer',
           partyId: customer!.party.id,
+          direction: 'issued',
+          status: 'posted' as const,
           paidOn: '2026-07-25',
           amount: '30000.00',
           mode: 'bank_transfer',
@@ -171,7 +246,7 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
       ),
     );
 
-    const payments = await listPayments({ type: 'customer' });
+    const payments = await listPayments({ direction: 'in' });
     expect(payments).toHaveLength(1);
     expect(payments[0]!.mode).toBe('bank_transfer');
 
@@ -192,7 +267,7 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
         form({ side: 'customer', id: bill!.id, reason: 'Billed twice' }),
       ),
     );
-    expect(await listBills({ type: 'customer' })).toHaveLength(0);
+    expect((await listBills({ direction: 'issued' })).bills).toHaveLength(0);
   }, 60_000);
 
   it('reports a bad amount back to the form instead of throwing', async () => {
@@ -206,6 +281,8 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
       form({
         side: 'customer',
         partyId: customer!.party.id,
+        direction: 'issued',
+        status: 'posted' as const,
         paidOn: '2026-07-25',
         amount: '0',
         mode: 'cash',
@@ -218,6 +295,8 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
       form({
         side: 'customer',
         partyId: customer!.party.id,
+        direction: 'issued',
+        status: 'posted' as const,
         paidOn: '2026-13-40',
         amount: '100.00',
         mode: 'cash',

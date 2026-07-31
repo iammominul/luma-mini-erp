@@ -19,8 +19,9 @@ function text(formData: FormData, key: string): string {
 
 function readParty(formData: FormData) {
   return partyFormSchema.safeParse({
+    code: text(formData, 'code'),
     name: text(formData, 'name'),
-    type: text(formData, 'type'),
+    roles: formData.getAll('roles').map(String),
     contactPerson: text(formData, 'contactPerson'),
     phone: text(formData, 'phone'),
     address: text(formData, 'address'),

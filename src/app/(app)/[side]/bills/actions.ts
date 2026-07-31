@@ -6,6 +6,7 @@ import {
   InputError,
   createBill,
   deleteBill,
+  postBill,
   updateBill,
 } from '@/lib/mutations';
 import { billFormSchema, deleteSchema, firstError } from '@/lib/schemas';
@@ -35,9 +36,14 @@ function readLines(formData: FormData): unknown {
 function readBill(formData: FormData) {
   return billFormSchema.safeParse({
     partyId: text(formData, 'partyId'),
+    direction: sideOf(formData) === 'customer' ? 'issued' : 'received',
+    status: text(formData, 'status') === 'draft' ? 'draft' : 'posted',
     billNo: text(formData, 'billNo'),
+    bookNo: text(formData, 'bookNo'),
+    natureOfWork: text(formData, 'natureOfWork') || 'dyeing_finishing',
     billDate: text(formData, 'billDate'),
     reference: text(formData, 'reference'),
+    narration: text(formData, 'narration'),
     notes: text(formData, 'notes'),
     reason: text(formData, 'reason'),
     lines: readLines(formData),
@@ -83,6 +89,23 @@ export async function updateBillAction(
 
   try {
     await updateBill(id, parsed.data);
+  } catch (error) {
+    return { error: message(error) };
+  }
+
+  revalidatePath('/', 'layout');
+  redirect(`/${side}/bills/${id}`);
+}
+
+export async function postBillAction(
+  _previous: BillFormState,
+  formData: FormData,
+): Promise<BillFormState> {
+  const side = sideOf(formData);
+  const id = text(formData, 'id');
+
+  try {
+    await postBill(id);
   } catch (error) {
     return { error: message(error) };
   }

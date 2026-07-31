@@ -18,7 +18,7 @@ export default async function NewSettlementPage({
   if (!isSide(side)) notFound();
   const copy = copyFor(side);
   const { party } = await searchParams;
-  const parties = await listParties({ type: side });
+  const parties = await listParties({ role: copy.role });
 
   return (
     <>
@@ -44,6 +44,7 @@ export default async function NewSettlementPage({
           cancelHref={`/${side}/settlements`}
           values={{
             partyId: party ?? '',
+            narration: '',
             paidOn: todayInDhaka(),
             amount: '',
             mode: 'cash',

@@ -2,13 +2,15 @@
 
 import Link from 'next/link';
 import { useActionState } from 'react';
-import { Button, Field, Notice, Select, Textarea, TextInput } from './ui';
+import { PARTY_ROLES } from '@/lib/types';
+import { Button, Field, Notice, Textarea, TextInput } from './ui';
 
 export type PartyFormState = { error?: string };
 
 export type PartyFormValues = {
+  code: string;
   name: string;
-  type: string;
+  roles: string[];
   contactPerson: string;
   phone: string;
   address: string;
@@ -22,7 +24,6 @@ export function PartyForm({
   submitLabel,
   cancelHref,
   partyId,
-  lockType = false,
 }: {
   action: (
     state: PartyFormState,
@@ -32,8 +33,6 @@ export function PartyForm({
   submitLabel: string;
   cancelHref?: string;
   partyId?: string;
-  /** A party type is immutable once set, the same as in the real ERP. */
-  lockType?: boolean;
 }) {
   const [state, submit, pending] = useActionState<PartyFormState, FormData>(
     action,
@@ -43,11 +42,25 @@ export function PartyForm({
   return (
     <form action={submit} className="space-y-4">
       {partyId ? <input type="hidden" name="id" value={partyId} /> : null}
-      {lockType ? (
-        <input type="hidden" name="type" value={values.type} />
-      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Field
+          label="Party Code"
+          hint={
+            partyId
+              ? 'The key this party is known by.'
+              : 'Left blank, the system assigns the next one.'
+          }
+        >
+          <TextInput
+            name="code"
+            defaultValue={values.code}
+            maxLength={20}
+            placeholder="Assigned on save"
+            autoComplete="off"
+          />
+        </Field>
+
         <Field label="Name">
           <TextInput
             name="name"
@@ -58,18 +71,25 @@ export function PartyForm({
         </Field>
 
         <Field
-          label="Type"
-          hint={lockType ? 'A party type cannot be changed.' : undefined}
+          label="Roles"
+          hint="A party can hold more than one. A role that has been traded under cannot be removed."
         >
-          <Select
-            name={lockType ? 'typeDisplay' : 'type'}
-            defaultValue={values.type}
-            disabled={lockType}
-            required
-          >
-            <option value="customer">Customer</option>
-            <option value="subcontractor">Subcontractor</option>
-          </Select>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
+            {PARTY_ROLES.map((role) => (
+              <label
+                key={role.value}
+                className="flex items-center gap-1.5 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  name="roles"
+                  value={role.value}
+                  defaultChecked={values.roles.includes(role.value)}
+                />
+                {role.label}
+              </label>
+            ))}
+          </div>
         </Field>
 
         <Field label="Contact Person">

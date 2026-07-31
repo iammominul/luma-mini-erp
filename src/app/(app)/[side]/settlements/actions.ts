@@ -26,10 +26,12 @@ function sideOf(formData: FormData): string {
 function readPayment(formData: FormData) {
   return paymentFormSchema.safeParse({
     partyId: text(formData, 'partyId'),
+    direction: sideOf(formData) === 'customer' ? 'in' : 'out',
     paidOn: text(formData, 'paidOn'),
     amount: text(formData, 'amount'),
     mode: text(formData, 'mode'),
     reference: text(formData, 'reference'),
+    narration: text(formData, 'narration'),
     notes: text(formData, 'notes'),
     reason: text(formData, 'reason'),
   });

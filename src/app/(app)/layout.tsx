@@ -12,9 +12,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const readiness = await checkReady();
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen">
       <AppNav companyName={company().name} signOut={signOutAction} />
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-6 print:max-w-none print:px-0 print:py-0">
+      <main className="min-w-0 flex-1 overflow-x-auto px-6 py-6">
         {readiness.ok ? (
           children
         ) : (
@@ -22,7 +22,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <h1 className="text-lg font-semibold">Setup Needed</h1>
             <Notice tone="error">{readiness.message}</Notice>
             <p className="text-sm text-[var(--color-muted)]">
-              The steps are listed in interim-billing/README.md.
+              The steps are listed in README.md.
             </p>
           </div>
         )}

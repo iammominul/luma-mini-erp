@@ -18,13 +18,13 @@ export default async function NewBillPage({
   if (!isSide(side)) notFound();
   const copy = copyFor(side);
   const { party } = await searchParams;
-  const parties = await listParties({ type: side });
+  const parties = await listParties({ role: copy.role });
 
   return (
     <>
       <PageTitle
         title={`New ${copy.billSingular}`}
-        subtitle={`Weight times rate per line. The total is computed here, not typed.`}
+        subtitle="Enter it as the paper bill reads. Rate per kg on the grey weight, and the total is computed rather than typed."
       />
 
       {parties.length === 0 ? (
@@ -44,7 +44,11 @@ export default async function NewBillPage({
           cancelHref={`/${side}/bills`}
           values={{
             partyId: party ?? '',
+            status: 'posted',
+            natureOfWork: 'dyeing_finishing',
+            narration: '',
             billNo: '',
+            bookNo: '',
             billDate: todayInDhaka(),
             reference: '',
             notes: '',
