@@ -120,6 +120,20 @@ those rows have to give way to the ones carrying the real position. Load without
 it and the next customer bill is issued as number one again, against a series
 where that number is already taken.
 
+Then put the search path back:
+
+```bash
+psql "$DATABASE_URL" -c 'ALTER DATABASE "your-db-name" SET search_path = "$user", public;'
+```
+
+A pg_dump file begins by setting `search_path` to nothing, so that its own
+qualified names are the only ones that resolve. Against a pooled Neon endpoint
+that setting outlives the load: pgbouncer hands the same backend to whoever
+connects next, and they inherit the empty path. Every query in this app names
+tables unqualified, so the symptom is `relation "bill" does not exist` on a
+database whose tables are plainly there. The `ALTER` fixes it for new connections;
+any backend already carrying the empty value drops out as the pooler recycles it.
+
 Afterwards, check the closing balance on a statement against the same statement
 from the old database before anyone bills against it. `book.sql` holds real
 figures, so delete it once the numbers agree.
