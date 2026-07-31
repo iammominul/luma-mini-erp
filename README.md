@@ -96,6 +96,34 @@ Open the deployment URL, sign in with `APP_PASSWORD`, then:
    right; every statement is built on them.
 2. Start entering bills and receipts as they happen.
 
+### 6. Moving a book that already exists
+
+Skip this if you are starting from nothing. If bills were already entered against
+a local database, copy the data across rather than typing it again. Dump it in
+this table order, which is the order the foreign keys allow:
+
+```bash
+for t in party counter bill bill_line payment activity_log; do
+  pg_dump "$LOCAL_URL" --data-only --no-owner --no-privileges --column-inserts -t "public.$t"
+done > book.sql
+```
+
+Then load it into the Neon database, **after** `pnpm db:setup` has run there:
+
+```bash
+psql "$DATABASE_URL" -c "delete from counter;"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f book.sql
+```
+
+The `delete` is not optional. `db/schema.sql` seeds the counters at zero, and
+those rows have to give way to the ones carrying the real position. Load without
+it and the next customer bill is issued as number one again, against a series
+where that number is already taken.
+
+Afterwards, check the closing balance on a statement against the same statement
+from the old database before anyone bills against it. `book.sql` holds real
+figures, so delete it once the numbers agree.
+
 ---
 
 ## How it is put together

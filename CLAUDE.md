@@ -60,7 +60,7 @@ users. Do not build for more.
 
 ## 3. Where code goes
 
-```
+```text
 src/lib/          The engine. money.ts, format.ts, amount.ts and statement.ts are
                   pure: no database, no framework, fully tested.
                   queries.ts reads, mutations.ts writes, and nothing else does.
@@ -72,8 +72,8 @@ src/app/          Pages (server components) and server actions. Thin: read,
                   render, or validate and call a mutation. A `pdf/route.ts`
                   streams a document as a download.
 src/components/   Presentation. Client components only where a form needs state.
-assets/           Bundled at runtime, not imported: the Roboto faces pdfmake
-                  needs and the letterhead logo. Both are named in
+assets/           Bundled at runtime, not imported: the IBM Plex Sans faces
+                  pdfmake needs and the letterhead logo. Both are named in
                   next.config.ts outputFileTracingIncludes, or they are missing
                   on Vercel and every PDF route fails there while working locally.
 db/schema.sql     The whole schema, idempotent: current shape first, then guarded
@@ -125,7 +125,7 @@ formatters. Do not "improve" them here. If one has a bug, fix it in both.
 
 | Command          | Does                                             |
 | ---------------- | ------------------------------------------------ |
-| `pnpm dev`       | Run locally on http://localhost:5174             |
+| `pnpm dev`       | Run locally on `http://localhost:5174`           |
 | `pnpm build`     | Production build                                 |
 | `pnpm typecheck` | Typecheck                                        |
 | `pnpm test`      | Unit tests (integration tests skip without a DB) |
