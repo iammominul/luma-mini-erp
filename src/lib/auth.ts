@@ -6,7 +6,8 @@
  * The cookie carries an issue time and an HMAC over it, so a cookie cannot be
  * forged without SESSION_SECRET and it stops working after SESSION_DAYS.
  * Web Crypto is used rather than node:crypto because the same check runs in
- * middleware, which is not a Node runtime.
+ * src/proxy.ts, which is not a Node runtime. (Next 16 renamed middleware to
+ * proxy; the file is the same thing under the new name.)
  */
 
 export const SESSION_COOKIE = 'luma_interim_session';

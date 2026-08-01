@@ -1,5 +1,6 @@
 import { Money } from './money';
 import { formatTaka } from './format';
+import type { PartyRole } from './types';
 
 /**
  * Party ledger assembly. Pure: dates are 'YYYY-MM-DD' text and amounts are
@@ -159,8 +160,10 @@ export function formatBalance(balance: Money): string {
  * Wording for the view a ledger is being read through. The arithmetic no longer
  * differs by side, only what the money is called: a customer pays us, we pay a
  * subcontractor, and the closing label follows the balance rather than the view.
+ *
+ * A supplier reads as a subcontractor does: we owe them, so we pay.
  */
-export function statementLabels(lens: 'customer' | 'subcontractor') {
+export function statementLabels(lens: PartyRole) {
   return {
     debit: 'Debit',
     credit: 'Credit',

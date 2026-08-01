@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { formatTaka } from '@/lib/format';
 import {
   Card,
@@ -11,6 +11,7 @@ import {
   Th,
 } from '@/components/ui';
 import { formatDate, todayInDhaka } from '@/lib/dates';
+import { isUuid } from '@/lib/ids';
 import { findParty, listMovements } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
 import {
@@ -48,17 +49,30 @@ export default async function StatementPage({
     searchParams,
   ]);
   if (!party || !party.roles[copy.role]) notFound();
-  const movements = await listMovements(party.id);
 
   const from = clean(filters.from);
   const to = clean(filters.to);
+
+  // One ledger, one address. An id still resolves for the sake of links already
+  // sent out, and hands the reader on to the code, keeping the period it asked
+  // for so a dated statement does not silently widen to everything.
+  if (isUuid(partyId) && party.code) {
+    const carried = new URLSearchParams();
+    if (from) carried.set('from', from);
+    if (to) carried.set('to', to);
+    permanentRedirect(
+      `/${side}/statement/${party.code}${carried.size > 0 ? `?${carried}` : ''}`,
+    );
+  }
+
+  const movements = await listMovements(party.id);
   const statement = buildStatement({
     openingBalance: party.openingBalance,
     movements,
     from,
     to,
   });
-  const labels = statementLabels(side);
+  const labels = statementLabels(copy.role);
 
   const period =
     from && to
@@ -243,7 +257,7 @@ export default async function StatementPage({
         {statement.closing.isNegative() ? (
           <p className="border-t border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-muted)]">
             This closing balance is an advance held{' '}
-            {side === 'customer'
+            {copy.role === 'customer'
               ? 'from the customer'
               : 'with the subcontractor'}
             .

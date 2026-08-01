@@ -55,6 +55,22 @@ users. Do not build for more.
    `.env.example` current.
 9. **Nothing here is LUMA specific.** Company name, address and contact all come
    from environment variables and print on the letterhead.
+10. **A URL names a record the way a person does.** A row's UUID is what foreign
+    keys point at; it is not an address. What goes in the URL is the business
+    key, because a URL gets read aloud, pasted into an email, and recognized on
+    a screen: `/parties/CUS-0001`, `/customers/bills/CB-26-0113`. A bill received
+    keeps its id, because the subcontractor's paper number is unique only within
+    that subcontractor and so cannot name a bill on its own.
+    The UUID still resolves, always, so nothing already sent out breaks. It
+    answers with a permanent redirect to the business key rather than serving the
+    page, because one record has one address.
+    Collections are plural and consistent: `/parties`, `/customers/bills`,
+    `/subcontractors/settlements`. The lens in a URL is plural; the party role it
+    looks at stays singular. Old singular URLs redirect in `src/proxy.ts`.
+11. **A wrong address is a 404, never a 500.** Every id reaches Postgres through
+    a `::uuid` cast, and that cast throws on anything the wrong shape. Guard with
+    `isUuid` from `src/lib/ids.ts` before the query, and let the page call
+    `notFound()`. A mistyped bill number is an ordinary event, not a fault.
 
 ---
 

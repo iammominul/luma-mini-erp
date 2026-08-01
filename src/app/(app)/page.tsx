@@ -120,8 +120,8 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <OutstandingCard side="customer" balances={customers} />
-        <OutstandingCard side="subcontractor" balances={subcontractors} />
+        <OutstandingCard side="customers" balances={customers} />
+        <OutstandingCard side="subcontractors" balances={subcontractors} />
       </div>
 
       <Card className="mt-4">

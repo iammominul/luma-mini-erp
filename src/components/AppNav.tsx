@@ -21,19 +21,19 @@ const GROUPS: NavGroup[] = [
   {
     domain: 'Customers',
     items: [
-      { href: '/customer', label: 'Overview', exact: true },
-      { href: '/customer/bills', label: 'Customer Bills' },
-      { href: '/customer/settlements', label: 'Money Receipts' },
-      { href: '/customer/statement', label: 'Party Ledger' },
+      { href: '/customers', label: 'Overview', exact: true },
+      { href: '/customers/bills', label: 'Customer Bills' },
+      { href: '/customers/settlements', label: 'Money Receipts' },
+      { href: '/customers/statement', label: 'Party Ledger' },
     ],
   },
   {
     domain: 'Subcontractors',
     items: [
-      { href: '/subcontractor', label: 'Overview', exact: true },
-      { href: '/subcontractor/bills', label: 'Bills Received' },
-      { href: '/subcontractor/settlements', label: 'Payments' },
-      { href: '/subcontractor/statement', label: 'Party Ledger' },
+      { href: '/subcontractors', label: 'Overview', exact: true },
+      { href: '/subcontractors/bills', label: 'Bills Received' },
+      { href: '/subcontractors/settlements', label: 'Payments' },
+      { href: '/subcontractors/statement', label: 'Party Ledger' },
     ],
   },
   {

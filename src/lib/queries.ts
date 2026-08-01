@@ -1,5 +1,6 @@
 import { Money } from './money';
 import { db } from './db';
+import { isDocNo, isUuid } from './ids';
 import type { Movement } from './statement';
 import {
   type ActivityEntry,
@@ -77,14 +78,12 @@ export async function listParties(options: {
   return rows.map(toParty);
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /**
  * A party by whichever handle a URL carries: its code, which is what the app
  * puts in a link, or its id, which is what older links and bookmarks hold.
  */
 export async function findParty(handle: string): Promise<Party | null> {
-  if (UUID.test(handle)) return getParty(handle);
+  if (isUuid(handle)) return getParty(handle);
 
   const sql = db();
   const rows = (await sql`
@@ -98,6 +97,9 @@ export async function findParty(handle: string): Promise<Party | null> {
 }
 
 export async function getParty(id: string): Promise<Party | null> {
+  // A URL can carry anything. Without this the ::uuid cast below throws, and a
+  // mistyped address answers with a server error instead of a missing page.
+  if (!isUuid(id)) return null;
   const sql = db();
   const rows = (await sql`
     SELECT id, code, name, is_customer, is_subcontractor, is_supplier,
@@ -318,7 +320,32 @@ export async function listBills(options: {
   };
 }
 
+/**
+ * A bill by whichever handle a URL carries.
+ *
+ * A customer bill is addressed by its system number, `CB-26-0113`: that series
+ * is gapless and unique across the whole book, so it names one bill and reads as
+ * a bill number to the person looking at it. A bill received has no such number.
+ * Its identity is the subcontractor's own paper number, which is only unique
+ * within that subcontractor, so it cannot name a bill on its own and the id
+ * stays the address on that side.
+ *
+ * The id is always accepted, whichever side it is, so no existing link breaks.
+ */
+export async function findBill(handle: string): Promise<Bill | null> {
+  if (isUuid(handle)) return getBill(handle);
+  if (!isDocNo(handle)) return null;
+
+  const sql = db();
+  const rows = (await sql`
+    SELECT id::text AS id FROM bill WHERE upper(doc_no) = upper(${handle}::text)
+  `) as Row[];
+  const row = rows[0];
+  return row ? getBill(text(row.id)) : null;
+}
+
 export async function getBill(id: string): Promise<Bill | null> {
+  if (!isUuid(id)) return null;
   const sql = db();
   const [billRows, lineRows] = (await Promise.all([
     sql`
@@ -450,6 +477,7 @@ export async function listPayments(options: {
 }
 
 export async function getPayment(id: string): Promise<Payment | null> {
+  if (!isUuid(id)) return null;
   const sql = db();
   const rows = (await sql`
     SELECT payment.id, payment.party_id, party.name AS party_name,
@@ -480,6 +508,7 @@ export async function getPayment(id: string): Promise<Payment | null> {
  * money receipt or transfer reference on a settlement.
  */
 export async function listMovements(partyId: string): Promise<Movement[]> {
+  if (!isUuid(partyId)) return [];
   const sql = db();
   const rows = (await sql`
     SELECT b.id::text AS id, 'bill' AS kind,
@@ -567,6 +596,7 @@ function settlementParticulars(
 export async function earliestActivity(
   partyId: string,
 ): Promise<string | null> {
+  if (!isUuid(partyId)) return null;
   const sql = db();
   const rows = (await sql`
     SELECT to_char(MIN(d), 'YYYY-MM-DD') AS earliest FROM (

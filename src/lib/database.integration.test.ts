@@ -623,4 +623,68 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
     const activeOnly = await listParties({ role: 'customer' });
     expect(activeOnly.some((p) => p.id === id)).toBe(false);
   }, 60_000);
+
+  it('finds a party and a bill by the handle a URL carries', async () => {
+    const { createBill, createParty } = await import('./mutations');
+    const { findBill, findParty, getBill, getParty } = await import('./queries');
+
+    const partyId = await createParty({
+      code: null,
+      name: 'Handle Test Textiles Ltd',
+      roles: ['customer'],
+      contactPerson: null,
+      phone: null,
+      address: null,
+      openingBalance: '0',
+      openingAsOf: '2026-07-01',
+    });
+    const party = (await getParty(partyId))!;
+    expect(party.code).toMatch(/^CUS-\d{4,}$/);
+
+    // The code is what a link carries, the id is what older links carry, and
+    // both have to land on the same party.
+    expect((await findParty(party.code!))!.id).toBe(partyId);
+    expect((await findParty(partyId))!.id).toBe(partyId);
+    expect((await findParty(party.code!.toLowerCase()))!.id).toBe(partyId);
+
+    const billId = await createBill({
+      partyId,
+      direction: 'issued',
+      status: 'posted',
+      billNo: 'HANDLE-1',
+      bookNo: '9',
+      natureOfWork: 'dyeing_finishing',
+      billDate: '2026-07-15',
+      reference: null,
+      narration: null,
+      notes: null,
+      reason: null,
+      lines: [
+        {
+          description: 'Handle test',
+          fabricType: null,
+          color: null,
+          challanNo: null,
+          orderNo: null,
+          greyKg: '10',
+          finishedKg: null,
+          rate: '10',
+        },
+      ],
+    });
+    const docNo = (await getBill(billId))!.docNo!;
+    expect(docNo).toMatch(/^CB-\d{2}-\d{4,}$/);
+    expect((await findBill(docNo))!.id).toBe(billId);
+    expect((await findBill(docNo.toLowerCase()))!.id).toBe(billId);
+    expect((await findBill(billId))!.id).toBe(billId);
+
+    // A handle that is neither shape must answer "no such record" rather than
+    // reaching Postgres and throwing out of a ::uuid cast.
+    for (const junk of ['nonsense', '', 'CUS-0001-x', "'; drop table bill; --"]) {
+      await expect(findParty(junk)).resolves.toBeNull();
+      await expect(findBill(junk)).resolves.toBeNull();
+      await expect(getParty(junk)).resolves.toBeNull();
+      await expect(getBill(junk)).resolves.toBeNull();
+    }
+  }, 60_000);
 });

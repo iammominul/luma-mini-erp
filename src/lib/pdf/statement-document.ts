@@ -13,7 +13,7 @@ import {
   type Statement,
   statementLabels,
 } from '../statement';
-import type { Party } from '../types';
+import type { Party, PartyRole } from '../types';
 import { rolesLabel } from '../types';
 import {
   buildDocument,
@@ -58,7 +58,7 @@ export function buildStatementDocument({
   from: string | null;
   to: string | null;
   /** Which view the ledger is read through. Wording only: the sums do not differ. */
-  lens: 'customer' | 'subcontractor';
+  lens: PartyRole;
   /**
    * The party's earliest activity, used to state the real span an unbounded
    * statement covers. A statement that calls its period "all entries to date"

@@ -152,7 +152,7 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
 
     const { bills } = await listBills({ direction: 'issued' });
     expect(bills).toHaveLength(1);
-    expect(target).toBe(`/customer/bills/${bills[0]!.id}`);
+    expect(target).toBe(`/customers/bills/${bills[0]!.id}`);
     // 640.25 x 48.75 = 31212.19 (rounded half up from 31212.1875), 210 x 39.5 = 8295
     expect(bills[0]!.total.toDecimalString()).toBe('39507.19');
     expect(bills[0]!.billNo).toBe('1105');

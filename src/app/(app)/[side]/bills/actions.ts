@@ -10,7 +10,7 @@ import {
   updateBill,
 } from '@/lib/mutations';
 import { billFormSchema, deleteSchema, firstError } from '@/lib/schemas';
-import { isSide } from '@/lib/side';
+import { type Side, copyFor, isSide } from '@/lib/side';
 import { z } from 'zod';
 
 export type BillFormState = { error?: string };
@@ -19,9 +19,9 @@ function text(formData: FormData, key: string): string {
   return String(formData.get(key) ?? '').trim();
 }
 
-function sideOf(formData: FormData): string {
+function sideOf(formData: FormData): Side {
   const side = text(formData, 'side');
-  return isSide(side) ? side : 'customer';
+  return isSide(side) ? side : 'customers';
 }
 
 /** The line grid is posted as JSON, so a line never gets split across keys. */
@@ -36,7 +36,7 @@ function readLines(formData: FormData): unknown {
 function readBill(formData: FormData) {
   return billFormSchema.safeParse({
     partyId: text(formData, 'partyId'),
-    direction: sideOf(formData) === 'customer' ? 'issued' : 'received',
+    direction: copyFor(sideOf(formData)).billDirection,
     status: text(formData, 'status') === 'draft' ? 'draft' : 'posted',
     billNo: text(formData, 'billNo'),
     bookNo: text(formData, 'bookNo'),

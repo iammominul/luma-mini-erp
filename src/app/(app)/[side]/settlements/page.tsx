@@ -2,7 +2,15 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { formatTaka } from '@/lib/format';
 import { sumMoney } from '@/lib/amount';
-import { Card, EmptyRow, PageTitle, Table, Td, Th } from '@/components/ui';
+import {
+  Card,
+  DownloadIcon,
+  EmptyRow,
+  PageTitle,
+  Table,
+  Td,
+  Th,
+} from '@/components/ui';
 import { formatDate } from '@/lib/dates';
 import { listParties, listPayments } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
@@ -39,7 +47,7 @@ export default async function SettlementsPage({
       <PageTitle
         title={copy.settlementTitle}
         subtitle={
-          side === 'customer'
+          copy.role === 'customer'
             ? 'Money received from customers against their bills.'
             : 'Money paid to subcontractors against their bills.'
         }
@@ -132,12 +140,18 @@ export default async function SettlementsPage({
                   </Td>
                   <Td numeric>{formatTaka(payment.amount)}</Td>
                   <Td>
-                    <Link
-                      href={`/${side}/settlements/${payment.id}/edit`}
-                      className="text-sm text-[var(--color-navy)] hover:underline"
-                    >
-                      Edit
-                    </Link>
+                    <div className="flex items-center gap-1.5">
+                      <Link
+                        href={`/${side}/settlements/${payment.id}`}
+                        className="rounded border border-[var(--color-line)] bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50"
+                      >
+                        Open
+                      </Link>
+                      <DownloadIcon
+                        href={`/${side}/settlements/${payment.id}/pdf`}
+                        label={`Download ${copy.settlementSingular} ${formatDate(payment.paidOn)}`}
+                      />
+                    </div>
                   </Td>
                 </tr>
               ))

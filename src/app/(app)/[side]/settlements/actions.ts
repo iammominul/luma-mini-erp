@@ -10,7 +10,7 @@ import {
   updatePayment,
 } from '@/lib/mutations';
 import { deleteSchema, firstError, paymentFormSchema } from '@/lib/schemas';
-import { isSide } from '@/lib/side';
+import { type Side, copyFor, isSide } from '@/lib/side';
 
 export type PaymentFormState = { error?: string };
 
@@ -18,15 +18,15 @@ function text(formData: FormData, key: string): string {
   return String(formData.get(key) ?? '').trim();
 }
 
-function sideOf(formData: FormData): string {
+function sideOf(formData: FormData): Side {
   const side = text(formData, 'side');
-  return isSide(side) ? side : 'customer';
+  return isSide(side) ? side : 'customers';
 }
 
 function readPayment(formData: FormData) {
   return paymentFormSchema.safeParse({
     partyId: text(formData, 'partyId'),
-    direction: sideOf(formData) === 'customer' ? 'in' : 'out',
+    direction: copyFor(sideOf(formData)).paymentDirection,
     paidOn: text(formData, 'paidOn'),
     amount: text(formData, 'amount'),
     mode: text(formData, 'mode'),

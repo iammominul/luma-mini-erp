@@ -180,13 +180,13 @@ export default async function BillsPage({
                   <Td>
                     <div className="flex items-center gap-1.5">
                       <Link
-                        href={`/${side}/bills/${bill.id}`}
+                        href={`/${side}/bills/${bill.docNo ?? bill.id}`}
                         className="rounded border border-[var(--color-line)] bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50"
                       >
                         Open
                       </Link>
                       <DownloadIcon
-                        href={`/${side}/bills/${bill.id}/pdf`}
+                        href={`/${side}/bills/${bill.docNo ?? bill.id}/pdf`}
                         label={`Download ${copy.billSingular} ${bill.billNo}`}
                       />
                     </div>

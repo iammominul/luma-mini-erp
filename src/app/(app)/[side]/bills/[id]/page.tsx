@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { amountInWords, formatTaka } from '@/lib/format';
 import { DeleteBox } from '@/components/DeleteBox';
 import {
@@ -13,7 +13,8 @@ import {
 } from '@/components/ui';
 import { formatQtyKg, parseQtyKg, sumGrams } from '@/lib/amount';
 import { formatDate } from '@/lib/dates';
-import { getBill } from '@/lib/queries';
+import { isUuid } from '@/lib/ids';
+import { findBill } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
 import { PostBillBox } from '@/components/PostBillBox';
 import { deleteBillAction, postBillAction } from '../actions';
@@ -26,8 +27,17 @@ export default async function BillPage({
   const { side, id } = await params;
   if (!isSide(side)) notFound();
   const copy = copyFor(side);
-  const bill = await getBill(id);
+  const bill = await findBill(id);
   if (!bill || bill.direction !== copy.billDirection) notFound();
+
+  // One bill, one address, where the bill has a number of its own to be known
+  // by. A bill received keeps its id, because the subcontractor's paper number
+  // is unique only to that subcontractor and cannot name a bill on its own.
+  if (isUuid(id) && bill.docNo) {
+    permanentRedirect(`/${side}/bills/${bill.docNo}`);
+  }
+
+  const handle = bill.docNo ?? bill.id;
 
   const totalGrey = sumGrams(bill.lines.map((l) => parseQtyKg(l.greyKg)));
   const totalFinished = sumGrams(
@@ -67,11 +77,11 @@ export default async function BillPage({
           {isDraft ? (
             <PostBillBox action={postBillAction} id={bill.id} side={side} />
           ) : null}
-          <DownloadButton href={`/${side}/bills/${bill.id}/pdf`}>
+          <DownloadButton href={`/${side}/bills/${handle}/pdf`}>
             Download PDF
           </DownloadButton>
           <Link
-            href={`/${side}/bills/${bill.id}/edit`}
+            href={`/${side}/bills/${handle}/edit`}
             className="rounded border border-[var(--color-line)] bg-white px-3 py-1.5 text-sm font-medium hover:bg-gray-50"
           >
             Edit

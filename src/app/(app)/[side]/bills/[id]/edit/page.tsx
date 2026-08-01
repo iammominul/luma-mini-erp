@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { BillForm } from '@/components/BillForm';
 import { PageTitle } from '@/components/ui';
-import { getBill, listParties } from '@/lib/queries';
+import { findBill, listParties } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
 import { updateBillAction } from '../../actions';
 
@@ -15,7 +15,7 @@ export default async function EditBillPage({
   const copy = copyFor(side);
 
   const [bill, parties] = await Promise.all([
-    getBill(id),
+    findBill(id),
     listParties({ role: copy.role, includeInactive: true }),
   ]);
   if (!bill || bill.direction !== copy.billDirection) notFound();
@@ -31,7 +31,7 @@ export default async function EditBillPage({
         parties={parties.map((p) => ({ id: p.id, name: p.name }))}
         action={updateBillAction}
         submitLabel="Save Changes"
-        cancelHref={`/${side}/bills/${bill.id}`}
+        cancelHref={`/${side}/bills/${bill.docNo ?? bill.id}`}
         requireReason
         billId={bill.id}
         values={{

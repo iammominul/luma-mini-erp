@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { SESSION_COOKIE, isValidSessionValue } from './lib/auth';
+import { LEGACY_SIDES } from './lib/side';
 
 /**
  * Nothing but the login page is reachable without the shared password. This runs
@@ -15,6 +16,17 @@ export async function proxy(request: NextRequest) {
       'SESSION_SECRET is not set on the server. See interim-billing/README.md.',
       { status: 500 },
     );
+  }
+
+  // The lens used to be singular in a URL. Anything sent out under the old shape
+  // still arrives here, so it is moved on to the current one rather than being
+  // told it does not exist. Permanent, because it is not coming back.
+  const [, first = '', ...rest] = request.nextUrl.pathname.split('/');
+  const plural = LEGACY_SIDES[first];
+  if (plural) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/${[plural, ...rest].join('/')}`;
+    return NextResponse.redirect(url, 308);
   }
 
   const cookie = request.cookies.get(SESSION_COOKIE)?.value;

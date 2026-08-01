@@ -64,7 +64,7 @@ export function PaymentForm({
           </Field>
 
           <Field
-            label={`Date ${copy.side === 'customer' ? 'Received' : 'Paid'}`}
+            label={`Date ${copy.role === 'customer' ? 'Received' : 'Paid'}`}
           >
             <TextInput
               type="date"
@@ -98,7 +98,7 @@ export function PaymentForm({
           <Field
             label="Reference"
             hint={
-              copy.side === 'customer'
+              copy.role === 'customer'
                 ? 'Money Receipt serial, cheque number, or bank reference.'
                 : 'Cheque number or bank reference.'
             }

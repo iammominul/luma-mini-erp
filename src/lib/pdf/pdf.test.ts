@@ -2,9 +2,13 @@ import { describe, expect, it } from 'vitest';
 import type { Company } from '../env';
 import { Money } from '../money';
 import { buildStatement } from '../statement';
-import type { Bill, Party } from '../types';
+import type { Bill, Party, Payment } from '../types';
 import { billFileName, buildBillDocument } from './bill-document';
 import { flattenDocumentText } from './document';
+import {
+  buildMoneyReceiptDocument,
+  moneyReceiptFileName,
+} from './money-receipt-document';
 import { letterheadLogo } from './letterhead-logo';
 import { renderPdf } from './render';
 import {
@@ -374,6 +378,75 @@ describe('statement of account document', () => {
       statementFileName(customer, company, '2026-07-01', '2026-07-31'),
     ).toBe(
       'LUMA-TEXTILE_Statement-of-Account_CUS-0004_2026-07-01_to_2026-07-31.pdf',
+    );
+  });
+});
+
+const receipt: Payment = {
+  id: '33333333-3333-4333-8333-333333333333',
+  narration: null,
+  partyId: customer.id,
+  partyName: customer.name,
+  direction: 'in',
+  paidOn: '2026-07-30',
+  amount: Money.fromDecimal('250000.00'),
+  mode: 'cheque',
+  reference: 'MR-114',
+  notes: null,
+};
+
+describe('money receipt document', () => {
+  const text = flattenDocumentText(
+    buildMoneyReceiptDocument({ payment: receipt, party: customer, company }),
+  );
+
+  it('is titled MONEY RECEIPT and names who paid', () => {
+    expect(text).toContain('MONEY RECEIPT');
+    expect(text).toContain('Received From');
+    expect(text).toContain('Bangla Japan Trading Ltd.');
+  });
+
+  it('states the date, the mode and the reference', () => {
+    expect(text).toContain('30/07/2026');
+    expect(text).toContain('Cheque');
+    expect(text).toContain('MR-114');
+  });
+
+  it('carries the amount as figures and as words', () => {
+    expect(text).toContain('2,50,000.00');
+    expect(text).toContain('Two Lakh Fifty Thousand');
+  });
+
+  // A cheque is not money until it clears. A receipt that settles a balance
+  // without saying so has acknowledged payment the bank may yet refuse.
+  it('qualifies a cheque as subject to realization', () => {
+    expect(text).toContain('subject to realization');
+  });
+
+  it('turns into a payment voucher when the money goes out', () => {
+    const voucher = flattenDocumentText(
+      buildMoneyReceiptDocument({
+        payment: { ...receipt, direction: 'out', mode: 'bank_transfer' },
+        party: customer,
+        company,
+      }),
+    );
+    expect(voucher).toContain('PAYMENT VOUCHER');
+    expect(voucher).toContain('Paid To');
+    expect(voucher).not.toContain('subject to realization');
+  });
+
+  it('renders to real PDF bytes', async () => {
+    const bytes = await renderPdf(
+      buildMoneyReceiptDocument({ payment: receipt, party: customer, company }),
+    );
+    expect(bytes.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+    expect(bytes.byteLength).toBeGreaterThan(2000);
+  });
+
+  it('names the file with the party and the reference', () => {
+    expect(moneyReceiptFileName(receipt, customer, company)).toBe(
+      'LUMA-TEXTILE_Money-Receipt_CUS-0004_MR-114_2026-07-30.pdf',
     );
   });
 });

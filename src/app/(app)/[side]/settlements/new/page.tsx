@@ -24,7 +24,7 @@ export default async function NewSettlementPage({
     <>
       <PageTitle
         title={`New ${copy.settlementSingular}`}
-        subtitle={`Money ${side === 'customer' ? 'received from a customer' : 'paid to a subcontractor'}, against the running balance.`}
+        subtitle={`Money ${copy.role === 'customer' ? 'received from a customer' : 'paid to a subcontractor'}, against the running balance.`}
       />
 
       {parties.length === 0 ? (

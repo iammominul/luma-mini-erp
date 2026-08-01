@@ -71,7 +71,7 @@ export default async function PartiesPage() {
                   </Td>
                   <Td>
                     <Link
-                      href={`/parties/${party.id}`}
+                      href={`/parties/${party.code ?? party.id}`}
                       className="font-medium text-[var(--color-navy)] hover:underline"
                     >
                       {party.name}
