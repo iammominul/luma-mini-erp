@@ -9,11 +9,14 @@ export default defineConfig({
   },
   test: {
     globals: false,
-    // The money and statement logic, the session cookie, the schema splitter,
+    // The money and statement logic, the permission matrix, the schema splitter,
     // and (when a Postgres is configured) every SQL statement and server action.
+    // src/components holds one pure module, nav-items.ts, and no component test:
+    // presentation is not tested here, but which entries a role is offered is.
     include: [
       'src/lib/**/*.test.ts',
       'src/app/**/*.test.ts',
+      'src/components/**/*.test.ts',
       'scripts/**/*.test.ts',
     ],
     coverage: {
@@ -23,7 +26,8 @@ export default defineConfig({
         'src/lib/statement.ts',
         'src/lib/money.ts',
         'src/lib/format.ts',
-        'src/lib/auth.ts',
+        'src/lib/permissions.ts',
+        'src/components/nav-items.ts',
       ],
     },
   },

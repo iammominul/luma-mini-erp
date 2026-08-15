@@ -20,6 +20,40 @@ let driver: PgDriver;
 
 vi.mock('./db', () => ({ db: () => driver }));
 vi.mock('next/cache', () => ({ revalidatePath: () => undefined }));
+
+/**
+ * Who is signed in while an action runs.
+ *
+ * What is faked is the session read, not the permission check: src/lib/session.ts
+ * runs for real on top of this, so an action that forgot its actingUser call
+ * would still be caught here, and can() is the thing being satisfied rather
+ * than the thing being bypassed. Held in a mutable box so a test can change
+ * role and watch the same action be refused.
+ *
+ * The default is an Owner because these tests drive every action in the app.
+ */
+const session = vi.hoisted(() => ({
+  user: {
+    id: 'test-owner',
+    name: 'Test Owner',
+    email: 'owner@example.com',
+    role: 'owner',
+    status: 'active',
+  } as { id: string; name: string; email: string; role: string; status: string },
+}));
+
+vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
+vi.mock('./auth', () => ({
+  auth: () => ({ api: { getSession: async () => ({ user: session.user }) } }),
+}));
+
+function as<T>(role: string, run: () => Promise<T>): Promise<T> {
+  const was = session.user;
+  session.user = { ...was, role };
+  return run().finally(() => {
+    session.user = was;
+  });
+}
 vi.mock('next/navigation', () => ({
   // The real redirect throws to unwind the request; so does this, and the test
   // reads the target off the error.
@@ -110,6 +144,12 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
     const [customer] = await listPartyBalances('customer');
     expect(customer!.party.name).toBe('Bangla Japan Trading Ltd.');
 
+    // The signed-in account reached activity_log, rather than the row being
+    // written with nobody against it.
+    const { recentActivity } = await import('./queries');
+    const [added] = await recentActivity(1);
+    expect(added!.actorName).toBe('Test Owner');
+
     // The bill form posts its line grid as JSON in a hidden field.
     const target = await expectRedirect(() =>
       createBillAction(
@@ -120,27 +160,25 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
           direction: 'issued',
           status: 'posted' as const,
           billNo: '1105',
-          bookNo: '7',
           billDate: '2026-07-08',
-          reference: '',
           notes: 'July program',
           linesJson: JSON.stringify([
             {
               description: 'S/J 100% Cotton, Lot 31',
-              fabricType: 'S/J',
               color: 'Red',
               challanNo: '2201',
               orderNo: 'MK-14',
+              lotNo: '',
               greyKg: '640.250',
               finishedKg: '622.500',
               rate: '48.75',
             },
             {
               description: '1x1 Rib, Lot 32',
-              fabricType: '1x1 Rib',
               color: 'Grey Melange',
               challanNo: '2202',
               orderNo: 'MK-14',
+              lotNo: '',
               greyKg: '210',
               finishedKg: '',
               rate: '39.5',
@@ -152,11 +190,10 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
 
     const { bills } = await listBills({ direction: 'issued' });
     expect(bills).toHaveLength(1);
-    expect(target).toBe(`/customer/bills/${bills[0]!.id}`);
+    expect(target).toBe(`/customers/bills/${bills[0]!.id}`);
     // 640.25 x 48.75 = 31212.19 (rounded half up from 31212.1875), 210 x 39.5 = 8295
     expect(bills[0]!.total.toDecimalString()).toBe('39507.19');
     expect(bills[0]!.billNo).toBe('1105');
-    expect(bills[0]!.bookNo).toBe('7');
     expect(bills[0]!.docNo).toBe('CB-26-0001');
 
     const bill = await getBill(bills[0]!.id);
@@ -164,7 +201,6 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
       '31212.19',
       '8295.00',
     ]);
-    expect(bill!.lines[0]!.fabricType).toBe('S/J');
     expect(bill!.lines[0]!.color).toBe('Red');
     expect(bill!.lines[0]!.challanNo).toBe('2201');
     expect(bill!.lines[0]!.orderNo).toBe('MK-14');
@@ -182,15 +218,14 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
         direction: 'issued',
         status: 'posted' as const,
         billNo: '1105',
-        bookNo: '7',
         billDate: '2026-07-08',
         linesJson: JSON.stringify([
           {
             description: 'S/J 100% Cotton, Lot 31',
-            fabricType: 'S/J',
             color: 'Red',
             challanNo: '2201',
             orderNo: 'MK-14',
+            lotNo: '',
             greyKg: '640.250',
             finishedKg: '',
             rate: '50',
@@ -210,15 +245,14 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
         direction: 'issued',
         status: 'posted' as const,
         billNo: '',
-        bookNo: '7',
         billDate: '2026-07-09',
         linesJson: JSON.stringify([
           {
             description: 'Black, Lot 40',
-            fabricType: '',
             color: '',
             challanNo: '',
             orderNo: '',
+            lotNo: '',
             greyKg: '100',
             finishedKg: '',
             rate: '40',
@@ -240,7 +274,6 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
           paidOn: '2026-07-25',
           amount: '30000.00',
           mode: 'bank_transfer',
-          reference: 'MR 5510',
           notes: '',
         }),
       ),
@@ -303,5 +336,86 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
       }),
     );
     expect(bad.error).toBeTruthy();
+  }, 60_000);
+
+  /**
+   * A server action is a public endpoint. The menu hiding a button is not what
+   * stops anybody, so the refusal is checked here against the action itself.
+   */
+  it('refuses a write the role is not allowed, and writes nothing', async () => {
+    const { createPartyAction } = await import('../app/(app)/parties/actions');
+    const { listPartyBalances, recentActivity } = await import('./queries');
+
+    const before = (await listPartyBalances('customer')).length;
+    const entriesBefore = (await recentActivity(50)).length;
+
+    const refused = await as('viewer', () =>
+      createPartyAction(
+        {},
+        form({
+          name: 'Should Not Exist Ltd.',
+          roles: ['customer'],
+          openingBalance: '0',
+          openingAsOf: '2026-06-30',
+        }),
+      ),
+    );
+
+    expect(refused.error).toMatch(/role does not allow/i);
+    expect((await listPartyBalances('customer')).length).toBe(before);
+    // Not even a log row: the refusal happens before the transaction.
+    expect((await recentActivity(50)).length).toBe(entriesBefore);
+  }, 60_000);
+
+  it('refuses an approval to Accounts but allows the entry it prepares', async () => {
+    const { generatePayrollRunAction, approvePayrollRunAction } =
+      await import('../app/(app)/payroll/actions');
+    const { createEmployeeAction } = await import('../app/(app)/employees/actions');
+    const { findPayrollRun } = await import('./queries');
+
+    // Accounts prepares the month, which is its job.
+    await expectRedirect(() =>
+      as('accounts', () =>
+        createEmployeeAction(
+          {},
+          form({
+            name: 'Payroll Test Employee',
+            basic: '10000.00',
+            houseRent: '5000.00',
+            medical: '0',
+            conveyance: '0',
+            mobileAllowance: '0',
+            otherAllowance: '0',
+            paymentMethod: 'cash',
+          }),
+        ),
+      ),
+    );
+    await expectRedirect(() =>
+      as('accounts', () =>
+        generatePayrollRunAction(
+          {},
+          form({ period: '2026-07', perDayBasis: 'thirty' }),
+        ),
+      ),
+    );
+
+    const run = (await findPayrollRun('2026-07'))!;
+    expect(run.status).toBe('draft');
+
+    // And is refused the sign-off on the figures it just keyed.
+    const refused = await as('accounts', () =>
+      approvePayrollRunAction({}, form({ runId: run.id, period: '2026-07' })),
+    );
+    expect(refused.error).toMatch(/role does not allow/i);
+    expect((await findPayrollRun('2026-07'))!.status).toBe('draft');
+
+    // The Owner approves, and the name recorded is the account's.
+    await expectRedirect(() =>
+      approvePayrollRunAction({}, form({ runId: run.id, period: '2026-07' })),
+    );
+    const approved = (await findPayrollRun('2026-07'))!;
+    expect(approved.status).toBe('approved');
+    expect(approved.approvedBy).toBe('Test Owner');
   }, 60_000);
 });

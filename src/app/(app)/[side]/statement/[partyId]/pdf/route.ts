@@ -5,7 +5,7 @@ import {
   statementFileName,
 } from '@/lib/pdf/statement-document';
 import { earliestActivity, findParty, listMovements } from '@/lib/queries';
-import { isSide } from '@/lib/side';
+import { copyFor, isSide } from '@/lib/side';
 import { buildStatement } from '@/lib/statement';
 
 /** The Party Ledger as a real A4 PDF, downloaded. */
@@ -23,7 +23,7 @@ export async function GET(
   if (!isSide(side)) return new Response('Not found', { status: 404 });
 
   const party = await findParty(partyId);
-  if (!party || !party.roles[isSide(side) ? side : 'customer']) {
+  if (!party || !party.roles[copyFor(side).role]) {
     return new Response('Not found', { status: 404 });
   }
 
@@ -53,7 +53,7 @@ export async function GET(
       from,
       to,
       coversFrom,
-      lens: side,
+      lens: copyFor(side).role,
     }),
   );
 

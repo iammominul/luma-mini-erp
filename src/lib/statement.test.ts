@@ -17,6 +17,8 @@ function bill(
   amount: string,
   reference: string | null = null,
   side: Movement['side'] = 'debit',
+  /** The system's own serial, which orders two bills on one date. */
+  seq: number | null = null,
 ): Movement {
   return {
     id,
@@ -25,6 +27,8 @@ function bill(
     date,
     particulars: `Dyeing Bill ${id}`,
     reference,
+    seq,
+    recordedAt: `2026-01-01T00:00:00.000000`,
     amount: tk(amount),
   };
 }
@@ -42,6 +46,8 @@ function payment(
     date,
     particulars: `Money Received ${id}`,
     reference: null,
+    seq: null,
+    recordedAt: `2026-01-01T00:00:00.000000`,
     amount: tk(amount),
   };
 }
@@ -136,6 +142,47 @@ describe('buildStatement', () => {
     expect(statement.rows.map((r) => r.balance.toDecimalString())).toEqual([
       '900.00',
       '400.00',
+    ]);
+  });
+
+  // LUMA ran several bill books at once, so a hand-written number says nothing
+  // about sequence. Two bills on one date are ordered by the system's own
+  // number, whatever the paper says and whatever order the rows arrive in.
+  it('orders two bills on one date by the system number', () => {
+    const statement = statementOf({
+      openingBalance: Money.ZERO,
+      movements: [
+        bill('zz', '2026-07-15', '300.00', 'Bill No. 93', 'debit', 121),
+        bill('aa', '2026-07-15', '200.00', 'Bill No. 92', 'debit', 120),
+      ],
+    });
+
+    expect(statement.rows.map((r) => r.reference)).toEqual([
+      'Bill No. 92',
+      'Bill No. 93',
+    ]);
+    expect(statement.rows.map((r) => r.balance.toDecimalString())).toEqual([
+      '200.00',
+      '500.00',
+    ]);
+  });
+
+  // A bill received has no system number of its own, so that side falls back
+  // to when it was recorded rather than to a random id.
+  it('falls back to the recorded time where there is no system number', () => {
+    const first = bill('zz', '2026-07-15', '300.00', 'RD-889', 'credit');
+    const second = bill('aa', '2026-07-15', '200.00', 'RD-890', 'credit');
+    const statement = statementOf({
+      openingBalance: Money.ZERO,
+      movements: [
+        { ...second, recordedAt: '2026-07-16T11:00:00.000000' },
+        { ...first, recordedAt: '2026-07-16T09:00:00.000000' },
+      ],
+    });
+
+    expect(statement.rows.map((r) => r.reference)).toEqual([
+      'RD-889',
+      'RD-890',
     ]);
   });
 

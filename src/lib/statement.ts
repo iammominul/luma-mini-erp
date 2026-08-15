@@ -1,5 +1,6 @@
 import { Money } from './money';
 import { formatTaka } from './format';
+import type { PartyRole } from './types';
 
 /**
  * Party ledger assembly. Pure: dates are 'YYYY-MM-DD' text and amounts are
@@ -32,6 +33,15 @@ export type Movement = {
   particulars: string;
   /** The document it points at: a bill number, a money receipt serial. */
   reference: string | null;
+  /**
+   * The serial out of the system's own document number, which is what orders
+   * two documents on one date. Null where there is no system number: a bill
+   * received carries the subcontractor's own paper number, and a settlement has
+   * never had one.
+   */
+  seq: number | null;
+  /** When the row was recorded, for ordering what has no system number. */
+  recordedAt: string;
   amount: Money;
 };
 
@@ -64,12 +74,24 @@ export type StatementInput = {
 };
 
 /**
- * Same day: a bill is listed before a settlement, then by id so the order is
- * stable across renders and matches what a printed statement showed before.
+ * The order a ledger reads in, and the order the running balance accumulates.
+ *
+ * Date first, because a ledger is a chronology. Then a bill before a settlement
+ * on the same day, so a balance rises and is then paid down rather than a
+ * receipt appearing to settle a bill that has not been raised yet.
+ *
+ * Then the system's own document number. Not the hand-written bill number: LUMA
+ * ran several bill books at once and those numbers do not follow the dates, so
+ * they say what the customer recognizes and nothing about sequence. Anything
+ * with no system number, which is a settlement or a bill received, falls to
+ * when it was recorded, and the id settles the last tie so a statement reprints
+ * identically.
  */
 function compare(a: Movement, b: Movement): number {
   if (a.date !== b.date) return a.date < b.date ? -1 : 1;
   if (a.kind !== b.kind) return a.kind === 'bill' ? -1 : 1;
+  if (a.seq !== null && b.seq !== null && a.seq !== b.seq) return a.seq - b.seq;
+  if (a.recordedAt !== b.recordedAt) return a.recordedAt < b.recordedAt ? -1 : 1;
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
@@ -159,8 +181,10 @@ export function formatBalance(balance: Money): string {
  * Wording for the view a ledger is being read through. The arithmetic no longer
  * differs by side, only what the money is called: a customer pays us, we pay a
  * subcontractor, and the closing label follows the balance rather than the view.
+ *
+ * A supplier reads as a subcontractor does: we owe them, so we pay.
  */
-export function statementLabels(lens: 'customer' | 'subcontractor') {
+export function statementLabels(lens: PartyRole) {
   return {
     debit: 'Debit',
     credit: 'Credit',

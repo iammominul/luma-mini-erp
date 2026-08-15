@@ -6,6 +6,7 @@ import { todayInDhaka } from '@/lib/dates';
 import { listParties } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
 import { createPaymentAction } from '../actions';
+import { requirePermission } from '@/lib/session';
 
 export default async function NewSettlementPage({
   params,
@@ -14,6 +15,7 @@ export default async function NewSettlementPage({
   params: Promise<{ side: string }>;
   searchParams: Promise<{ party?: string }>;
 }) {
+  await requirePermission('settlement:manage');
   const { side } = await params;
   if (!isSide(side)) notFound();
   const copy = copyFor(side);
@@ -24,7 +26,7 @@ export default async function NewSettlementPage({
     <>
       <PageTitle
         title={`New ${copy.settlementSingular}`}
-        subtitle={`Money ${side === 'customer' ? 'received from a customer' : 'paid to a subcontractor'}, against the running balance.`}
+        subtitle={`Money ${copy.role === 'customer' ? 'received from a customer' : 'paid to a subcontractor'}, against the running balance.`}
       />
 
       {parties.length === 0 ? (

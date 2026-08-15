@@ -5,12 +5,111 @@
 @theme {
   --color-navy: #142b40;
   --color-navy-600: #1d3a54;
-  --color-ink: #1a1a1a;
-  --color-muted: #7a7a85;
-  --color-line: #d9dce1;
-  --color-canvas: #f4f5f7;
-  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* Navy has three steps because the chrome needs them: the rail and the bar
+     are the base, a hover and an open group are the second, and the rule
+     between the two is the third. Two steps made the boundary invisible. */
+  --color-navy-2: #1d3d5a;
+  --color-navy-3: #0d1e2d;
+
+  /* Text has three weights. A label, a figure and a note sit on the same row
+     and are not equally important, and a single ink with opacity applied to it
+     is not the same thing: opacity over a tinted band shifts the hue. */
+  --color-ink: #16191d;
+  --color-ink-2: #4a5058;
+  --color-ink-3: #7b828b;
+
+  --color-surface: #ffffff;
+  --color-surface-2: #f6f7f8;
+  --color-surface-3: #eef0f2;
+
+  /* Two rule weights, and the distinction is load bearing on a dense table:
+     the strong rule closes a heading or a total, the soft one separates two
+     rows of the same kind. One weight for both is what makes a long ledger
+     read as a grid of boxes rather than as a column of figures. */
+  --color-rule: #c8ced5;
+  --color-rule-soft: #e5e8eb;
+
+  /* State, and only state. These are never a series color on a chart: the
+     chart hues below are for quantity, and a reader who has learned that red
+     means a problem must not meet it as the third slice of a donut. */
+  --color-good: #17663a;
+  --color-warn: #8a5a00;
+  --color-crit: #a11f2c;
+
+  /* The three names the app was built on, kept pointing at their replacements
+     so this landed in one pass instead of forty files. New code should reach
+     for the name that says which of the two rule weights, or which of the
+     three inks, it actually means. */
+  --color-muted: var(--color-ink-3);
+  --color-line: var(--color-rule);
+  --color-canvas: var(--color-surface-2);
+
+  /* One table row height, so a bill list and a payroll grid agree without
+     either of them naming a number. */
+  --row: 28px;
+
+  /* One family, for the screen and for the printed document alike. There is no
+     mono companion on purpose: see src/app/layout.tsx.
+
+     The order is load bearing. `--font-plex-sans` comes from next/font and is
+     not one family but two: the self hosted IBM Plex Sans, and behind it a
+     local face next/font has size-adjusted to Plex's own metrics. That second
+     one is what stops the line lengths jumping when the webfont finishes
+     loading. Naming any real face ahead of it throws that away and brings the
+     reflow back, so Segoe UI and the rest sit behind it, where they are reached
+     only if the webfont never arrives at all.
+
+     Segoe UI is named even though `system-ui` already resolves to it on
+     Windows, because every desk running this is Windows and an explicit name
+     cannot be got wrong by a browser. */
+  --font-sans:
+    var(--font-plex-sans), 'IBM Plex Sans', 'Segoe UI', ui-sans-serif,
+    system-ui, -apple-system, sans-serif;
+
+  /* The chart hues, anchored on the brand navy and validated as a set rather
+     than picked by eye: lightness band, chroma floor and normal-vision
+     separation all pass on white, with two warnings this app answers for.
+     Adjacent gold and green sit at 7.7 under protanopia, and the gold is at
+     2.58:1 against white, so both need secondary encoding: every chart carries
+     direct value labels, a legend and a table view, and none of them tells a
+     reader anything by color alone.
+
+     Four is the cap. A fifth warm hue fails the normal-vision floor against the
+     rust, and purple and teal are out under the look rules, so anything beyond
+     four folds into Other in the muted gray. The app renders light only, so
+     there is no dark set to select. */
+  --color-chart-1: #1d5b96;
+  --color-chart-2: #c2571f;
+  --color-chart-3: #4ca36c;
+  --color-chart-4: #c99a1e;
+  --color-chart-other: #7a7a85;
 }
+
+/* ---------------------------------------------------------------------------
+   The stacking order, written down once.
+
+   Six layers, and a component picks one rather than reaching for a number that
+   looks big enough. Every one of these is a Tailwind `z-*` class; this comment
+   is the register, not the implementation.
+
+     10  a sticky table heading                  Th in ui.tsx
+     20  the screen head                         PageTitle in ui.tsx
+     30  the top bar                             AppShell.tsx
+     40  the menu drawer and its backdrop        AppNav.tsx, AppShell.tsx
+     50  a panel opened from the bar             SearchBox, RecentChanges,
+                                                 AccountMenu
+
+   The rule that gets missed: `position: sticky` puts an element in the
+   positioned paint layer whether or not it is currently stuck, and two
+   positioned elements at the same z-index are drawn in document order. The
+   screen head and a column heading were both at 10, so a row of headings
+   painted straight through the head while the rest of its card was correctly
+   hidden behind it. Equal is not below.
+
+   The rail's group flyout sits at 20 inside the rail, which is its own stacking
+   context at 40, so it is not on this scale and does not need to be.
+   --------------------------------------------------------------------------- */
 
 html,
 body {
@@ -20,16 +119,33 @@ body {
 body {
   margin: 0;
   font-family: var(--font-sans);
+  /* 13px, the prototype's figure. An office screen shows a third more of a
+     ledger at 13 than at 15, and the people using this read a hundred rows a
+     day rather than a paragraph. */
+  font-size: 13px;
+  line-height: 1.45;
   color: var(--color-ink);
   background: var(--color-canvas);
   font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Figures line up column to column on screen and on paper. */
+/* Figures line up column to column on screen and on paper. tabular-nums is
+   what does that, not a second family: IBM Plex Sans carries tabular figures,
+   so every digit takes one width and the lakh place of one row sits over the
+   lakh place of the next. */
 .numeric {
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
+}
+
+/* A figure that is not in a table column: a stat tile, a hero total, a fact
+   list. It says this is a figure, which is why it is worth a class of its own
+   even where it changes little today. */
+.figure {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 /* A printed bill or statement is an A4 document: white, no screen furniture. */
@@ -42,6 +158,28 @@ body {
   body {
     background: #fff;
     font-size: 11pt;
+  }
+
+  /* The menu, the bar above it and the backdrop are screen furniture. A
+     document is a downloaded PDF, but somebody will still press Ctrl+P, and
+     the rail printed down the left of the page is not what they wanted. */
+  [data-app-chrome] {
+    display: none !important;
+  }
+
+  /* The shell is a viewport height grid with its own scrolling work area, and
+     a fixed height box with overflow prints one screenful and throws the rest
+     away. Both have to be let go of before a statement will paginate. */
+  [data-app-shell] {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  main {
+    padding: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
   }
 
   a[href]::after {

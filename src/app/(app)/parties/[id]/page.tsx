@@ -1,7 +1,8 @@
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { PartyForm } from '@/components/PartyForm';
 import { Card, PageTitle } from '@/components/ui';
-import { getParty } from '@/lib/queries';
+import { isUuid } from '@/lib/ids';
+import { findParty } from '@/lib/queries';
 import { rolesLabel, rolesOf } from '@/lib/types';
 import { updatePartyAction } from '../actions';
 
@@ -11,8 +12,12 @@ export default async function EditPartyPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const party = await getParty(id);
+  const party = await findParty(id);
   if (!party) notFound();
+
+  // One party, one address. An id still resolves, because links were handed out
+  // under it, but it sends the reader on to the code rather than answering here.
+  if (isUuid(id) && party.code) permanentRedirect(`/parties/${party.code}`);
 
   return (
     <>

@@ -13,7 +13,9 @@ jobs:
     # inside a throwaway schema by the tests themselves.
     services:
       postgres:
-        image: postgres:16
+        # The version Neon runs, so CI proves the schema against the server it
+        # will actually meet. See the note in docker-compose.yml.
+        image: postgres:18
         env:
           POSTGRES_USER: ci
           POSTGRES_PASSWORD: ci
@@ -50,3 +52,17 @@ jobs:
 
       - name: Build
         run: pnpm build
+        env:
+          # Neither of these is a secret, and deliberately not. The build
+          # evaluates /api/auth/[...all] while collecting page data, which
+          # constructs the Better Auth instance, which needs both a signing
+          # secret and a connection string present. Both modules refuse to
+          # construct without them rather than start half configured, and that
+          # refusal is right, so the workflow supplies values instead of the
+          # code being loosened.
+          #
+          # Nothing is signed and nothing is queried: collecting page data only
+          # builds the instance, and the build output is never deployed from
+          # here. The real values are set on Vercel.
+          AUTH_SECRET: ci-build-only-not-a-real-secret
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci

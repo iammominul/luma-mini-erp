@@ -1,8 +1,8 @@
 import { company } from '@/lib/env';
 import { billFileName, buildBillDocument } from '@/lib/pdf/bill-document';
 import { renderPdf } from '@/lib/pdf/render';
-import { getBill } from '@/lib/queries';
-import { isSide } from '@/lib/side';
+import { findBill } from '@/lib/queries';
+import { copyFor, isSide } from '@/lib/side';
 
 /** The bill as a real A4 PDF, downloaded. Rendered fresh, never cached. */
 export const dynamic = 'force-dynamic';
@@ -14,8 +14,8 @@ export async function GET(
   const { side, id } = await params;
   if (!isSide(side)) return new Response('Not found', { status: 404 });
 
-  const bill = await getBill(id);
-  if (!bill || bill.direction !== (side === 'customer' ? 'issued' : 'received')) {
+  const bill = await findBill(id);
+  if (!bill || bill.direction !== copyFor(side).billDirection) {
     return new Response('Not found', { status: 404 });
   }
 

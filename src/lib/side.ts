@@ -11,9 +11,24 @@ import type { BillDirection, PartyRole, PaymentDirection } from './types';
  *
  * A supplier lens will slot in here when there is a supplier to trade with. It
  * behaves exactly as the subcontractor lens does: bills received, money out.
+ *
+ * The lens is plural because it names a collection in a URL, the same as
+ * `/parties` does: `/customers/bills`, `/subcontractors/settlements`. The role it
+ * looks at stays singular, because that describes one party. Keeping the two
+ * apart is what stops the URL vocabulary drifting from the domain vocabulary.
  */
 
-export type Side = 'customer' | 'subcontractor';
+export type Side = 'customers' | 'subcontractors';
+
+/**
+ * What the old singular URLs map to. They were live before the plural ones, so
+ * they still resolve and redirect rather than 404: someone has bookmarked a
+ * statement by now, and a bill number in an email outlives a refactor.
+ */
+export const LEGACY_SIDES: Record<string, Side> = {
+  customer: 'customers',
+  subcontractor: 'subcontractors',
+};
 
 export type SideCopy = {
   side: Side;
@@ -40,8 +55,8 @@ export type SideCopy = {
 };
 
 const COPY: Record<Side, SideCopy> = {
-  customer: {
-    side: 'customer',
+  customers: {
+    side: 'customers',
     role: 'customer',
     billDirection: 'issued',
     paymentDirection: 'in',
@@ -57,8 +72,8 @@ const COPY: Record<Side, SideCopy> = {
     direction: 'from',
     billNoIsOurs: true,
   },
-  subcontractor: {
-    side: 'subcontractor',
+  subcontractors: {
+    side: 'subcontractors',
     role: 'subcontractor',
     billDirection: 'received',
     paymentDirection: 'out',
@@ -77,7 +92,7 @@ const COPY: Record<Side, SideCopy> = {
 };
 
 export function isSide(value: string): value is Side {
-  return value === 'customer' || value === 'subcontractor';
+  return value === 'customers' || value === 'subcontractors';
 }
 
 export function copyFor(side: Side): SideCopy {

@@ -1,0 +1,51 @@
+# Local development database for the interim billing app.
+#
+# This stack is its own. The project name, the container name, the port and the
+# volume are all specific to this repository, because Docker container names are
+# global to the machine and the default port 5432 collides with any other
+# Postgres. Nothing here is shared with the full ERP.
+#
+# This app used to borrow the full ERP's Docker Postgres and keep an
+# `interim_dev` database inside it. That coupled two repositories that are
+# meant to be archived on different days, and it broke the moment the ERP
+# renamed its container and moved to port 5433. It has its own database now.
+name: luma-mini-erp
+
+services:
+  db:
+    # Matches Neon, which runs Postgres 18. It used to be 16, and the gap was
+    # not free: a dump taken from production could not be restored here at all,
+    # because a v18 dump carries settings (transaction_timeout) and psql
+    # meta-commands (\restrict) that a v16 server rejects. Testing a migration
+    # against production data is exactly what you want to do before running it,
+    # so the local server has to be able to hold that data.
+    #
+    # Bumping this needs the volume recreated: a v16 data directory will not
+    # start under v18. Dump first, `docker compose down -v`, then restore.
+    image: postgres:18
+    container_name: luma_mini_erp_db
+    environment:
+      POSTGRES_USER: luma
+      POSTGRES_PASSWORD: luma
+      POSTGRES_DB: interim_dev
+    ports:
+      # 5434 on the host. The full ERP publishes 5433 and a native Postgres
+      # takes 5432, so this one stays clear of both.
+      - '5434:5432'
+    volumes:
+      # /var/lib/postgresql, not /var/lib/postgresql/data. The official image
+      # changed this at 18: it now keeps the cluster in a major-version
+      # subdirectory below this path, so a mount on .../data is ignored and the
+      # container exits telling you it found data in an "unused mount/volume".
+      - pgdata:/var/lib/postgresql
+      # Creates interim_test alongside interim_dev on a fresh volume, so the
+      # integration tests never run against the database holding real bills.
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U luma -d interim_dev']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

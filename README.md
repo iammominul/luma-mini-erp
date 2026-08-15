@@ -11,8 +11,38 @@ full ERP is being built. It does two things, one for each side of the business:
    money paid to them, and print the same statement in the other direction.
 
 Everything else the ERP will do (double-entry ledger, fabric custody and loss,
-rate cards, payroll, P&L) is deliberately **not** here. This app tracks who owes
-what, and nothing more.
+rate cards, costed orders) is deliberately **not** here.
+
+Two things have since been added on top of that, each for a stated reason.
+**Expenses and payroll** are recorded here because the money going out could not
+wait for the ERP, on a cash basis only. And there is a **profit statement**:
+LUMA subcontracts the knitting and dyeing it bills for, so a subcontractor's
+bill is its cost of sales, and what is left after that and the overhead is a
+real result computed from figures already in the book.
+
+It reads in three tiers, because the order the costs come off in is what makes
+them mean anything:
+
+```text
+Billed to Customers
+  less Direct Cost      knitting, dyeing, freight, lab testing
+= Gross Margin          how well the work was bought and sold
+  less Selling Cost     commission paid to win the order
+= Contribution          what an order leaves toward the overhead
+  less Operating Cost   salary, rent, staff travel, office
+= Net Result
+```
+
+Which tier a cost falls in comes from the category it was recorded under, so
+there is one choice at entry. **Order Costing** groups the same figures by the
+order reference already written on each bill line, which is what answers whether
+one order made money.
+
+It is not accounting. Bills count when raised, expenses and salary and
+reimbursed claims when paid, and there is no opening or closing stock and no
+trial balance. Overhead is never split across orders and margin per customer is
+not shown, because nothing links a customer bill to the subcontract bill behind
+it. Both need order linkage and a costing basis, and they stay in the ERP.
 
 It is a standalone project in its own repository, with no dependency on the ERP
 codebase. When the ERP reaches its billing stage, the data here is exported and
@@ -60,16 +90,16 @@ pnpm db:setup
 
 ### 4. Environment variables
 
-| Variable          | What it is                                                                  |
-| ----------------- | --------------------------------------------------------------------------- |
-| `DATABASE_URL`    | The Neon pooled connection string.                                          |
-| `APP_PASSWORD`    | The one shared password that opens the app. Use 12 characters or more.      |
-| `SESSION_SECRET`  | Random string that signs the session cookie. See below.                     |
-| `COMPANY_NAME`    | Used on the letterhead when no logo file is present, and in the top bar.    |
-| `COMPANY_ADDRESS` | Printed under the logo on every document.                                   |
-| `COMPANY_PHONE`   | Printed on the contact line. More than one number is fine, comma separated. |
-| `COMPANY_EMAIL`   | Printed on the contact line.                                                |
-| `COMPANY_WEB`     | Printed on the contact line. Leave unset to omit it.                        |
+| Variable            | What it is                                                                    |
+| ------------------- | ----------------------------------------------------------------------------- |
+| `DATABASE_URL`    | The Neon pooled connection string.                                            |
+| `AUTH_SECRET`     | Random string Better Auth signs sessions with. See below.                     |
+| `AUTH_URL`        | Optional. Where the app is served. Unset, the origin is read off the request. |
+| `COMPANY_NAME`    | Used on the letterhead when no logo file is present, and in the top bar.      |
+| `COMPANY_ADDRESS` | Printed under the logo on every document.                                     |
+| `COMPANY_PHONE`   | Printed on the contact line. More than one number is fine, comma separated.   |
+| `COMPANY_EMAIL`   | Printed on the contact line.                                                  |
+| `COMPANY_WEB`     | Printed on the contact line. Leave unset to omit it.                          |
 
 The logo on the documents is `assets/letterhead-logo.svg`, committed with the
 app rather than configured. Replace that file to put another company on every
@@ -78,25 +108,83 @@ letterhead sets `COMPANY_NAME` as type instead. The file has three constraints
 written at the top of it, because the PDF renderer applies no stylesheet and has
 no access to a design font.
 
-Generate a session secret with:
+Generate an auth secret with:
 
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Changing `SESSION_SECRET` signs everyone out, which is the fastest way to lock
-the app if the password ever leaks.
+Changing `AUTH_SECRET` signs everyone out, which is the fastest way to lock the
+app if an account is compromised. To lock one person out instead, disable their
+account on the Users screen: that drops their sessions at once.
 
-### 5. First run
+### 5. Users
 
-Open the deployment URL, sign in with `APP_PASSWORD`, then:
+Everybody signs in with their own email and password. There is no shared
+password and no sign-up: an Owner creates every account.
+
+Create the first Owner from the server, once:
+
+```bash
+node scripts/create-user.mjs --email you@example.com --name "Your Name" \
+  --role owner --password "at least twelve characters"
+```
+
+Leave `--password` out and one is generated and printed. The same command resets
+the password of an account that already exists, which is the way back in if
+every Owner is locked out.
+
+After that, add people under **Administration > Users**. Three roles:
+
+| Role     | Can                                                                                         |
+| -------- | ------------------------------------------------------------------------------------------- |
+| Owner    | Everything, including approving a payroll run and managing users.                           |
+| Accounts | Bills, receipts, expenses, and payroll entry. Cannot approve a payroll run or manage users. |
+| Viewer   | Read and print only.                                                                        |
+
+Approving a payroll run is deliberately kept out of Accounts' hands: the person
+who keys the figures should not also be the person who signs them off. Every
+role is checked on the server for each action, not only hidden from the menu.
+
+An account is disabled rather than deleted, because its name has to stay on the
+activity log rows and payroll approvals it made. Disabling drops every session
+it holds and refuses it a new one, so it locks somebody out rather than only
+signing them out. The last active Owner cannot be demoted or disabled, so nobody
+can lock the company out of user management.
+
+**Everyone manages their own account** under **My Account**, reached by clicking
+your name at the foot of the menu. Any role can change its own name, its own
+sign-in email, and its own password, and can sign out every other device it is
+open in. Changing your own password asks for the current one first.
+
+**An Owner** manages everybody else under **Users**. The list is read only and
+shows when each account last signed in, so a dormant one is visible; clicking a
+name opens **Manage User**, which holds everything about that account in one
+place: name and email, role, password, and whether it is enabled. Each of those
+is its own form with its own button, so nothing is changed by accident and a
+password manager cannot fill a password into a name change.
+
+Two rules worth knowing. Changing an email does not sign anybody out: the
+password is stored against the account, not against the address, so it keeps
+working. Changing a password signs out every *other* device but not the one
+doing it.
+
+There is deliberately no two-factor authentication, no password reset by email,
+and no forced password rotation. This is an internal book for a handful of
+people, and each of those is real surface for little gain here. It follows that
+an Owner who sets somebody's password knows it until that person changes it on
+My Account.
+
+### 6. First run
+
+Open the deployment URL, sign in as the Owner you created, then:
 
 1. **Parties**: add each customer and each subcontractor, with the balance they
    were carrying on the day you switch over as the **Opening Balance**. Get these
    right; every statement is built on them.
 2. Start entering bills and receipts as they happen.
 
-### 6. Moving a book that already exists
+### 7. Moving a book that already exists
 
 Skip this if you are starting from nothing. If bills were already entered against
 a local database, copy the data across rather than typing it again. Dump it in
@@ -142,14 +230,16 @@ figures, so delete it once the numbers agree.
 
 ## How it is put together
 
-| Piece     | Choice                                                                |
-| --------- | --------------------------------------------------------------------- |
-| Framework | Next.js 16 (App Router), React 19, TypeScript strict                  |
-| Database  | Postgres (Neon in production), plain SQL, no ORM                      |
-| Money     | Exact integer poisha (`Money`), `NUMERIC(14,2)` in the database       |
-| Styling   | Tailwind v4, the same navy office look as the ERP prototype           |
-| Auth      | One shared password, signed session cookie, checked in `src/proxy.ts` |
-| Tests     | Vitest: unit, plus integration against a real Postgres                |
+| Piece     | Choice                                                                                                           |
+| --------- | ---------------------------------------------------------------------------------------------------------------- |
+| Framework | Next.js 16 (App Router), React 19, TypeScript strict                                                             |
+| Database  | Postgres (Neon in production), plain SQL, no ORM                                                                 |
+| Money     | Exact integer poisha (`Money`), `NUMERIC(14,2)` in the database                                              |
+| Styling   | Tailwind v4, the same navy office look as the ERP prototype                                                      |
+| Charts    | Recharts on the dashboard, four validated hues, every chart has a table view                                     |
+| Reports   | Profit statement, expense register and order costing over any date range, statement downloadable as A4           |
+| Auth      | Better Auth, named accounts with Owner/Accounts/Viewer roles, the same library and session model as the full ERP |
+| Tests     | Vitest: unit, plus integration against a real Postgres                                                           |
 
 Points worth knowing:
 
@@ -191,14 +281,19 @@ The quickest local setup is to point `.env.local` at the Neon database and run
 `pnpm dev`. Nothing else is needed.
 
 `DATABASE_URL` can also point at a Postgres on your own machine, and the app
-switches drivers on its own when the host is `localhost`. With the LUMA ERP
-repo's Docker Postgres running (`pnpm db:up` in that repo):
+switches drivers on its own when the host is `localhost`. This repository ships
+its own Docker Postgres, on port 5434 so it cannot collide with the full ERP on
+5433 or a native Postgres on 5432:
 
 ```bash
-docker exec luma_db createdb -U luma interim_dev
-# DATABASE_URL="postgresql://luma:luma@localhost:5432/interim_dev" in .env.local
+pnpm db:up
+# DATABASE_URL="postgresql://luma:luma@localhost:5434/interim_dev" in .env.local
 pnpm db:setup && pnpm dev
 ```
+
+`pnpm db:down` stops it. The container, the volume and the network belong to
+this repository alone: nothing is shared with the full ERP, so either project
+can be started, stopped or archived without touching the other.
 
 Use a separate local database for testing, never the live Neon one.
 
@@ -213,7 +308,7 @@ The integration tests run every SQL statement and every server action against a
 real Postgres. They are skipped unless a database is named:
 
 ```bash
-INTERIM_TEST_DATABASE_URL="postgresql://luma:luma@localhost:5432/luma_dev" pnpm test
+INTERIM_TEST_DATABASE_URL="postgresql://luma:luma@localhost:5434/interim_test" pnpm test
 ```
 
 They create a throwaway schema and drop it afterwards, so an existing database is
