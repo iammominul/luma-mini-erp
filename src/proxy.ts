@@ -50,7 +50,19 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Everything except Next's own assets, the favicon, and the API.
+  // Everything except Next's own assets, a file served from public/, and the
+  // API.
+  //
+  // A file in public/ is excluded because this file redirects a signed out
+  // request to the login screen, and the login screen is itself signed out:
+  // it asks for /brand-mark.svg, that request arrives here with no cookie, and
+  // it was answered with the login page's own HTML. The browser got a document
+  // where an image should be and drew a broken one. Only the extension is
+  // matched, not the name, because the next asset dropped in public/ would
+  // arrive with the same fault and no clue as to why.
+  //
+  // Nothing here is behind a login in any case. A brand mark and a robots.txt
+  // are public files on a public path, which is what public/ means.
   //
   // The API is excluded because this file's whole job is to send a browser to
   // the login screen, and an HTML redirect is not an answer a fetch can read:
@@ -64,5 +76,7 @@ export const config = {
   // handler checks the session itself against the database, exactly as every
   // page and every server action does. A new route under /api must do the
   // same, and is a public endpoint until it does.
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    '/((?!api|_next/static|_next/image|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|txt|xml|webmanifest|woff|woff2)$).*)',
+  ],
 };
