@@ -168,6 +168,27 @@ users. Do not build for more.
     changing a password drops every session but the one doing it. There is
     deliberately no two-factor, no reset by email and no forced rotation
     (2026-08-14): a handful of internal users does not repay that surface.
+15. **Expand in one release, contract in a later one** (2026-08-15). Never drop
+    or rename a column in the same release that stops using it.
+    Vercel keeps the previous deployment serving until the new one is built, so
+    for the length of a build the **old code runs against the new schema**.
+    `scripts/migrate.mjs` applies `db/schema.sql` before `next build`, which is
+    the only ordering that gets the schema in place before the new code serves,
+    and it is exactly the ordering that exposes this. A migration that removes
+    something the running code still reads takes the site down until the build
+    finishes.
+    So a removal is two releases. First add the new column, ship code that
+    writes it and reads it with a fallback, and leave the old one alone: that
+    deploy is safe in both directions and can be rolled back. Then, once that
+    release is live and settled and nothing reads the old column, drop it.
+    The 2026-08-15 release broke this rule knowingly: it folded `fabric_type`
+    into `description` and dropped `book_no` and `reference` in one step. That
+    was affordable exactly once, against a book nobody was using yet, with a
+    restore point taken and the migration rehearsed against a copy of production
+    first. It is not the pattern to repeat now that the book is live.
+    Every production release takes a Neon `backup/<timestamp>` branch before the
+    schema is touched. That is what makes a mistake survivable; it is not what
+    makes it unlikely. This rule is the control.
 
 ---
 
@@ -448,8 +469,26 @@ not a gap in the workflow, and closing it is not this app's job.
 ## 8. Deployment
 
 Vercel free plan, Neon free Postgres, named accounts. The environment variables
-and the full setup are in [README.md](README.md). Production deploys happen from
-`main`.
+and the full setup are in [README.md](README.md).
+
+**One path to production, and it is `main`.** Work happens on a branch, the pull
+request gets a Vercel preview running against **its own Neon branch** rather than
+the live book, CI runs typecheck, the tests and the build, and merging to `main`
+deploys. Nothing is deployed from a working tree: a deploy made with
+`vercel --prod` uploads local files and is labeled with a commit it does not
+match, which is how the live site and `main` came to disagree on 2026-08-15.
+
+`DATABASE_URL` is scoped to the **production target only**. It used to cover
+preview as well, which meant every pull request preview was reading and writing
+the real book: opening a preview to try something out put test bills in the
+customer ledger. A preview gets its database from the Neon integration instead,
+as a branch that is deleted when the pull request closes.
+
+The schema is applied by the deploy, not by hand. `pnpm vercel-build` runs
+`scripts/migrate.mjs` before `next build`: it does nothing outside production,
+takes a Neon `backup/<timestamp>` branch, then applies `db/schema.sql`, and a
+failure fails the build so a bad schema change never reaches traffic. Read rule
+15 before writing a migration; the ordering this buys is real but narrow.
 
 The first Owner is created from the server with
 `node scripts/create-user.mjs`, which is also how a password is reset when
