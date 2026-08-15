@@ -486,7 +486,7 @@ export function PayrollGrid({
 
       {readOnly ? null : (
         <div className="mt-3">
-          <Button type="submit" disabled={pending || anyNegative}>
+          <Button type="submit" icon="check" disabled={pending || anyNegative}>
             {pending ? 'Saving' : 'Save Payroll'}
           </Button>
         </div>

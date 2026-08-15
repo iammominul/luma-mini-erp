@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Button } from '@/components/ui';
 import { lastDayOf } from '@/lib/dashboard';
 import { formatDate, todayInDhaka } from '@/lib/dates';
 
@@ -97,12 +98,7 @@ export function RangePicker({
             className="rounded border border-[var(--color-line)] px-2 py-1.5 text-sm text-[var(--color-ink)]"
           />
         </label>
-        <button
-          type="submit"
-          className="inline-flex min-h-11 items-center justify-center rounded bg-[var(--color-navy)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-navy-600)] md:min-h-0 md:px-3 md:py-1.5"
-        >
-          Show
-        </button>
+        <Button type="submit">Show</Button>
       </form>
 
       <div className="flex flex-wrap items-center gap-1">

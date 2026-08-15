@@ -1,5 +1,5 @@
 import { can, type Permission } from '@/lib/permissions';
-import type { NavIconName } from './NavIcon';
+import type { IconName } from './Icon';
 
 /**
  * What is in the left rail, and which of it a given role is offered.
@@ -38,7 +38,7 @@ export type NavItem = {
 export type NavGroup = {
   key: string;
   label: string;
-  icon: NavIconName;
+  icon: IconName;
   items: NavItem[];
 };
 
@@ -58,7 +58,7 @@ export type NavGroup = {
  * earns that block back is favorites somebody pins for themselves, which is
  * what every package that has one actually does.
  */
-export const PINNED: (NavItem & { icon: NavIconName })[] = [
+export const PINNED: (NavItem & { icon: IconName })[] = [
   { href: '/', label: 'Dashboard', icon: 'dashboard', exact: true },
 ];
 

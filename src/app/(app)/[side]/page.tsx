@@ -4,7 +4,7 @@ import { Money } from '@/lib/money';
 import { formatTaka } from '@/lib/format';
 import type { Column } from '@/components/DataTable';
 import { DataTable } from '@/components/DataTable';
-import { Card, PageTitle } from '@/components/ui';
+import { Card, LinkButton, PageTitle } from '@/components/ui';
 import { formatDate } from '@/lib/dates';
 import { listPartyBalances } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
@@ -129,18 +129,16 @@ export default async function SideOutstandingPage({
         subtitle={`Opening balance plus bills less ${copy.settlementTitle.toLowerCase()}, per ${copy.partyWord.toLowerCase()}.`}
         action={
           <div className="flex gap-2">
-            <Link
-              href={`/${side}/bills/new`}
-              className="inline-flex min-h-11 items-center justify-center rounded bg-[var(--color-navy)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-navy-600)] md:min-h-0 md:px-3 md:py-1.5"
-            >
+            <LinkButton href={`/${side}/bills/new`} icon="plus">
               New {copy.billSingular}
-            </Link>
-            <Link
+            </LinkButton>
+            <LinkButton
               href={`/${side}/settlements/new`}
-              className="inline-flex min-h-11 items-center justify-center rounded border border-[var(--color-line)] bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-50 md:min-h-0 md:px-3 md:py-1.5"
+              variant="secondary"
+              icon="plus"
             >
               New {copy.settlementSingular}
-            </Link>
+            </LinkButton>
           </div>
         }
       />

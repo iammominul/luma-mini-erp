@@ -1,10 +1,10 @@
 import Link from 'next/link';
 import { notFound, permanentRedirect } from 'next/navigation';
 import {
-  Button,
   Card,
   CardHeader,
   EmptyRow,
+  LinkButton,
   PageTitle,
   StatTile,
   Table,
@@ -70,12 +70,19 @@ export default async function EmployeePage({
           .join(' - ')}
         action={
           <div className="flex gap-2">
-            <Link href={`/payroll/advances/new?employee=${employee.id}`}>
-              <Button>New Advance</Button>
-            </Link>
-            <Link href={`/employees/${employee.code ?? employee.id}/edit`}>
-              <Button>Edit</Button>
-            </Link>
+            <LinkButton
+              href={`/payroll/advances/new?employee=${employee.id}`}
+              icon="plus"
+            >
+              New Advance
+            </LinkButton>
+            <LinkButton
+              href={`/employees/${employee.code ?? employee.id}/edit`}
+              variant="secondary"
+              icon="edit"
+            >
+              Edit
+            </LinkButton>
           </div>
         }
       />

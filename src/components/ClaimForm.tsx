@@ -149,7 +149,7 @@ export function ClaimForm({
       {state.error ? <Notice tone="error">{state.error}</Notice> : null}
 
       <FormActions>
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" icon="check" disabled={pending}>
           {pending ? 'Saving' : 'Save Claim'}
         </Button>
         <CancelLink href={cancelHref} />

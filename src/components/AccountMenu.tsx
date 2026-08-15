@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { NavIcon } from './NavIcon';
+import { Icon } from './Icon';
 import { can, roleLabel } from '@/lib/permissions';
 
 /**
@@ -107,7 +107,7 @@ export function AccountMenu({
         <span className="hidden max-w-[9rem] truncate text-[12px] lg:block">
           {userName}
         </span>
-        <NavIcon name="caret" className="hidden md:block" />
+        <Icon name="caret" className="hidden md:block" />
       </button>
 
       {open ? (
@@ -164,7 +164,7 @@ export function AccountMenu({
               role="menuitem"
               className={`${ROW} flex items-center gap-2 font-medium`}
             >
-              <NavIcon name="signout" />
+              <Icon name="signout" />
               Sign Out
             </button>
           </form>

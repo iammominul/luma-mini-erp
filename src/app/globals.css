@@ -111,6 +111,36 @@
    context at 40, so it is not on this scale and does not need to be.
    --------------------------------------------------------------------------- */
 
+/* The hand cursor over a control, put back.
+
+   Tailwind v3's preflight set `cursor: pointer` on a button. v4's does not: it
+   defers to the browser, and the browser's own default for a button is
+   `cursor: default`. So the whole app was drawing an arrow over every button
+   somebody could press, including the rail, the account menu, every row of the
+   search results and every Save on every form. Anchors were never affected,
+   which is why it read as an odd, partial fault rather than an obvious one.
+
+   `:not(:disabled)` is load bearing. `Button` in ui.tsx carries
+   `disabled:cursor-not-allowed`, and without the guard these two rules sit at
+   the same specificity and the later one wins, which would put a hand back on
+   a control that cannot be pressed.
+
+   `label` is deliberately not in this list. `Field` renders a label wrapping
+   its own input, so a pointer here would show over the text entry area, where
+   the caret belongs. */
+@layer base {
+  button:not(:disabled),
+  [role='button'],
+  summary,
+  select,
+  [type='checkbox'],
+  [type='radio'],
+  [type='submit'],
+  [type='reset'] {
+    cursor: pointer;
+  }
+}
+
 html,
 body {
   height: 100%;

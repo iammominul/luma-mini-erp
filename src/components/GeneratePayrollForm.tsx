@@ -110,7 +110,7 @@ export function GeneratePayrollForm({
 
       {state.error ? <Notice tone="error">{state.error}</Notice> : null}
 
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" icon="check" disabled={pending}>
         {pending ? 'Generating' : 'Generate Payroll'}
       </Button>
     </form>

@@ -1,10 +1,15 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { formatTaka } from '@/lib/format';
 import { sumMoney } from '@/lib/amount';
 import type { Column } from '@/components/DataTable';
 import { DataTable } from '@/components/DataTable';
-import { Card, DownloadIcon, PageTitle } from '@/components/ui';
+import {
+  Button,
+  Card,
+  DownloadIcon,
+  LinkButton,
+  PageTitle,
+} from '@/components/ui';
 import { formatDate } from '@/lib/dates';
 import { listParties, listPayments } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
@@ -57,12 +62,12 @@ function columnsFor(
       phone: 'full',
       cell: (payment) => (
         <div className="flex items-center gap-1.5">
-          <Link
+          <LinkButton
             href={`/${side}/settlements/${payment.id}`}
-            className="rounded border border-[var(--color-line)] bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50"
+            variant="secondary"
           >
             Open
-          </Link>
+          </LinkButton>
           <DownloadIcon
             href={`/${side}/settlements/${payment.id}/pdf`}
             label={`Download ${copy.settlementSingular} ${formatDate(payment.paidOn)}`}
@@ -107,12 +112,9 @@ export default async function SettlementsPage({
             : 'Money paid to subcontractors against their bills.'
         }
         action={
-          <Link
-            href={`/${side}/settlements/new`}
-            className="inline-flex min-h-11 w-full items-center justify-center rounded bg-[var(--color-navy)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-navy-600)] sm:w-auto md:min-h-0 md:px-3 md:py-1.5"
-          >
+          <LinkButton href={`/${side}/settlements/new`} icon="plus" block>
             New {copy.settlementSingular}
-          </Link>
+          </LinkButton>
         }
       />
 
@@ -153,15 +155,17 @@ export default async function SettlementsPage({
               className="min-h-11 w-full rounded border border-[var(--color-line)] bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
             />
           </label>
-          <button className="inline-flex min-h-11 w-full items-center justify-center rounded bg-[var(--color-navy)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-navy-600)] sm:w-auto md:min-h-0 md:px-3 md:py-1.5">
+          <Button size="filter" block>
             Apply
-          </button>
-          <Link
+          </Button>
+          <LinkButton
             href={`/${side}/settlements`}
-            className="inline-flex min-h-11 w-full items-center justify-center rounded border border-[var(--color-line)] bg-white px-4 py-2.5 text-sm hover:bg-gray-50 sm:w-auto md:min-h-0 md:px-3 md:py-1.5"
+            variant="secondary"
+            size="filter"
+            block
           >
             Clear
-          </Link>
+          </LinkButton>
         </form>
       </Card>
 

@@ -1,11 +1,10 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { DeleteBox } from '@/components/DeleteBox';
 import {
-  CancelLink,
   Card,
   CardHeader,
   DownloadButton,
+  LinkButton,
   Table,
   Td,
   Th,
@@ -54,12 +53,13 @@ export default async function SettlementPage({
       {/* The work area keeps no top padding, so a screen without a PageTitle
           sets its own. See the comment on main in AppShell.tsx. */}
       <div className="mb-4 md:pt-5">
-        <Link
+        <LinkButton
           href={`/${side}/settlements`}
-          className="text-sm text-[var(--color-navy)] hover:underline"
+          variant="secondary"
+          icon="back"
         >
           Back to {copy.settlementTitle}
-        </Link>
+        </LinkButton>
       </div>
 
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -76,7 +76,13 @@ export default async function SettlementPage({
           <DownloadButton href={`/${side}/settlements/${payment.id}/pdf`}>
             Download PDF
           </DownloadButton>
-          <CancelLink href={`/${side}/settlements/${payment.id}/edit`}>Edit</CancelLink>
+          <LinkButton
+            href={`/${side}/settlements/${payment.id}/edit`}
+            variant="secondary"
+            icon="edit"
+          >
+            Edit
+          </LinkButton>
           <DeleteBox
             action={deletePaymentAction}
             id={payment.id}

@@ -7,7 +7,7 @@ import {
   FilterBar,
   FilterField,
 } from '@/components/FilterBar';
-import { Button, Card, PageTitle, StatTile } from '@/components/ui';
+import { Card, LinkButton, PageTitle, StatTile } from '@/components/ui';
 import { formatDate } from '@/lib/dates';
 import { formatTaka } from '@/lib/format';
 import { sumMoney } from '@/lib/amount';
@@ -99,9 +99,9 @@ export default async function ExpensesPage({
         title="Expenses"
         subtitle="Money paid out that is not a party settlement. Recorded when it moves."
         action={
-          <Link href="/expenses/new">
-            <Button>New Expense</Button>
-          </Link>
+          <LinkButton href="/expenses/new" icon="plus">
+            New Expense
+          </LinkButton>
         }
       />
 

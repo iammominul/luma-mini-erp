@@ -1,5 +1,5 @@
 /**
- * The marks on the navigation rail.
+ * The marks, for the navigation rail and for the buttons that name a verb.
  *
  * Taken from the approved prototype, `docs/prototype/v5` in the planning
  * repository, and drawn on its grid: 16 units, no fill, 1.4 stroke, round caps
@@ -14,11 +14,15 @@
  *
  * They are plain line icons on purpose: this is classic office software, so no
  * emoji, no filled glyphs and no color of their own. Drawn here rather than
- * pulled from a package, because the rail needs about sixteen of them and a
- * dependency for that is not worth the weight in an app that gets archived.
+ * pulled from a package, because the app needs about two dozen of them and a
+ * dependency for that is not worth the weight in one that gets archived.
+ *
+ * This was `NavIcon` while the rail was the only thing asking for a mark. It
+ * now also draws the mark on New, Save, Download PDF and Remove, so the name
+ * had to stop claiming otherwise.
  */
 
-export type NavIconName =
+export type IconName =
   | 'dashboard'
   | 'receivable'
   | 'payable'
@@ -34,9 +38,19 @@ export type NavIconName =
   | 'menu'
   | 'close'
   | 'recent'
-  | 'signout';
+  | 'signout'
+  // The action marks. These go on a button rather than in the rail, so each one
+  // has to read at 14px beside a 12px label and none of them can rely on detail.
+  | 'plus'
+  | 'check'
+  | 'edit'
+  | 'trash'
+  | 'download'
+  | 'signin'
+  | 'back'
+  | 'undo';
 
-const PATHS: Record<NavIconName, React.ReactNode> = {
+const PATHS: Record<IconName, React.ReactNode> = {
   // Four panes, the shape a dashboard has had since before the web.
   dashboard: (
     <>
@@ -143,13 +157,74 @@ const PATHS: Record<NavIconName, React.ReactNode> = {
       <path d="M13.2 8H7.4" />
     </>
   ),
+  // The same door as signout, with the arrow turned inward. The pair has to be
+  // mirror images or the two read as unrelated marks.
+  signin: (
+    <>
+      <path d="M6.8 2.6h4.9a1 1 0 0 1 1 1v8.8a1 1 0 0 1-1 1H6.8" />
+      <path d="M4.8 5.6 2.4 8l2.4 2.4" />
+      <path d="M2.8 8h5.8" />
+    </>
+  ),
+  // New. A cross, nothing else: anything more at 14px is a smudge.
+  plus: <path d="M8 3.2v9.6M3.2 8h9.6" />,
+  // Save, Post, Approve, Mark Paid. All four are the same act, which is
+  // affirming what is on the screen, so they take the same mark.
+  check: <path d="M3 8.4 6.4 11.8 13 5.2" />,
+  // A pencil over the line it is changing.
+  edit: (
+    <>
+      <path d="M11.1 2.6a1.6 1.6 0 0 1 2.3 2.3l-7.1 7.1-3 .7.7-3z" />
+      <path d="M9.8 4 12 6.2" />
+    </>
+  ),
+  // A bin with its lid. The band across the top is what separates it from a
+  // plain box at this size.
+  trash: (
+    <>
+      <path d="M2.6 4.4h10.8" />
+      <path d="M6.2 4.4V2.9h3.6v1.5" />
+      <path d="M3.9 4.4l.6 8.1a1 1 0 0 0 1 .9h5a1 1 0 0 0 1-.9l.6-8.1" />
+      <path d="M6.7 6.8v4M9.3 6.8v4" />
+    </>
+  ),
+  // The arrow onto the tray. Lifted from the glyph DownloadIcon used to inline
+  // in ui.tsx, redrawn on this file's grid so it matches the rest.
+  download: (
+    <>
+      <path d="M8 2.4v7.2" />
+      <path d="M4.8 6.6 8 9.8l3.2-3.2" />
+      <path d="M2.6 13.4h10.8" />
+    </>
+  ),
+  // Back to the register the record was opened from.
+  back: (
+    <>
+      <path d="M13.4 8H3.2" />
+      <path d="M6.6 4.6 3.2 8l3.4 3.4" />
+    </>
+  ),
+  // Reopen: an arrow curving back on itself, which is undo everywhere.
+  undo: (
+    <>
+      <path d="M3.1 5.2v3.4h3.4" />
+      <path d="M3.9 8.6a5 5 0 1 1 1.1 3.5" />
+    </>
+  ),
 };
 
-export function NavIcon({
+/**
+ * Every name, as a value rather than a type, so a test can check that the rail
+ * never asks for a mark this file does not draw. A missing one is otherwise a
+ * blank space on the menu that nothing complains about.
+ */
+export const ICON_NAMES = Object.keys(PATHS) as IconName[];
+
+export function Icon({
   name,
   className = '',
 }: {
-  name: NavIconName;
+  name: IconName;
   className?: string;
 }) {
   // Chevron and caret are hints rather than labels, so they are drawn smaller

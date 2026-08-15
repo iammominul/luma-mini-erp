@@ -63,7 +63,7 @@ export function ReimburseForm({
           </option>
         ))}
       </Select>
-      <Button type="submit" disabled={pending} className="w-full sm:w-auto">
+      <Button type="submit" icon="check" disabled={pending} block>
         {pending ? 'Saving' : 'Reimburse'}
       </Button>
       {state.error ? <Notice tone="error">{state.error}</Notice> : null}

@@ -135,7 +135,7 @@ export function LeaveForm({
       {state.error ? <Notice tone="error">{state.error}</Notice> : null}
 
       <FormActions>
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" icon="check" disabled={pending}>
           {pending ? 'Saving' : 'Save Leave'}
         </Button>
         <CancelLink href={cancelHref} />

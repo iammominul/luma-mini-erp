@@ -5,6 +5,7 @@ import type {
   ReactNode,
 } from 'react';
 import { Crumb } from './Crumb';
+import { Icon, type IconName } from './Icon';
 
 /**
  * The same hand-rolled primitives the real ERP frontend uses: classic office
@@ -17,6 +18,22 @@ import { Crumb } from './Crumb';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger';
 
+/**
+ * Two sizes, because the app genuinely has two and flattening them breaks
+ * something.
+ *
+ * `default` is the prototype's 26px at `md`, which is the height a row of
+ * actions over a dense table has to be to look like it belongs to the table,
+ * and it is the same 26px as a column heading.
+ *
+ * `filter` is taller, and it exists for the filter rows only. `FILTER_CONTROL`
+ * in FilterBar.tsx is a taller control than `CONTROL` is here, so an Apply
+ * button at 26px would stop sitting on the same baseline as the fields it is
+ * beside. The size was already in the code, written out by hand in about
+ * fourteen files; naming it is what stops it drifting again.
+ */
+type ButtonSize = 'default' | 'filter';
+
 const BUTTON_STYLES: Record<ButtonVariant, string> = {
   primary: 'bg-[var(--color-navy)] text-white hover:bg-[var(--color-navy-600)]',
   secondary:
@@ -25,22 +42,93 @@ const BUTTON_STYLES: Record<ButtonVariant, string> = {
 };
 
 // 44px is the smallest a control should be to be tapped reliably. Written once
-// because a button, a download and a cancel link all have to agree on it. At
-// md it drops to the prototype's 26px, which is the height a row of actions
-// above a dense table has to be to look like it belongs to the table.
+// because a button, a download and a cancel link all have to agree on it.
+const BUTTON_SIZES: Record<ButtonSize, string> = {
+  default:
+    'min-h-11 px-4 py-2.5 text-sm md:min-h-0 md:h-[26px] md:px-2.5 md:py-0 md:text-[12px]',
+  filter: 'min-h-11 px-4 py-2.5 text-sm md:min-h-0 md:px-3 md:py-1.5',
+};
+
 const BUTTON_BASE =
-  'inline-flex min-h-11 items-center justify-center rounded px-4 py-2.5 text-sm font-medium transition-colors md:min-h-0 md:h-[26px] md:px-2.5 md:py-0 md:text-[12px]';
+  'inline-flex items-center justify-center gap-1.5 rounded font-medium transition-colors';
+
+/** Full width on a phone, its own width from `sm` up. */
+const BLOCK = 'w-full sm:w-auto';
+
+/**
+ * The mark on a button, sized down at `md` because the button itself drops to
+ * 26px with a 12px label there and a full 16px glyph beside that reads as an
+ * icon with a word stuck to it.
+ */
+function ButtonIcon({ name }: { name: IconName }) {
+  return <Icon name={name} className="h-4 w-4 md:h-3.5 md:w-3.5" />;
+}
+
+type ButtonLook = {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  /** Full width below `sm`, for an action a thumb reaches for. */
+  block?: boolean;
+  /** The mark before the label. Actions that name a verb take one. */
+  icon?: IconName;
+};
+
+function look({
+  variant = 'primary',
+  size = 'default',
+  block = false,
+}: ButtonLook) {
+  return `${BUTTON_BASE} ${BUTTON_SIZES[size]} ${BUTTON_STYLES[variant]} ${
+    block ? BLOCK : ''
+  }`;
+}
 
 export function Button({
-  variant = 'primary',
+  variant,
+  size,
+  block,
+  icon,
   className = '',
+  children,
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & ButtonLook) {
   return (
     <button
-      className={`${BUTTON_BASE} disabled:cursor-not-allowed disabled:opacity-50 ${BUTTON_STYLES[variant]} ${className}`}
+      className={`${look({ variant, size, block })} disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
       {...props}
-    />
+    >
+      {icon ? <ButtonIcon name={icon} /> : null}
+      {children}
+    </button>
+  );
+}
+
+/**
+ * A link, styled as a button.
+ *
+ * This is what about forty hand-written copies of the button class string were
+ * doing across fourteen files, and they had drifted: none of them picked up the
+ * 26px height or the 12px type, so the primary action on every register was a
+ * different size from every other button on the same screen.
+ */
+export function LinkButton({
+  href,
+  variant,
+  size,
+  block,
+  icon,
+  className = '',
+  children,
+}: ButtonLook & {
+  href: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link href={href} className={`${look({ variant, size, block })} ${className}`}>
+      {icon ? <ButtonIcon name={icon} /> : null}
+      {children}
+    </Link>
   );
 }
 
@@ -52,14 +140,17 @@ export function Button({
 export function DownloadButton({
   href,
   children,
-  variant = 'primary',
-}: {
+  variant,
+  size,
+  block,
+  icon = 'download',
+}: ButtonLook & {
   href: string;
   children: ReactNode;
-  variant?: ButtonVariant;
 }) {
   return (
-    <a href={href} className={`${BUTTON_BASE} ${BUTTON_STYLES[variant]}`}>
+    <a href={href} className={look({ variant, size, block })}>
+      {icon ? <ButtonIcon name={icon} /> : null}
       {children}
     </a>
   );
@@ -67,7 +158,8 @@ export function DownloadButton({
 
 /**
  * Cancel, as a button. Eight forms had this written out by hand, which is eight
- * places for the touch size to be missed.
+ * places for the touch size to be missed. It takes no icon: Cancel is the way
+ * out of a form, not one of the things the form does.
  */
 export function CancelLink({
   href,
@@ -77,9 +169,9 @@ export function CancelLink({
   children?: ReactNode;
 }) {
   return (
-    <Link href={href} className={`${BUTTON_BASE} ${BUTTON_STYLES.secondary}`}>
+    <LinkButton href={href} variant="secondary">
       {children}
-    </Link>
+    </LinkButton>
   );
 }
 
@@ -105,10 +197,12 @@ export function FormActions({
 }
 
 /**
- * A download, as an icon in a row of actions. One outline glyph, drawn inline:
- * an icon font or a sprite would be another asset to ship for a single mark.
- * The label stays in the title and for screen readers, so the action is never
- * only a shape.
+ * A download, as an icon in a row of actions. The label stays in the title and
+ * for screen readers, so the action is never only a shape.
+ *
+ * The glyph used to be inlined here. It is now the shared `download` mark, so
+ * the icon in a table row and the icon on the Download PDF button are the same
+ * drawing rather than two that happen to look alike.
  */
 export function DownloadIcon({
   href,
@@ -124,20 +218,7 @@ export function DownloadIcon({
       aria-label={label}
       className="inline-flex h-10 w-10 items-center justify-center rounded border border-[var(--color-line)] bg-white text-[var(--color-navy)] hover:bg-gray-50 md:h-7 md:w-7"
     >
-      <svg
-        viewBox="0 0 16 16"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-        className="h-4 w-4 md:h-3.5 md:w-3.5"
-      >
-        <path d="M8 2v8" />
-        <path d="M4.5 7 8 10.5 11.5 7" />
-        <path d="M2.5 13.5h11" />
-      </svg>
+      <ButtonIcon name="download" />
     </a>
   );
 }

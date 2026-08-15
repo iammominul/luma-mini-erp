@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import type { Ref } from 'react';
-import { NavIcon } from './NavIcon';
+import { Icon } from './Icon';
 import { PINNED, groupHolding, groupsFor, isActive } from './nav-items';
 
 /**
@@ -113,7 +113,7 @@ export function AppNav({
           aria-label="Close the menu"
           className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-white/70 hover:bg-white/10 hover:text-white"
         >
-          <NavIcon name="close" className="h-5 w-5" />
+          <Icon name="close" className="h-5 w-5" />
         </button>
       </div>
 
@@ -136,7 +136,7 @@ export function AppNav({
               rail ? 'justify-center px-0' : 'px-3.5'
             } ${isActive(pathname, item) ? ON : OFF}`}
           >
-            <NavIcon name={item.icon} />
+            <Icon name={item.icon} />
             {rail ? null : <span>{item.label}</span>}
           </Link>
         ))}
@@ -177,7 +177,7 @@ export function AppNav({
                     : 'border-transparent text-white/75'
                 } hover:bg-white/5 hover:text-white`}
               >
-                <NavIcon name={group.icon} />
+                <Icon name={group.icon} />
                 {rail ? null : (
                   <>
                     <span className="flex-1 text-left">{group.label}</span>
@@ -186,7 +186,7 @@ export function AppNav({
                         expanded ? 'rotate-90' : ''
                       }`}
                     >
-                      <NavIcon name="chevron" />
+                      <Icon name="chevron" />
                     </span>
                   </>
                 )}
@@ -244,7 +244,7 @@ export function AppNav({
             rail ? 'justify-center px-0' : 'px-2'
           }`}
         >
-          <NavIcon name={rail ? 'expand' : 'collapse'} />
+          <Icon name={rail ? 'expand' : 'collapse'} />
           {rail ? null : <span>Collapse Menu</span>}
         </button>
       </div>

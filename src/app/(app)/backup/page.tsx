@@ -1,8 +1,10 @@
-import { Card, CardHeader, PageTitle } from '@/components/ui';
+import {
+  Card,
+  CardHeader,
+  DownloadButton,
+  PageTitle,
+} from '@/components/ui';
 import { exportEverything } from '@/lib/export';
-
-const LINK =
-  'rounded border border-[var(--color-line)] bg-white px-3 py-1.5 text-sm font-medium hover:bg-gray-50';
 
 export default async function BackupPage() {
   const bundle = await exportEverything();
@@ -45,18 +47,27 @@ export default async function BackupPage() {
         <CardHeader title="Downloads" />
         <div className="space-y-4 p-4 text-sm">
           <div className="flex flex-wrap items-center gap-2">
-            <a className={LINK} href="/backup/download?set=all">
+            <DownloadButton variant="secondary" href="/backup/download?set=all">
               Full Backup (JSON)
-            </a>
-            <a className={LINK} href="/backup/download?set=bills">
+            </DownloadButton>
+            <DownloadButton
+              variant="secondary"
+              href="/backup/download?set=bills"
+            >
               Bills (CSV)
-            </a>
-            <a className={LINK} href="/backup/download?set=payments">
+            </DownloadButton>
+            <DownloadButton
+              variant="secondary"
+              href="/backup/download?set=payments"
+            >
               Receipts and Payments (CSV)
-            </a>
-            <a className={LINK} href="/backup/download?set=parties">
+            </DownloadButton>
+            <DownloadButton
+              variant="secondary"
+              href="/backup/download?set=parties"
+            >
               Parties (CSV)
-            </a>
+            </DownloadButton>
           </div>
 
           <div className="text-[var(--color-muted)]">

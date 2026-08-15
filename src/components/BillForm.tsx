@@ -19,6 +19,7 @@ import {
   Card,
   CardHeader,
   Field,
+  FormActions,
   Notice,
   Select,
   Table,
@@ -788,8 +789,14 @@ export function BillForm({
       {/* Pinned to the foot of the work area. A bill with twenty lines had its
           Save two screens below the line being keyed. */}
       <div className="sticky bottom-0 -mx-4 border-t border-[var(--color-rule)] bg-[var(--color-surface-2)] px-4 py-3 md:-mx-6 md:px-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Button type="submit" name="status" value="posted" disabled={pending}>
+        <FormActions>
+          <Button
+            type="submit"
+            name="status"
+            value="posted"
+            icon="check"
+            disabled={pending}
+          >
             {pending ? 'Saving' : submitLabel}
           </Button>
           {billId ? null : (
@@ -798,13 +805,14 @@ export function BillForm({
               name="status"
               value="draft"
               variant="secondary"
+              icon="check"
               disabled={pending}
             >
-              Save as Draft
+              {pending ? 'Saving' : 'Save as Draft'}
             </Button>
           )}
           <CancelLink href={cancelHref} />
-        </div>
+        </FormActions>
       </div>
     </form>
   );

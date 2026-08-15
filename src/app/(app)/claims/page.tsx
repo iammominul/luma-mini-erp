@@ -8,7 +8,7 @@ import {
   FilterBar,
   FilterField,
 } from '@/components/FilterBar';
-import { Button, Card, PageTitle, StatTile } from '@/components/ui';
+import { Card, LinkButton, PageTitle, StatTile } from '@/components/ui';
 import { sumMoney } from '@/lib/amount';
 import { formatDate, todayInDhaka } from '@/lib/dates';
 import { formatTaka } from '@/lib/format';
@@ -122,9 +122,9 @@ export default async function ClaimsPage({
         title="Expense Claims"
         subtitle="Money staff spent and are owed back. Reimbursed on its own, never through payroll."
         action={
-          <Link href="/claims/new">
-            <Button>New Claim</Button>
-          </Link>
+          <LinkButton href="/claims/new" icon="plus">
+            New Claim
+          </LinkButton>
         }
       />
 

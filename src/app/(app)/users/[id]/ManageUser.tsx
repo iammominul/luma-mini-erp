@@ -119,7 +119,7 @@ function DetailsForm({ user }: { user: AppUser }) {
         />
       </Field>
       <Result state={state} />
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" icon="check" disabled={pending}>
         {pending ? 'Saving' : 'Save Details'}
       </Button>
     </form>
@@ -164,7 +164,7 @@ function RoleForm({ user, locked }: { user: AppUser; locked: boolean }) {
       <Result state={state} />
       {/* An explicit button, not a select that saves the moment it changes: a
           stray click must not be able to grant somebody Owner. */}
-      <Button type="submit" disabled={pending || chosen === user.role}>
+      <Button type="submit" icon="check" disabled={pending || chosen === user.role}>
         {pending ? 'Saving' : 'Change Role'}
       </Button>
     </form>
@@ -199,7 +199,7 @@ function PasswordForm({ user, isSelf }: { user: AppUser; isSelf: boolean }) {
         />
       </Field>
       <Result state={state} />
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" icon="check" disabled={pending}>
         {pending ? 'Saving' : 'Set Password'}
       </Button>
     </form>

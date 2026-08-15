@@ -1,10 +1,9 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { formatTaka } from '@/lib/format';
 import { formatQtyKg, parseQtyKg } from '@/lib/amount';
 import type { Column } from '@/components/DataTable';
 import { DataTable } from '@/components/DataTable';
-import { Card, DownloadIcon, PageTitle } from '@/components/ui';
+import { Card, DownloadIcon, LinkButton, PageTitle } from '@/components/ui';
 import { formatDate } from '@/lib/dates';
 import {
   type BillSort,
@@ -244,12 +243,12 @@ export default async function BillsPage({
       phone: 'off',
       cell: (bill) => (
         <div className="flex items-center gap-1.5">
-          <Link
+          <LinkButton
             href={`/${side}/bills/${bill.docNo ?? bill.id}`}
-            className="rounded border border-[var(--color-line)] bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50"
+            variant="secondary"
           >
             Open
-          </Link>
+          </LinkButton>
           <DownloadIcon
             href={`/${side}/bills/${bill.docNo ?? bill.id}/pdf`}
             label={`Download ${copy.billSingular} ${bill.billNo}`}
@@ -269,12 +268,9 @@ export default async function BillsPage({
             : 'Bills received from subcontractors, recorded under their own number.'
         }
         action={
-          <Link
-            href={`/${side}/bills/new`}
-            className="inline-flex min-h-11 items-center justify-center rounded bg-[var(--color-navy)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-navy-600)] md:min-h-0 md:px-3 md:py-1.5"
-          >
+          <LinkButton href={`/${side}/bills/new`} icon="plus">
             New {copy.billSingular}
-          </Link>
+          </LinkButton>
         }
       />
 
@@ -331,23 +327,17 @@ export default async function BillsPage({
           </span>
           <div className="flex items-center gap-2">
             {page > 1 ? (
-              <Link
-                href={pageHref(page - 1)}
-                className="rounded border border-[var(--color-line)] bg-white px-3 py-1.5 font-medium hover:bg-gray-50"
-              >
+              <LinkButton href={pageHref(page - 1)} variant="secondary">
                 Previous
-              </Link>
+              </LinkButton>
             ) : null}
             <span className="text-[var(--color-muted)]">
               Page {page} of {pages}
             </span>
             {page < pages ? (
-              <Link
-                href={pageHref(page + 1)}
-                className="rounded border border-[var(--color-line)] bg-white px-3 py-1.5 font-medium hover:bg-gray-50"
-              >
+              <LinkButton href={pageHref(page + 1)} variant="secondary">
                 Next
-              </Link>
+              </LinkButton>
             ) : null}
           </div>
         </div>

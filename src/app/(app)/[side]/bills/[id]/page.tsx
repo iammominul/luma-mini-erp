@@ -1,13 +1,12 @@
-import Link from 'next/link';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { amountInWords, formatTaka } from '@/lib/format';
 import { DeleteBox } from '@/components/DeleteBox';
 import { DataTable } from '@/components/DataTable';
 import {
-  CancelLink,
   Card,
   CardHeader,
   DownloadButton,
+  LinkButton,
   Notice,
 } from '@/components/ui';
 import { formatQtyKg, formatRate, parseQtyKg, sumGrams } from '@/lib/amount';
@@ -55,12 +54,13 @@ export default async function BillPage({
       {/* The work area keeps no top padding, so a screen without a PageTitle
           sets its own. See the comment on main in AppShell.tsx. */}
       <div className="mb-4 md:pt-5">
-        <Link
+        <LinkButton
           href={`/${side}/bills`}
-          className="text-sm text-[var(--color-navy)] hover:underline"
+          variant="secondary"
+          icon="back"
         >
           Back to {copy.billTitle}
-        </Link>
+        </LinkButton>
       </div>
 
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -79,7 +79,13 @@ export default async function BillPage({
           <DownloadButton href={`/${side}/bills/${handle}/pdf`}>
             Download PDF
           </DownloadButton>
-          <CancelLink href={`/${side}/bills/${handle}/edit`}>Edit</CancelLink>
+          <LinkButton
+            href={`/${side}/bills/${handle}/edit`}
+            variant="secondary"
+            icon="edit"
+          >
+            Edit
+          </LinkButton>
           <DeleteBox
             action={deleteBillAction}
             id={bill.id}

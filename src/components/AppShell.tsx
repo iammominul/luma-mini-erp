@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { AccountMenu } from './AccountMenu';
 import { AppNav } from './AppNav';
-import { NavIcon } from './NavIcon';
+import { Icon } from './Icon';
 import { RecentChanges } from './RecentChanges';
 import { SearchBox } from './SearchBox';
 import { useIsWide } from './use-is-wide';
@@ -203,7 +203,7 @@ export function AppShell({
           aria-expanded={open}
           className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded text-white/80 hover:bg-white/10 hover:text-white md:hidden"
         >
-          <NavIcon name="menu" className="h-5 w-5" />
+          <Icon name="menu" className="h-5 w-5" />
         </button>
 
         {/* The symbol and the name, sized to the rail column so the two edges

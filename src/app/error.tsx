@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { Button, LinkButton } from '@/components/ui';
 
 /**
  * What a failed request answers with.
@@ -36,20 +36,13 @@ export default function Error({
           </code>
         </p>
       ) : null}
-      <div className="mt-6 flex flex-wrap gap-2 text-sm">
-        <button
-          type="button"
-          onClick={reset}
-          className="rounded bg-[var(--color-navy)] px-3 py-1.5 font-medium text-white hover:bg-[var(--color-navy-600)]"
-        >
+      <div className="mt-6 flex flex-wrap gap-2">
+        <Button type="button" onClick={reset} icon="undo">
           Try Again
-        </button>
-        <Link
-          href="/"
-          className="rounded border border-[var(--color-line)] bg-white px-3 py-1.5 font-medium hover:bg-gray-50"
-        >
+        </Button>
+        <LinkButton href="/" variant="secondary">
           Go to Dashboard
-        </Link>
+        </LinkButton>
       </div>
     </main>
   );
