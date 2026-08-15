@@ -228,6 +228,50 @@ figures, so delete it once the numbers agree.
 
 ---
 
+## Shipping a change
+
+```text
+branch  ->  pull request  ->  preview on its own Neon branch  ->  merge  ->  main  ->  production
+```
+
+Never `vercel --prod` from your machine. It uploads whatever is in the folder,
+including files you have not committed, and labels the deployment with a commit
+it does not match, so the live site and `main` quietly stop agreeing.
+
+1. **Branch and work.** `pnpm dev` against the local Docker Postgres.
+2. **Open a pull request.** It gets a preview URL backed by its own Neon branch,
+   copied from production and deleted when the pull request closes. It is safe
+   to add and delete records there: none of it is the real book.
+3. **Wait for CI.** Typecheck, the full test suite against Postgres 18, and the
+   build.
+4. **Merge.** The production deploy runs `scripts/migrate.mjs` first, which
+   takes a `backup/<timestamp>` Neon branch and applies `db/schema.sql`, then
+   builds. A failed migration fails the build and production keeps serving the
+   previous release.
+5. **Check it.** Open the site, sign in, open a bill, download its PDF.
+
+### Before you write a migration
+
+Read rule 15 in [CLAUDE.md](CLAUDE.md). The short version: Vercel serves the old
+deployment until the new one is built, so anything you remove is removed from
+under code that is still running. **Add in one release, drop in a later one.**
+
+### When a release goes wrong
+
+Every production deploy leaves a Neon branch named `backup/<timestamp>`, taken
+before the schema was touched.
+
+1. In the Vercel dashboard, promote the previous deployment. That puts the old
+   code back in seconds.
+2. If the data needs to go back too, open the Neon console, find the `backup/`
+   branch from that release, and restore or branch from it.
+3. Only then work out what went wrong.
+
+Roll back first, diagnose second. A restore point that nobody uses because they
+were busy debugging is not a restore point.
+
+---
+
 ## How it is put together
 
 | Piece     | Choice                                                                                                           |
