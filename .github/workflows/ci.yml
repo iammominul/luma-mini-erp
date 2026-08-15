@@ -53,10 +53,16 @@ jobs:
       - name: Build
         run: pnpm build
         env:
-          # Not a secret, and deliberately not one. The build evaluates the auth
-          # route while collecting page data, and src/lib/auth.ts refuses to
-          # build an instance with no secret rather than hand out cookies
-          # nothing could verify. A build needs some value present; it never
-          # signs anything here, and nothing this produces is deployed. The real
-          # secret is set on Vercel.
+          # Neither of these is a secret, and deliberately not. The build
+          # evaluates /api/auth/[...all] while collecting page data, which
+          # constructs the Better Auth instance, which needs both a signing
+          # secret and a connection string present. Both modules refuse to
+          # construct without them rather than start half configured, and that
+          # refusal is right, so the workflow supplies values instead of the
+          # code being loosened.
+          #
+          # Nothing is signed and nothing is queried: collecting page data only
+          # builds the instance, and the build output is never deployed from
+          # here. The real values are set on Vercel.
           AUTH_SECRET: ci-build-only-not-a-real-secret
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
