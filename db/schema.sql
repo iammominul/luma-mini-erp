@@ -1221,3 +1221,20 @@ BEGIN
   END IF;
 END
 $fold_fabric_type$;
+
+
+-- The bill approval columns are gone (2026-08-15).
+--
+-- An Owner sign-off on a posted bill was built and then taken back out: a
+-- workflow state layered on top of who owes what is the full ERP's job, not this
+-- app's. Removing it from the definition above is enough for a database created
+-- afterwards, and not enough for one that ran the schema while the feature
+-- existed. That database keeps three columns nothing writes, which is how a
+-- developer's copy quietly stops matching production and a dump taken from one
+-- refuses to load into the other.
+--
+-- Guarded, so this is a no-op everywhere the columns were never added.
+DROP INDEX IF EXISTS bill_awaiting_approval_idx;
+ALTER TABLE bill DROP COLUMN IF EXISTS approved_at;
+ALTER TABLE bill DROP COLUMN IF EXISTS approved_by;
+ALTER TABLE bill DROP COLUMN IF EXISTS approved_by_user_id;
