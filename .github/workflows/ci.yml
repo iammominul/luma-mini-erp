@@ -52,3 +52,11 @@ jobs:
 
       - name: Build
         run: pnpm build
+        env:
+          # Not a secret, and deliberately not one. The build evaluates the auth
+          # route while collecting page data, and src/lib/auth.ts refuses to
+          # build an instance with no secret rather than hand out cookies
+          # nothing could verify. A build needs some value present; it never
+          # signs anything here, and nothing this produces is deployed. The real
+          # secret is set on Vercel.
+          AUTH_SECRET: ci-build-only-not-a-real-secret
