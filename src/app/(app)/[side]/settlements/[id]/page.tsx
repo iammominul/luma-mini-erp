@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { DeleteBox } from '@/components/DeleteBox';
 import {
+  CancelLink,
   Card,
   CardHeader,
   DownloadButton,
@@ -50,7 +51,9 @@ export default async function SettlementPage({
 
   return (
     <>
-      <div className="mb-4">
+      {/* The work area keeps no top padding, so a screen without a PageTitle
+          sets its own. See the comment on main in AppShell.tsx. */}
+      <div className="mb-4 md:pt-5">
         <Link
           href={`/${side}/settlements`}
           className="text-sm text-[var(--color-navy)] hover:underline"
@@ -69,16 +72,11 @@ export default async function SettlementPage({
             {paymentModeLabel(payment.mode)}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <DownloadButton href={`/${side}/settlements/${payment.id}/pdf`}>
             Download PDF
           </DownloadButton>
-          <Link
-            href={`/${side}/settlements/${payment.id}/edit`}
-            className="rounded border border-[var(--color-line)] bg-white px-3 py-1.5 text-sm font-medium hover:bg-gray-50"
-          >
-            Edit
-          </Link>
+          <CancelLink href={`/${side}/settlements/${payment.id}/edit`}>Edit</CancelLink>
           <DeleteBox
             action={deletePaymentAction}
             id={payment.id}
@@ -95,12 +93,12 @@ export default async function SettlementPage({
           <tbody>
             {rows.map((row) => (
               <tr key={row.label}>
-                <Th className="w-48">{row.label}</Th>
+                <Th className="w-32 md:w-48">{row.label}</Th>
                 <Td>{row.value}</Td>
               </tr>
             ))}
             <tr>
-              <Th className="w-48">{copy.settlementColumn}</Th>
+              <Th className="w-32 md:w-48">{copy.settlementColumn}</Th>
               <Td className="font-semibold">{formatTaka(payment.amount)}</Td>
             </tr>
           </tbody>

@@ -16,8 +16,11 @@ import { NATURE_OF_WORK } from '@/lib/types';
  * someone, or reloaded without losing where you were.
  */
 
+// Its own, because these controls size to their content rather than filling a
+// field row. The touch height and the 16px text below md are the same reasoning
+// as the shared CONTROL in ui.tsx: under 16px, iOS zooms the page on focus.
 const CONTROL =
-  'rounded border border-[var(--color-line)] bg-white px-2.5 py-1.5 text-sm';
+  'min-h-11 rounded border border-[var(--color-line)] bg-white px-3 py-2.5 text-base md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm';
 
 export function BillFilters({
   partyWord,
@@ -87,14 +90,14 @@ export function BillFilters({
           }}
           placeholder={`Search bill number or ${partyWord.toLowerCase()}`}
           aria-label="Search bills"
-          className={`w-64 ${CONTROL}`}
+          className={`w-full sm:w-64 ${CONTROL}`}
         />
 
         <select
           value={status}
           onChange={(event) => apply({ status: event.target.value })}
           aria-label="Status"
-          className={CONTROL}
+          className={`w-full sm:w-auto ${CONTROL}`}
         >
           <option value="">All Bills</option>
           <option value="draft">Drafts</option>
@@ -105,7 +108,7 @@ export function BillFilters({
         <button
           type="button"
           onClick={() => setOpen((was) => !was)}
-          className={`${CONTROL} font-medium hover:bg-gray-50`}
+          className={`w-full sm:w-auto ${CONTROL} font-medium hover:bg-gray-50`}
         >
           More Filters{tucked > 0 ? ` (${tucked})` : ''}
         </button>
@@ -118,7 +121,7 @@ export function BillFilters({
               setTerm('');
               router.replace(pathname, { scroll: false });
             }}
-            className="text-sm text-[var(--color-navy)] hover:underline"
+            className="inline-flex min-h-11 items-center px-1 text-sm text-[var(--color-navy)] hover:underline md:min-h-0"
           >
             Clear
           </button>
@@ -127,12 +130,12 @@ export function BillFilters({
 
       {open ? (
         <div className="flex flex-wrap items-end gap-3 border-t border-[var(--color-line)] pt-3">
-          <label className="block">
+          <label className="block w-full sm:w-auto">
             <span className="mb-1 block text-xs font-medium">{partyWord}</span>
             <select
               value={party}
               onChange={(event) => apply({ party: event.target.value })}
-              className={CONTROL}
+              className={`w-full sm:w-auto ${CONTROL}`}
             >
               <option value="">All</option>
               {parties.map((one) => (
@@ -143,14 +146,14 @@ export function BillFilters({
             </select>
           </label>
 
-          <label className="block">
+          <label className="block w-full sm:w-auto">
             <span className="mb-1 block text-xs font-medium">
               Nature of Work
             </span>
             <select
               value={work}
               onChange={(event) => apply({ work: event.target.value })}
-              className={CONTROL}
+              className={`w-full sm:w-auto ${CONTROL}`}
             >
               <option value="">All</option>
               {NATURE_OF_WORK.map((one) => (
@@ -161,23 +164,23 @@ export function BillFilters({
             </select>
           </label>
 
-          <label className="block">
+          <label className="block w-full sm:w-auto">
             <span className="mb-1 block text-xs font-medium">From</span>
             <input
               type="date"
               value={from}
               onChange={(event) => apply({ from: event.target.value })}
-              className={CONTROL}
+              className={`w-full sm:w-auto ${CONTROL}`}
             />
           </label>
 
-          <label className="block">
+          <label className="block w-full sm:w-auto">
             <span className="mb-1 block text-xs font-medium">To</span>
             <input
               type="date"
               value={to}
               onChange={(event) => apply({ to: event.target.value })}
-              className={CONTROL}
+              className={`w-full sm:w-auto ${CONTROL}`}
             />
           </label>
         </div>

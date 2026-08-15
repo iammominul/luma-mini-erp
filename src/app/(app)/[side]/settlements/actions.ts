@@ -10,6 +10,7 @@ import {
   updatePayment,
 } from '@/lib/mutations';
 import { deleteSchema, firstError, paymentFormSchema } from '@/lib/schemas';
+import { ForbiddenError, actingUser, actorOf } from '@/lib/session';
 import { type Side, copyFor, isSide } from '@/lib/side';
 
 export type PaymentFormState = { error?: string };
@@ -38,6 +39,7 @@ function readPayment(formData: FormData) {
 }
 
 function message(error: unknown): string {
+  if (error instanceof ForbiddenError) return error.message;
   if (error instanceof InputError) return error.message;
   if (error instanceof z.ZodError) return firstError(error);
   return `Could not save the entry: ${(error as Error).message}`;
@@ -52,7 +54,8 @@ export async function createPaymentAction(
   if (!parsed.success) return { error: firstError(parsed.error) };
 
   try {
-    await createPayment(parsed.data);
+    const actor = await actingUser('settlement:manage');
+    await createPayment(parsed.data, actorOf(actor));
   } catch (error) {
     return { error: message(error) };
   }
@@ -74,7 +77,8 @@ export async function updatePaymentAction(
   }
 
   try {
-    await updatePayment(id, parsed.data);
+    const actor = await actingUser('settlement:manage');
+    await updatePayment(id, parsed.data, actorOf(actor));
   } catch (error) {
     return { error: message(error) };
   }
@@ -95,7 +99,8 @@ export async function deletePaymentAction(
   if (!parsed.success) return { error: firstError(parsed.error) };
 
   try {
-    await deletePayment(parsed.data.id, parsed.data.reason);
+    const actor = await actingUser('settlement:manage');
+    await deletePayment(parsed.data.id, parsed.data.reason, actorOf(actor));
   } catch (error) {
     return { error: message(error) };
   }

@@ -1,14 +1,13 @@
 import Link from 'next/link';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { formatTaka } from '@/lib/format';
+import type { Column } from '@/components/DataTable';
+import { DataTable } from '@/components/DataTable';
 import {
   Card,
   CardHeader,
   DownloadButton,
   StatTile,
-  Table,
-  Td,
-  Th,
 } from '@/components/ui';
 import { formatDate, todayInDhaka } from '@/lib/dates';
 import { isUuid } from '@/lib/ids';
@@ -96,9 +95,99 @@ export default async function StatementPage({
   const billCount = statement.rows.filter((r) => r.kind === 'bill').length;
   const settlementCount = statement.rows.length - billCount;
 
+  // The brought forward figure is a line of the account, not a heading above
+  // it, so it goes in with the entries and the ledger stays one list.
+  type LedgerRow = {
+    key: string;
+    date: string;
+    reference: string;
+    particulars: string;
+    debit: string;
+    credit: string;
+    balance: string;
+    lead: boolean;
+  };
+
+  const ledger: LedgerRow[] = [
+    {
+      key: 'opening',
+      date: formatDate(from) || formatDate(party.openingAsOf),
+      reference: '',
+      particulars: labels.opening,
+      debit: '',
+      credit: '',
+      balance: formatBalance(statement.opening),
+      lead: true,
+    },
+    ...statement.rows.map((row) => ({
+      key: `${row.kind}-${row.id}`,
+      date: formatDate(row.date),
+      reference: row.reference ?? '',
+      particulars: row.particulars,
+      debit: row.debit ? formatTaka(row.debit) : '',
+      credit: row.credit ? formatTaka(row.credit) : '',
+      balance: formatBalance(row.balance),
+      lead: false,
+    })),
+  ];
+
+  const ledgerColumns: Column<LedgerRow>[] = [
+    {
+      key: 'date',
+      head: 'Date',
+      headClassName: 'w-28',
+      cellClassName: 'whitespace-nowrap',
+      phone: 'meta',
+      cell: (row) => row.date,
+    },
+    {
+      key: 'reference',
+      head: 'Reference',
+      headClassName: 'w-32',
+      cellClassName: 'text-[var(--color-muted)]',
+      phone: 'meta',
+      cell: (row) => row.reference,
+    },
+    {
+      key: 'particulars',
+      head: 'Particulars',
+      phone: 'title',
+      cell: (row) => row.particulars,
+    },
+    {
+      key: 'debit',
+      head: labels.debit,
+      numeric: true,
+      headClassName: 'w-32',
+      cell: (row) => row.debit,
+    },
+    {
+      key: 'credit',
+      head: labels.credit,
+      numeric: true,
+      headClassName: 'w-32',
+      cell: (row) => row.credit,
+    },
+    {
+      // A running account is read down its balance column. On a phone there is
+      // no column to read down, so the balance takes the foot of every block on
+      // its own line and the eye still has one place to go.
+      key: 'balance',
+      head: labels.balance,
+      numeric: true,
+      headClassName: 'w-36',
+      phone: 'full',
+      phoneClassName:
+        'border-t border-[var(--color-line)] pt-2 text-base font-semibold',
+      cell: (row) => row.balance,
+    },
+  ];
+
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      {/* The work area keeps no top padding, so a screen without a PageTitle
+          sets its own. See the comment on main in AppShell.tsx. */}
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3 md:pt-5">
         <div>
           <h1 className="text-lg font-semibold">Party Ledger: {party.name}</h1>
           <p className="mt-0.5 text-sm text-[var(--color-muted)]">
@@ -106,16 +195,16 @@ export default async function StatementPage({
             (Asia/Dhaka)
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/${side}/bills/new?party=${party.id}`}
-            className="rounded border border-[var(--color-line)] bg-white px-3 py-1.5 text-sm font-medium hover:bg-gray-50"
+            className="inline-flex min-h-11 items-center justify-center rounded border border-[var(--color-line)] bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-50 md:min-h-0 md:px-3 md:py-1.5"
           >
             New {copy.billSingular}
           </Link>
           <Link
             href={`/${side}/settlements/new?party=${party.id}`}
-            className="rounded border border-[var(--color-line)] bg-white px-3 py-1.5 text-sm font-medium hover:bg-gray-50"
+            className="inline-flex min-h-11 items-center justify-center rounded border border-[var(--color-line)] bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-50 md:min-h-0 md:px-3 md:py-1.5"
           >
             New {copy.settlementSingular}
           </Link>
@@ -160,30 +249,30 @@ export default async function StatementPage({
 
       <Card className="mb-4 p-3">
         <form className="flex flex-wrap items-end gap-3">
-          <label className="block">
+          <label className="block w-full sm:w-auto">
             <span className="mb-1 block text-xs font-medium">From</span>
             <input
               type="date"
               name="from"
               defaultValue={from ?? ''}
-              className="rounded border border-[var(--color-line)] bg-white px-2.5 py-1.5 text-sm"
+              className="min-h-11 w-full rounded border border-[var(--color-line)] bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
             />
           </label>
-          <label className="block">
+          <label className="block w-full sm:w-auto">
             <span className="mb-1 block text-xs font-medium">To</span>
             <input
               type="date"
               name="to"
               defaultValue={to ?? ''}
-              className="rounded border border-[var(--color-line)] bg-white px-2.5 py-1.5 text-sm"
+              className="min-h-11 w-full rounded border border-[var(--color-line)] bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
             />
           </label>
-          <button className="rounded bg-[var(--color-navy)] px-3 py-1.5 text-sm font-medium text-white hover:bg-[var(--color-navy-600)]">
+          <button className="inline-flex min-h-11 w-full items-center justify-center rounded bg-[var(--color-navy)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-navy-600)] sm:w-auto md:min-h-0 md:px-3 md:py-1.5">
             Apply
           </button>
           <Link
             href={`/${side}/statement/${handle}`}
-            className="rounded border border-[var(--color-line)] bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded border border-[var(--color-line)] bg-white px-4 py-2.5 text-sm hover:bg-gray-50 sm:w-auto md:min-h-0 md:px-3 md:py-1.5"
           >
             All Entries
           </Link>
@@ -192,68 +281,26 @@ export default async function StatementPage({
 
       <Card>
         <CardHeader title="Ledger Account" />
-        <Table>
-          <thead>
-            <tr>
-              <Th className="w-28">Date</Th>
-              <Th className="w-32">Reference</Th>
-              <Th>Particulars</Th>
-              <Th numeric className="w-32">
-                {labels.debit}
-              </Th>
-              <Th numeric className="w-32">
-                {labels.credit}
-              </Th>
-              <Th numeric className="w-36">
-                {labels.balance}
-              </Th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <Td className="whitespace-nowrap">
-                {formatDate(from) || formatDate(party.openingAsOf)}
-              </Td>
-              <Td />
-              <Td className="font-medium">{labels.opening}</Td>
-              <Td />
-              <Td />
-              <Td numeric className="font-medium">
-                {formatBalance(statement.opening)}
-              </Td>
-            </tr>
-            {statement.rows.map((row) => (
-              <tr key={`${row.kind}-${row.id}`}>
-                <Td className="whitespace-nowrap">{formatDate(row.date)}</Td>
-                <Td className="text-[var(--color-muted)]">
-                  {row.reference ?? ''}
-                </Td>
-                <Td>{row.particulars}</Td>
-                <Td numeric>{row.debit ? formatTaka(row.debit) : ''}</Td>
-                <Td numeric>{row.credit ? formatTaka(row.credit) : ''}</Td>
-                <Td numeric>{formatBalance(row.balance)}</Td>
-              </tr>
-            ))}
-            {statement.rows.length === 0 ? (
-              <tr>
-                <Td
-                  colSpan={6}
-                  className="text-center text-[var(--color-muted)]"
-                >
-                  No entries in this period
-                </Td>
-              </tr>
-            ) : null}
-          </tbody>
-          <tfoot>
-            <tr className="bg-[var(--color-canvas)] font-semibold">
-              <Td colSpan={3}>Total</Td>
-              <Td numeric>{formatTaka(statement.totalDebit)}</Td>
-              <Td numeric>{formatTaka(statement.totalCredit)}</Td>
-              <Td numeric>{formatBalance(statement.closing)}</Td>
-            </tr>
-          </tfoot>
-        </Table>
+        <DataTable
+          columns={ledgerColumns}
+          rows={ledger}
+          rowKey={(row) => row.key}
+          rowClassName={(row) => (row.lead ? 'font-medium' : '')}
+          total={{
+            label: 'Total',
+            cells: {
+              debit: formatTaka(statement.totalDebit),
+              credit: formatTaka(statement.totalCredit),
+              balance: formatBalance(statement.closing),
+            },
+          }}
+        />
+        {statement.rows.length === 0 ? (
+          <p className="border-t border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-muted)]">
+            No entries in this period. The balance above is the one brought
+            forward.
+          </p>
+        ) : null}
         {statement.closing.isNegative() ? (
           <p className="border-t border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-muted)]">
             This closing balance is an advance held{' '}

@@ -2,16 +2,15 @@ import Link from 'next/link';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { amountInWords, formatTaka } from '@/lib/format';
 import { DeleteBox } from '@/components/DeleteBox';
+import { DataTable } from '@/components/DataTable';
 import {
+  CancelLink,
   Card,
   CardHeader,
   DownloadButton,
   Notice,
-  Table,
-  Td,
-  Th,
 } from '@/components/ui';
-import { formatQtyKg, parseQtyKg, sumGrams } from '@/lib/amount';
+import { formatQtyKg, formatRate, parseQtyKg, sumGrams } from '@/lib/amount';
 import { formatDate } from '@/lib/dates';
 import { isUuid } from '@/lib/ids';
 import { findBill } from '@/lib/queries';
@@ -48,14 +47,14 @@ export default async function BillPage({
   const meta = [
     bill.party.name,
     formatDate(bill.billDate),
-    ...(bill.bookNo ? [`Book ${bill.bookNo}`] : []),
-    ...(bill.docNo ? [`Our Ref ${bill.docNo}`] : []),
-    ...(bill.reference ? [bill.reference] : []),
+    ...(bill.docNo ? [`System Bill No ${bill.docNo}`] : []),
   ];
 
   return (
     <>
-      <div className="mb-4">
+      {/* The work area keeps no top padding, so a screen without a PageTitle
+          sets its own. See the comment on main in AppShell.tsx. */}
+      <div className="mb-4 md:pt-5">
         <Link
           href={`/${side}/bills`}
           className="text-sm text-[var(--color-navy)] hover:underline"
@@ -73,19 +72,14 @@ export default async function BillPage({
             {meta.join('  |  ')}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {isDraft ? (
             <PostBillBox action={postBillAction} id={bill.id} side={side} />
           ) : null}
           <DownloadButton href={`/${side}/bills/${handle}/pdf`}>
             Download PDF
           </DownloadButton>
-          <Link
-            href={`/${side}/bills/${handle}/edit`}
-            className="rounded border border-[var(--color-line)] bg-white px-3 py-1.5 text-sm font-medium hover:bg-gray-50"
-          >
-            Edit
-          </Link>
+          <CancelLink href={`/${side}/bills/${handle}/edit`}>Edit</CancelLink>
           <DeleteBox
             action={deleteBillAction}
             id={bill.id}
@@ -104,58 +98,136 @@ export default async function BillPage({
       ) : null}
 
       <Card className={isDraft ? 'mt-4' : ''}>
-        <CardHeader title="Bill Lines" />
-        <Table>
-          <thead>
-            <tr>
-              <Th className="w-10">SL</Th>
-              <Th>Particulars</Th>
-              <Th className="w-24">Fabric Type</Th>
-              <Th className="w-24">Color</Th>
-              <Th className="w-24">Challan No</Th>
-              <Th className="w-24">Order No</Th>
-              <Th numeric className="w-28">
-                F/Weight kg
-              </Th>
-              <Th numeric className="w-28">
-                G/Weight kg
-              </Th>
-              <Th numeric className="w-24">
-                Rate per kg
-              </Th>
-              <Th numeric className="w-32">
-                Amount Tk
-              </Th>
-            </tr>
-          </thead>
-          <tbody>
-            {bill.lines.map((line) => (
-              <tr key={line.id}>
-                <Td className="text-[var(--color-muted)]">{line.lineNo}</Td>
-                <Td>{line.description}</Td>
-                <Td>{line.fabricType ?? ''}</Td>
-                <Td>{line.color ?? ''}</Td>
-                <Td>{line.challanNo ?? ''}</Td>
-                <Td>{line.orderNo ?? ''}</Td>
-                <Td numeric>{line.finishedKg ?? ''}</Td>
-                <Td numeric>{line.greyKg}</Td>
-                <Td numeric>{line.rate}</Td>
-                <Td numeric>{formatTaka(line.amount)}</Td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="bg-[var(--color-canvas)] font-semibold">
-              <Td colSpan={6}>Total</Td>
-              <Td numeric>
-                {totalFinished > 0n ? formatQtyKg(totalFinished) : ''}
-              </Td>
-              <Td numeric>{formatQtyKg(totalGrey)}</Td>
-              <Td />
-              <Td numeric>{formatTaka(bill.total)}</Td>
-            </tr>
-          </tfoot>
-        </Table>
+        <CardHeader title="Items" />
+        <DataTable
+          columns={[
+            {
+              key: 'sl',
+              head: 'SL',
+              headClassName: 'w-10',
+              cellClassName: 'text-[var(--color-muted)]',
+              // Leads the particulars rather than taking a line of its own.
+              phone: 'title',
+              phoneClassName: 'text-[var(--color-muted)]',
+              cell: (line) => line.lineNo,
+            },
+            // The desktop keeps every column. A phone reads the same line as
+            // the arithmetic it is, so the codes and the figures are composed
+            // into two lines by the phone-only columns below.
+            //
+            // The order runs from what the line is (description) to what it
+            // points at (order, challan, lot, color) to what it comes to
+            // (weights, rate, amount), and the grey weight sits next to the
+            // rate next to the amount so the arithmetic reads left to right.
+            {
+              key: 'description',
+              head: 'Description',
+              phone: 'title',
+              cell: (line) => line.description,
+            },
+            {
+              key: 'orderNo',
+              head: 'Order No',
+              headClassName: 'w-24',
+              only: 'table',
+              cell: (line) => line.orderNo ?? '',
+            },
+            {
+              key: 'challanNo',
+              head: 'Challan No',
+              headClassName: 'w-24',
+              only: 'table',
+              cell: (line) => line.challanNo ?? '',
+            },
+            {
+              key: 'lotNo',
+              head: 'LOT No',
+              headClassName: 'w-24',
+              only: 'table',
+              cell: (line) => line.lotNo ?? '',
+            },
+            {
+              key: 'color',
+              head: 'Color',
+              headClassName: 'w-24',
+              only: 'table',
+              cell: (line) => line.color ?? '',
+            },
+            {
+              key: 'finishedKg',
+              head: 'F/Weight kg',
+              numeric: true,
+              headClassName: 'w-28',
+              only: 'table',
+              cell: (line) => line.finishedKg ?? '',
+            },
+            {
+              key: 'greyKg',
+              head: 'G/Weight kg',
+              numeric: true,
+              headClassName: 'w-28',
+              only: 'table',
+              cell: (line) => line.greyKg,
+            },
+            {
+              key: 'rate',
+              head: 'Unit Rate',
+              numeric: true,
+              headClassName: 'w-24',
+              only: 'table',
+              cell: (line) => formatRate(line.rate),
+            },
+            {
+              // The basis the amount was worked out on, as one line that
+              // multiplies out. formatRate and not the raw value: a rate
+              // carries six decimals and an ordinary 30.00 would read as
+              // "30.000000" without it.
+              key: 'basis',
+              head: '',
+              only: 'phone',
+              phone: 'full',
+              phoneClassName: 'text-sm',
+              cell: (line) => `${line.greyKg} kg x ${formatRate(line.rate)}`,
+            },
+            {
+              // Everything recorded about the line that is not its arithmetic.
+              key: 'codes',
+              head: '',
+              only: 'phone',
+              phone: 'full',
+              phoneClassName: 'text-xs text-[var(--color-muted)]',
+              cell: (line) =>
+                [
+                  line.color,
+                  line.lotNo ? `LOT ${line.lotNo}` : null,
+                  line.challanNo ? `Challan ${line.challanNo}` : null,
+                  line.orderNo ? `Order ${line.orderNo}` : null,
+                  line.finishedKg ? `F/Wt ${line.finishedKg}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · '),
+            },
+            {
+              key: 'amount',
+              head: 'Amount Tk',
+              numeric: true,
+              headClassName: 'w-32',
+              phone: 'amount',
+              cell: (line) => formatTaka(line.amount),
+            },
+          ]}
+          rows={bill.lines}
+          rowKey={(line) => line.id}
+          empty="This bill has no lines"
+          total={{
+            label: 'Total',
+            cells: {
+              greyKg: formatQtyKg(totalGrey),
+              finishedKg: totalFinished > 0n ? formatQtyKg(totalFinished) : '',
+              amount: formatTaka(bill.total),
+            },
+          }}
+        />
       </Card>
 
       <Card className="mt-4 p-4 text-sm">
@@ -164,8 +236,9 @@ export default async function BillPage({
           {amountInWords(bill.total)}
         </div>
         {bill.notes ? (
-          <div className="mt-2">
-            <span className="font-medium">Notes: </span>
+          // Remarks, the same word the printed bill uses for the same text.
+          <div className="mt-2 whitespace-pre-line">
+            <span className="font-medium">Remarks: </span>
             {bill.notes}
           </div>
         ) : null}

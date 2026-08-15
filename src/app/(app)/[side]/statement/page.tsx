@@ -1,10 +1,69 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Card, EmptyRow, PageTitle, Table, Td, Th } from '@/components/ui';
+import type { Column } from '@/components/DataTable';
+import { DataTable } from '@/components/DataTable';
+import { Card, PageTitle } from '@/components/ui';
 import { formatDate } from '@/lib/dates';
 import { listPartyBalances } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
 import { formatBalance } from '@/lib/statement';
+
+type Balance = Awaited<ReturnType<typeof listPartyBalances>>[number];
+
+function columnsFor(
+  side: string,
+  copy: ReturnType<typeof copyFor>,
+): Column<Balance>[] {
+  return [
+    {
+      key: 'party',
+      head: copy.partyWord,
+      phone: 'title',
+      cell: (row) => (
+        <Link
+          href={`/${side}/statement/${row.party.code ?? row.party.id}`}
+          className="font-medium text-[var(--color-navy)] hover:underline"
+        >
+          {row.party.name}
+        </Link>
+      ),
+    },
+    {
+      key: 'contact',
+      head: 'Contact',
+      cellClassName: 'text-[var(--color-muted)]',
+      phone: 'meta',
+      cell: (row) =>
+        [row.party.contactPerson, row.party.phone].filter(Boolean).join(', '),
+    },
+    {
+      key: 'lastActivity',
+      head: 'Last Entry',
+      cellClassName: 'text-[var(--color-muted)]',
+      cell: (row) => formatDate(row.lastActivity),
+    },
+    {
+      key: 'balance',
+      head: copy.balanceWord,
+      numeric: true,
+      cell: (row) => formatBalance(row.balance),
+    },
+    {
+      // The name at the top of the block already opens the ledger.
+      key: 'open',
+      head: '',
+      phone: 'off',
+      cell: (row) => (
+        <Link
+          href={`/${side}/statement/${row.party.code ?? row.party.id}`}
+          className="text-sm text-[var(--color-navy)] hover:underline"
+        >
+          Open Ledger
+        </Link>
+      ),
+    },
+  ];
+}
 
 export default async function StatementIndexPage({
   params,
@@ -24,54 +83,12 @@ export default async function StatementIndexPage({
       />
 
       <Card>
-        <Table>
-          <thead>
-            <tr>
-              <Th>{copy.partyWord}</Th>
-              <Th>Contact</Th>
-              <Th>Last Entry</Th>
-              <Th numeric>{copy.balanceWord}</Th>
-              <Th />
-            </tr>
-          </thead>
-          <tbody>
-            {balances.length === 0 ? (
-              <EmptyRow columns={5}>
-                No {copy.partyPlural.toLowerCase()} yet
-              </EmptyRow>
-            ) : (
-              balances.map((row) => (
-                <tr key={row.party.id}>
-                  <Td>
-                    <Link
-                      href={`/${side}/statement/${row.party.code ?? row.party.id}`}
-                      className="font-medium text-[var(--color-navy)] hover:underline"
-                    >
-                      {row.party.name}
-                    </Link>
-                  </Td>
-                  <Td className="text-[var(--color-muted)]">
-                    {[row.party.contactPerson, row.party.phone]
-                      .filter(Boolean)
-                      .join(', ')}
-                  </Td>
-                  <Td className="text-[var(--color-muted)]">
-                    {formatDate(row.lastActivity)}
-                  </Td>
-                  <Td numeric>{formatBalance(row.balance)}</Td>
-                  <Td>
-                    <Link
-                      href={`/${side}/statement/${row.party.code ?? row.party.id}`}
-                      className="text-sm text-[var(--color-navy)] hover:underline"
-                    >
-                      Open Ledger
-                    </Link>
-                  </Td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </Table>
+        <DataTable
+          columns={columnsFor(side, copy)}
+          rows={balances}
+          rowKey={(row) => row.party.id}
+          empty={`No ${copy.partyPlural.toLowerCase()} yet`}
+        />
       </Card>
     </>
   );

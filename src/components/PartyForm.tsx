@@ -1,9 +1,9 @@
 'use client';
 
-import Link from 'next/link';
-import { useActionState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
 import { PARTY_ROLES } from '@/lib/types';
-import { Button, Field, Notice, Textarea, TextInput } from './ui';
+import { Button, CancelLink, Field, FormActions, Notice, Textarea, TextInput } from './ui';
+import { useKeptValues } from './use-kept-values';
 
 export type PartyFormState = { error?: string };
 
@@ -39,6 +39,41 @@ export function PartyForm({
     {},
   );
 
+  // What was typed stays typed when a save comes back with an error.
+  const { values: field, set } = useKeptValues(
+    {
+      code: values.code,
+      name: values.name,
+      contactPerson: values.contactPerson,
+      phone: values.phone,
+      openingBalance: values.openingBalance,
+      openingAsOf: values.openingAsOf,
+      address: values.address,
+    },
+    state,
+  );
+
+  // Roles are several answers rather than one, so they are held apart from the
+  // text fields, but for the same reason: a name already taken must not cost
+  // whoever is adding the party the rest of what they filled in.
+  const [roles, setRoles] = useState<string[]>(values.roles);
+  const toggleRole = (role: string, on: boolean) =>
+    setRoles((current) =>
+      on ? [...new Set([...current, role])] : current.filter((r) => r !== role),
+    );
+
+  // A checkbox needs putting back after a failed save for the same reason a
+  // select does, and useKeptValues cannot do it for them: React clears the form
+  // once the action returns, and a controlled checkbox is left cleared while
+  // this component still holds the roles that were ticked.
+  const roleBoxes = useRef(new Map<string, HTMLInputElement | null>());
+  useEffect(() => {
+    for (const [role, box] of roleBoxes.current) {
+      const wanted = roles.includes(role);
+      if (box && box.checked !== wanted) box.checked = wanted;
+    }
+  }, [state, roles]);
+
   return (
     <form action={submit} className="space-y-4">
       {partyId ? <input type="hidden" name="id" value={partyId} /> : null}
@@ -53,8 +88,10 @@ export function PartyForm({
           }
         >
           <TextInput
+            type="text"
             name="code"
-            defaultValue={values.code}
+            value={field.code}
+            onChange={(e) => set({ code: e.target.value })}
             maxLength={20}
             placeholder="Assigned on save"
             autoComplete="off"
@@ -63,10 +100,13 @@ export function PartyForm({
 
         <Field label="Name">
           <TextInput
+            type="text"
             name="name"
-            defaultValue={values.name}
+            value={field.name}
+            onChange={(e) => set({ name: e.target.value })}
             required
             maxLength={200}
+            autoComplete="off"
           />
         </Field>
 
@@ -81,10 +121,14 @@ export function PartyForm({
                 className="flex items-center gap-1.5 text-sm"
               >
                 <input
+                  ref={(box) => {
+                    roleBoxes.current.set(role.value, box);
+                  }}
                   type="checkbox"
                   name="roles"
                   value={role.value}
-                  defaultChecked={values.roles.includes(role.value)}
+                  checked={roles.includes(role.value)}
+                  onChange={(e) => toggleRole(role.value, e.target.checked)}
                 />
                 {role.label}
               </label>
@@ -94,14 +138,24 @@ export function PartyForm({
 
         <Field label="Contact Person">
           <TextInput
+            type="text"
             name="contactPerson"
-            defaultValue={values.contactPerson}
+            value={field.contactPerson}
+            onChange={(e) => set({ contactPerson: e.target.value })}
             maxLength={120}
+            autoComplete="off"
           />
         </Field>
 
         <Field label="Phone">
-          <TextInput name="phone" defaultValue={values.phone} maxLength={40} />
+          <TextInput
+            type="text"
+            name="phone"
+            value={field.phone}
+            onChange={(e) => set({ phone: e.target.value })}
+            maxLength={40}
+            autoComplete="off"
+          />
         </Field>
 
         <Field
@@ -110,7 +164,8 @@ export function PartyForm({
         >
           <TextInput
             name="openingBalance"
-            defaultValue={values.openingBalance}
+            value={field.openingBalance}
+            onChange={(e) => set({ openingBalance: e.target.value })}
             inputMode="decimal"
             className="text-right"
             required
@@ -121,7 +176,8 @@ export function PartyForm({
           <TextInput
             type="date"
             name="openingAsOf"
-            defaultValue={values.openingAsOf}
+            value={field.openingAsOf}
+            onChange={(e) => set({ openingAsOf: e.target.value })}
           />
         </Field>
 
@@ -129,7 +185,8 @@ export function PartyForm({
           <Field label="Address">
             <Textarea
               name="address"
-              defaultValue={values.address}
+              value={field.address}
+              onChange={(e) => set({ address: e.target.value })}
               maxLength={400}
             />
           </Field>
@@ -138,19 +195,12 @@ export function PartyForm({
 
       {state.error ? <Notice tone="error">{state.error}</Notice> : null}
 
-      <div className="flex items-center gap-2">
+      <FormActions>
         <Button type="submit" disabled={pending}>
           {pending ? 'Saving' : submitLabel}
         </Button>
-        {cancelHref ? (
-          <Link
-            href={cancelHref}
-            className="rounded border border-[var(--color-line)] bg-white px-3 py-1.5 text-sm font-medium hover:bg-gray-50"
-          >
-            Cancel
-          </Link>
-        ) : null}
-      </div>
+        {cancelHref ? <CancelLink href={cancelHref} /> : null}
+      </FormActions>
     </form>
   );
 }

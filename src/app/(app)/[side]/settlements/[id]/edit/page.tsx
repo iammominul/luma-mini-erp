@@ -6,12 +6,14 @@ import { formatDate } from '@/lib/dates';
 import { getPayment, listParties } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
 import { deletePaymentAction, updatePaymentAction } from '../../actions';
+import { requirePermission } from '@/lib/session';
 
 export default async function EditSettlementPage({
   params,
 }: {
   params: Promise<{ side: string; id: string }>;
 }) {
+  await requirePermission('settlement:manage');
   const { side, id } = await params;
   if (!isSide(side)) notFound();
   const copy = copyFor(side);

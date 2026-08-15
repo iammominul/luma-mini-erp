@@ -3,9 +3,10 @@ import { notFound } from 'next/navigation';
 import { BillForm } from '@/components/BillForm';
 import { Notice, PageTitle } from '@/components/ui';
 import { todayInDhaka } from '@/lib/dates';
-import { listParties } from '@/lib/queries';
+import { listParties, nextCustomerBillSerial } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
-import { createBillAction } from '../actions';
+import { checkBillNoAction, createBillAction } from '../actions';
+import { requirePermission } from '@/lib/session';
 
 export default async function NewBillPage({
   params,
@@ -14,11 +15,16 @@ export default async function NewBillPage({
   params: Promise<{ side: string }>;
   searchParams: Promise<{ party?: string }>;
 }) {
+  await requirePermission('bill:manage');
   const { side } = await params;
   if (!isSide(side)) notFound();
   const copy = copyFor(side);
   const { party } = await searchParams;
-  const parties = await listParties({ role: copy.role });
+  const [parties, nextSerial] = await Promise.all([
+    listParties({ role: copy.role }),
+    // Only the customer side takes a system number, so only it has one to show.
+    copy.billNoIsOurs ? nextCustomerBillSerial() : Promise.resolve(null),
+  ]);
 
   return (
     <>
@@ -42,15 +48,15 @@ export default async function NewBillPage({
           action={createBillAction}
           submitLabel={`Save ${copy.billSingular}`}
           cancelHref={`/${side}/bills`}
+          nextSerial={nextSerial}
+          checkBillNo={checkBillNoAction}
           values={{
             partyId: party ?? '',
             status: 'posted',
             natureOfWork: 'dyeing_finishing',
             narration: '',
             billNo: '',
-            bookNo: '',
             billDate: todayInDhaka(),
-            reference: '',
             notes: '',
             lines: [],
           }}

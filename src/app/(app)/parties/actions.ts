@@ -10,6 +10,12 @@ import {
   updateParty,
 } from '@/lib/mutations';
 import { firstError, partyFormSchema } from '@/lib/schemas';
+import { ForbiddenError, actingUser, actorOf } from '@/lib/session';
+
+/**
+ * Every action here checks 'party:manage' for itself. A server action is a
+ * public endpoint: the menu hiding a button is not what stops anybody, this is.
+ */
 
 export type PartyFormState = { error?: string };
 
@@ -31,6 +37,7 @@ function readParty(formData: FormData) {
 }
 
 function message(error: unknown): string {
+  if (error instanceof ForbiddenError) return error.message;
   if (error instanceof InputError) return error.message;
   if (error instanceof z.ZodError) return firstError(error);
   return `Could not save the party: ${(error as Error).message}`;
@@ -44,7 +51,8 @@ export async function createPartyAction(
   if (!parsed.success) return { error: firstError(parsed.error) };
 
   try {
-    await createParty(parsed.data);
+    const actor = await actingUser('party:manage');
+    await createParty(parsed.data, actorOf(actor));
   } catch (error) {
     return { error: message(error) };
   }
@@ -62,7 +70,8 @@ export async function updatePartyAction(
   if (!parsed.success) return { error: firstError(parsed.error) };
 
   try {
-    await updateParty(id, parsed.data);
+    const actor = await actingUser('party:manage');
+    await updateParty(id, parsed.data, actorOf(actor));
   } catch (error) {
     return { error: message(error) };
   }
@@ -76,6 +85,7 @@ export async function togglePartyActiveAction(
 ): Promise<void> {
   const id = text(formData, 'id');
   const active = text(formData, 'active') === 'true';
-  await setPartyActive(id, active);
+  const actor = await actingUser('party:manage');
+  await setPartyActive(id, active, actorOf(actor));
   revalidatePath('/', 'layout');
 }

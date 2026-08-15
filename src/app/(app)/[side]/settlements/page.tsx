@@ -2,21 +2,76 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { formatTaka } from '@/lib/format';
 import { sumMoney } from '@/lib/amount';
-import {
-  Card,
-  DownloadIcon,
-  EmptyRow,
-  PageTitle,
-  Table,
-  Td,
-  Th,
-} from '@/components/ui';
+import type { Column } from '@/components/DataTable';
+import { DataTable } from '@/components/DataTable';
+import { Card, DownloadIcon, PageTitle } from '@/components/ui';
 import { formatDate } from '@/lib/dates';
 import { listParties, listPayments } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
 import { paymentModeLabel } from '@/lib/types';
 
 type Search = { party?: string; from?: string; to?: string };
+
+type Payment = Awaited<ReturnType<typeof listPayments>>[number];
+
+// Built per side, because the headings and the download label are the side's
+// words for the same thing.
+function columnsFor(
+  side: string,
+  copy: ReturnType<typeof copyFor>,
+): Column<Payment>[] {
+  return [
+    {
+      key: 'date',
+      head: 'Date',
+      cellClassName: 'whitespace-nowrap',
+      phone: 'meta',
+      cell: (payment) => formatDate(payment.paidOn),
+    },
+    {
+      key: 'party',
+      head: copy.partyWord,
+      phone: 'title',
+      cell: (payment) => payment.partyName,
+    },
+    {
+      key: 'mode',
+      head: 'Mode',
+      cell: (payment) => paymentModeLabel(payment.mode),
+    },
+    {
+      key: 'reference',
+      head: 'Reference',
+      cellClassName: 'text-[var(--color-muted)]',
+      cell: (payment) => payment.reference ?? '',
+    },
+    {
+      key: 'amount',
+      head: 'Amount',
+      numeric: true,
+      cell: (payment) => formatTaka(payment.amount),
+    },
+    {
+      key: 'actions',
+      head: '',
+      phone: 'full',
+      cell: (payment) => (
+        <div className="flex items-center gap-1.5">
+          <Link
+            href={`/${side}/settlements/${payment.id}`}
+            className="rounded border border-[var(--color-line)] bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50"
+          >
+            Open
+          </Link>
+          <DownloadIcon
+            href={`/${side}/settlements/${payment.id}/pdf`}
+            label={`Download ${copy.settlementSingular} ${formatDate(payment.paidOn)}`}
+          />
+        </div>
+      ),
+    },
+  ];
+}
 
 export default async function SettlementsPage({
   params,
@@ -54,7 +109,7 @@ export default async function SettlementsPage({
         action={
           <Link
             href={`/${side}/settlements/new`}
-            className="rounded bg-[var(--color-navy)] px-3 py-1.5 text-sm font-medium text-white hover:bg-[var(--color-navy-600)]"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded bg-[var(--color-navy)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-navy-600)] sm:w-auto md:min-h-0 md:px-3 md:py-1.5"
           >
             New {copy.settlementSingular}
           </Link>
@@ -63,14 +118,14 @@ export default async function SettlementsPage({
 
       <Card className="mb-4 p-3">
         <form className="flex flex-wrap items-end gap-3">
-          <label className="block">
+          <label className="block w-full sm:w-auto">
             <span className="mb-1 block text-xs font-medium">
               {copy.partyWord}
             </span>
             <select
               name="party"
               defaultValue={filters.party ?? ''}
-              className="rounded border border-[var(--color-line)] bg-white px-2.5 py-1.5 text-sm"
+              className="min-h-11 w-full rounded border border-[var(--color-line)] bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
             >
               <option value="">All</option>
               {parties.map((party) => (
@@ -80,30 +135,30 @@ export default async function SettlementsPage({
               ))}
             </select>
           </label>
-          <label className="block">
+          <label className="block w-full sm:w-auto">
             <span className="mb-1 block text-xs font-medium">From</span>
             <input
               type="date"
               name="from"
               defaultValue={filters.from ?? ''}
-              className="rounded border border-[var(--color-line)] bg-white px-2.5 py-1.5 text-sm"
+              className="min-h-11 w-full rounded border border-[var(--color-line)] bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
             />
           </label>
-          <label className="block">
+          <label className="block w-full sm:w-auto">
             <span className="mb-1 block text-xs font-medium">To</span>
             <input
               type="date"
               name="to"
               defaultValue={filters.to ?? ''}
-              className="rounded border border-[var(--color-line)] bg-white px-2.5 py-1.5 text-sm"
+              className="min-h-11 w-full rounded border border-[var(--color-line)] bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
             />
           </label>
-          <button className="rounded bg-[var(--color-navy)] px-3 py-1.5 text-sm font-medium text-white hover:bg-[var(--color-navy-600)]">
+          <button className="inline-flex min-h-11 w-full items-center justify-center rounded bg-[var(--color-navy)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-navy-600)] sm:w-auto md:min-h-0 md:px-3 md:py-1.5">
             Apply
           </button>
           <Link
             href={`/${side}/settlements`}
-            className="rounded border border-[var(--color-line)] bg-white px-3 py-1.5 text-sm hover:bg-gray-50"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded border border-[var(--color-line)] bg-white px-4 py-2.5 text-sm hover:bg-gray-50 sm:w-auto md:min-h-0 md:px-3 md:py-1.5"
           >
             Clear
           </Link>
@@ -111,62 +166,16 @@ export default async function SettlementsPage({
       </Card>
 
       <Card>
-        <Table>
-          <thead>
-            <tr>
-              <Th>Date</Th>
-              <Th>{copy.partyWord}</Th>
-              <Th>Mode</Th>
-              <Th>Reference</Th>
-              <Th numeric>Amount</Th>
-              <Th />
-            </tr>
-          </thead>
-          <tbody>
-            {payments.length === 0 ? (
-              <EmptyRow columns={6}>
-                No {copy.settlementTitle.toLowerCase()} recorded for this filter
-              </EmptyRow>
-            ) : (
-              payments.map((payment) => (
-                <tr key={payment.id}>
-                  <Td className="whitespace-nowrap">
-                    {formatDate(payment.paidOn)}
-                  </Td>
-                  <Td>{payment.partyName}</Td>
-                  <Td>{paymentModeLabel(payment.mode)}</Td>
-                  <Td className="text-[var(--color-muted)]">
-                    {payment.reference ?? ''}
-                  </Td>
-                  <Td numeric>{formatTaka(payment.amount)}</Td>
-                  <Td>
-                    <div className="flex items-center gap-1.5">
-                      <Link
-                        href={`/${side}/settlements/${payment.id}`}
-                        className="rounded border border-[var(--color-line)] bg-white px-2 py-1 text-xs font-medium hover:bg-gray-50"
-                      >
-                        Open
-                      </Link>
-                      <DownloadIcon
-                        href={`/${side}/settlements/${payment.id}/pdf`}
-                        label={`Download ${copy.settlementSingular} ${formatDate(payment.paidOn)}`}
-                      />
-                    </div>
-                  </Td>
-                </tr>
-              ))
-            )}
-          </tbody>
-          {payments.length > 0 ? (
-            <tfoot>
-              <tr className="bg-[var(--color-canvas)] font-semibold">
-                <Td colSpan={4}>{payments.length} entries</Td>
-                <Td numeric>{formatTaka(total)}</Td>
-                <Td />
-              </tr>
-            </tfoot>
-          ) : null}
-        </Table>
+        <DataTable
+          columns={columnsFor(side, copy)}
+          rows={payments}
+          rowKey={(payment) => payment.id}
+          empty={`No ${copy.settlementTitle.toLowerCase()} recorded for this filter`}
+          total={{
+            label: `${payments.length} entries`,
+            cells: { amount: formatTaka(total) },
+          }}
+        />
       </Card>
     </>
   );

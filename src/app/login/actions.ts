@@ -1,44 +1,49 @@
 'use server';
 
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import {
-  SESSION_COOKIE,
-  SESSION_MAX_AGE,
-  isCorrectPassword,
-  issueSessionValue,
-} from '@/lib/auth';
-import { requireEnv } from '@/lib/env';
+import { APIError } from 'better-auth/api';
+import { auth } from '@/lib/auth';
 
 export type LoginState = { error?: string };
 
+/**
+ * Sign in with an email and a password.
+ *
+ * This goes through Better Auth's server side API rather than its browser
+ * client, so the whole exchange is one server action and the form keeps what
+ * was typed when it comes back with an error. The nextCookies plugin writes the
+ * session cookie from here.
+ *
+ * A wrong email and a wrong password give the same message on purpose. Telling
+ * somebody that an address exists but the password is wrong tells them which
+ * addresses are worth attacking.
+ */
 export async function signInAction(
   _previous: LoginState,
   formData: FormData,
 ): Promise<LoginState> {
+  const email = String(formData.get('email') ?? '')
+    .trim()
+    .toLowerCase();
   const password = String(formData.get('password') ?? '');
-  if (!password) return { error: 'Enter the password.' };
 
-  if (!(await isCorrectPassword(password, requireEnv('APP_PASSWORD')))) {
-    return { error: 'That password is not correct.' };
+  if (!email) return { error: 'Enter your email address.' };
+  if (!password) return { error: 'Enter your password.' };
+
+  try {
+    await auth().api.signInEmail({ body: { email, password } });
+  } catch (error) {
+    if (error instanceof APIError) {
+      return { error: 'That email address and password do not match.' };
+    }
+    throw error;
   }
-
-  const store = await cookies();
-  store.set({
-    name: SESSION_COOKIE,
-    value: await issueSessionValue(requireEnv('SESSION_SECRET')),
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: SESSION_MAX_AGE,
-  });
 
   redirect('/');
 }
 
 export async function signOutAction(): Promise<void> {
-  const store = await cookies();
-  store.delete(SESSION_COOKIE);
+  const { headers } = await import('next/headers');
+  await auth().api.signOut({ headers: await headers() });
   redirect('/login');
 }

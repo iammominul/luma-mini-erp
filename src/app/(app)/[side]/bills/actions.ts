@@ -9,7 +9,9 @@ import {
   postBill,
   updateBill,
 } from '@/lib/mutations';
+import { billNoExists } from '@/lib/queries';
 import { billFormSchema, deleteSchema, firstError } from '@/lib/schemas';
+import { ForbiddenError, actingUser, actorOf } from '@/lib/session';
 import { type Side, copyFor, isSide } from '@/lib/side';
 import { z } from 'zod';
 
@@ -39,10 +41,8 @@ function readBill(formData: FormData) {
     direction: copyFor(sideOf(formData)).billDirection,
     status: text(formData, 'status') === 'draft' ? 'draft' : 'posted',
     billNo: text(formData, 'billNo'),
-    bookNo: text(formData, 'bookNo'),
     natureOfWork: text(formData, 'natureOfWork') || 'dyeing_finishing',
     billDate: text(formData, 'billDate'),
-    reference: text(formData, 'reference'),
     narration: text(formData, 'narration'),
     notes: text(formData, 'notes'),
     reason: text(formData, 'reason'),
@@ -51,6 +51,7 @@ function readBill(formData: FormData) {
 }
 
 function message(error: unknown): string {
+  if (error instanceof ForbiddenError) return error.message;
   if (error instanceof InputError) return error.message;
   if (error instanceof z.ZodError) return firstError(error);
   return `Could not save the bill: ${(error as Error).message}`;
@@ -66,7 +67,8 @@ export async function createBillAction(
 
   let id: string;
   try {
-    id = await createBill(parsed.data);
+    const actor = await actingUser('bill:manage');
+    id = await createBill(parsed.data, actorOf(actor));
   } catch (error) {
     return { error: message(error) };
   }
@@ -88,7 +90,8 @@ export async function updateBillAction(
   }
 
   try {
-    await updateBill(id, parsed.data);
+    const actor = await actingUser('bill:manage');
+    await updateBill(id, parsed.data, actorOf(actor));
   } catch (error) {
     return { error: message(error) };
   }
@@ -105,13 +108,63 @@ export async function postBillAction(
   const id = text(formData, 'id');
 
   try {
-    await postBill(id);
+    const actor = await actingUser('bill:manage');
+    await postBill(id, actorOf(actor));
   } catch (error) {
     return { error: message(error) };
   }
 
   revalidatePath('/', 'layout');
   redirect(`/${side}/bills/${id}`);
+}
+
+/**
+ * Whether a bill number is already in the book, asked while it is being typed.
+ *
+ * A warning, not a gate. The save still runs the same check inside the write,
+ * which is the one that counts: this one can be stale by the time Save is
+ * pressed. It exists because a repeated number used to be discovered only after
+ * the whole bill had been keyed, which is what CLAUDE.md rule 11 was written
+ * about.
+ *
+ * Permission checked like any other action. It answers a question about the
+ * book, so it is not something to leave open to anyone who finds the endpoint.
+ */
+export async function checkBillNoAction(input: {
+  side: string;
+  billNo: string;
+  partyId: string;
+  excludeId?: string;
+}): Promise<{ taken: boolean; message: string | null }> {
+  const side = isSide(input.side) ? input.side : 'customers';
+  const direction = copyFor(side).billDirection;
+  const billNo = input.billNo.trim();
+
+  // A subcontractor number is only unique within its subcontractor, so there is
+  // nothing to ask until one has been chosen.
+  if (!billNo) return { taken: false, message: null };
+  if (direction === 'received' && !input.partyId) {
+    return { taken: false, message: null };
+  }
+
+  try {
+    await actingUser('bill:manage');
+    const { taken, partyName } = await billNoExists({
+      partyId: input.partyId,
+      direction,
+      billNo,
+      excludeId: input.excludeId,
+    });
+    if (!taken) return { taken: false, message: null };
+    return {
+      taken: true,
+      message: `Bill ${billNo} is already recorded against ${partyName ?? 'another party'}.`,
+    };
+  } catch {
+    // The field is a courtesy. If it cannot be answered, say nothing and let
+    // the save be the one that refuses.
+    return { taken: false, message: null };
+  }
 }
 
 export async function deleteBillAction(
@@ -126,7 +179,8 @@ export async function deleteBillAction(
   if (!parsed.success) return { error: firstError(parsed.error) };
 
   try {
-    await deleteBill(parsed.data.id, parsed.data.reason);
+    const actor = await actingUser('bill:manage');
+    await deleteBill(parsed.data.id, parsed.data.reason, actorOf(actor));
   } catch (error) {
     return { error: message(error) };
   }
