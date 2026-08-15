@@ -3,7 +3,7 @@ import type {
   TableCell,
   TDocumentDefinitions,
 } from 'pdfmake/interfaces';
-import { formatQtyKg, parseQtyKg, sumGrams } from '../amount';
+import { formatQtyKg, formatRate, parseQtyKg, sumGrams } from '../amount';
 import { formatDate } from '../dates';
 import type { Company } from '../env';
 import { amountInWords, formatTaka } from '../format';
@@ -20,12 +20,12 @@ import { documentFileName } from './file-name';
 /**
  * The Bill, as an A4 document, for either side of the business.
  *
- * The bill LUMA sends is still hand-written from the bill book, so the number on
- * this document is that hand-written number: paper and PDF have to agree when a
- * customer holds both. The book it came from and the system's own reference are
- * recorded, but deliberately not printed. When billing moves fully into the ERP
- * the bill book retires, and the system number becomes the number on this line
- * without anything else about the document changing.
+ * The bill LUMA sends is still hand-written, so the number on this document is
+ * that hand-written number: paper and PDF have to agree when a customer holds
+ * both. The system's own number is recorded but deliberately not printed. When
+ * billing moves fully into the ERP the hand-written bill retires, and the system
+ * number becomes the number on this line without anything else about the
+ * document changing.
  *
  * Figures come off the saved bill, computed once at posting. Nothing is
  * recalculated here.
@@ -43,11 +43,13 @@ export function buildBillDocument(
 
   const head: TableCell[] = [
     { text: 'SL', style: 'tableHead', alignment: 'center' },
-    { text: 'Particulars', style: 'tableHead' },
-    { text: 'F/T', style: 'tableHead' },
+    { text: 'Description', style: 'tableHead' },
+    { text: 'LOT No', style: 'tableHead' },
     { text: 'Color', style: 'tableHead' },
-    { text: 'F/W (Kg)', style: 'tableHead', alignment: 'right' },
+    // Grey weight leads: it is what the amount is billed on, and the finished
+    // weight sits beside it as the figure it is read against.
     { text: 'G/W (Kg)', style: 'tableHead', alignment: 'right' },
+    { text: 'F/W (Kg)', style: 'tableHead', alignment: 'right' },
     { text: 'Rate (Tk)', style: 'tableHead', alignment: 'right' },
     { text: 'Amount (Tk)', style: 'tableHead', alignment: 'right' },
   ];
@@ -57,12 +59,12 @@ export function buildBillDocument(
     { text: '' },
     { text: '' },
     { text: '' },
+    { text: formatQtyKg(totalGrey), alignment: 'right', bold: true },
     {
       text: anyFinished ? formatQtyKg(totalFinished) : '',
       alignment: 'right',
       bold: true,
     },
-    { text: formatQtyKg(totalGrey), alignment: 'right', bold: true },
     { text: '' },
     { text: formatTaka(bill.total), alignment: 'right', bold: true },
   ];
@@ -70,17 +72,17 @@ export function buildBillDocument(
   const body: ContentTable = {
     table: {
       headerRows: 1,
-      widths: [20, '*', 54, 58, 50, 50, 44, 66],
+      widths: [18, '*', 52, 56, 52, 52, 44, 68],
       body: [
         head,
         ...bill.lines.map((line): TableCell[] => [
           { text: String(line.lineNo), alignment: 'center' },
           { text: line.description },
-          { text: line.fabricType ?? '' },
+          { text: line.lotNo ?? '' },
           { text: line.color ?? '' },
-          { text: line.finishedKg ?? '', alignment: 'right' },
           { text: line.greyKg, alignment: 'right' },
-          { text: line.rate, alignment: 'right' },
+          { text: line.finishedKg ?? '', alignment: 'right' },
+          { text: formatRate(line.rate), alignment: 'right' },
           { text: formatTaka(line.amount), alignment: 'right' },
         ]),
         totalRow,

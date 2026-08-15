@@ -113,16 +113,16 @@ export const billLineSchema = z.object({
     .min(1, 'Every line needs a description')
     .max(300),
   /**
-   * What the fabric is and what shade it was dyed. Both print on the bill, and
-   * both are optional because this app records what the paper bill says: a
-   * hand-written line does not always carry either.
+   * What shade the lot was dyed. Optional because this app records what the
+   * paper bill says, and a hand-written line does not always carry one.
    */
-  fabricType: optionalText(60),
   color: optionalText(60),
   /** The hand-written challan serial the lot went out on. */
   challanNo: optionalText(40),
   /** The customer's own order number, typed as they wrote it. */
   orderNo: optionalText(40),
+  /** The dye lot number, as written on the challan and the bill. */
+  lotNo: optionalText(40),
   /** Grey weight, which is what the amount is calculated on. */
   greyKg: weightKg('grey weight'),
   /**
@@ -137,12 +137,17 @@ export const billLineSchema = z.object({
       weightKg('finished weight').optional(),
     )
     .transform((value) => value ?? null),
+  /**
+   * Six decimals, not two. A bill keyed from the book often carries a weight
+   * and an amount but no rate, and the rate worked back out of them needs the
+   * finer places to reproduce the amount the party was shown.
+   */
   rate: z
     .string()
     .trim()
-    .regex(/^\d+(\.\d{1,2})?$/, 'Enter the rate with up to 2 decimals')
+    .regex(/^\d+(\.\d{1,6})?$/, 'Enter the rate with up to 6 decimals')
     .refine(
-      accepts(parseRate, (poisha) => poisha >= 0n),
+      accepts(parseRate, (microTaka) => microTaka >= 0n),
       'Rate cannot be negative',
     ),
 });
@@ -164,8 +169,6 @@ export const billFormSchema = z.object({
     .trim()
     .min(1, 'Enter the bill number written on the paper bill')
     .max(40),
-  /** Which bill book the number came from, for the book sequence. */
-  bookNo: optionalText(20),
   /** What was billed: dyeing and finishing unless stated otherwise. */
   natureOfWork: z
     .enum([
@@ -177,9 +180,9 @@ export const billFormSchema = z.object({
     ])
     .default('dyeing_finishing'),
   billDate: isoDateSchema,
-  reference: optionalText(120),
   /** What the ledger prints in Particulars. Blank means compose it. */
   narration: optionalText(200),
+  /** Remarks on the screen, and Remarks on the printed bill. */
   notes: optionalText(1000),
   lines: z.array(billLineSchema).min(1, 'Add at least one bill line'),
   reason: optionalText(300),
@@ -209,10 +212,317 @@ export const paymentFormSchema = z.object({
 });
 export type PaymentFormInput = z.infer<typeof paymentFormSchema>;
 
+// Expenses and payroll ---------------------------------------------------------
+
+/** The payment methods, shared by an expense, an advance and a salary. */
+const paymentModeSchema = z.enum([
+  'cash',
+  'mobile_banking',
+  'bank_transfer',
+  'cheque',
+  'rtgs',
+  'lc',
+  'other',
+]);
+
+/** Zero is allowed here, where a settlement amount must be positive. */
+const nonNegativeMoney = moneyStringSchema.refine(
+  (value) => !value.startsWith('-'),
+  'Enter an amount of zero or more',
+);
+
+const optionalDate = z
+  .union([isoDateSchema, z.literal('')])
+  .optional()
+  .transform((value) => (value ? value : null));
+
+/**
+ * A month as 'YYYY-MM'. Text end to end for the same reason a date is text: a
+ * month built as a JS Date is constructed at the server's midnight and can
+ * land in the wrong month against Asia/Dhaka.
+ */
+export const periodSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}$/, 'Enter the month as YYYY-MM')
+  .refine((value) => {
+    const month = Number(value.split('-')[1]);
+    return month >= 1 && month <= 12;
+  }, 'That is not a real month');
+
+/**
+ * The personnel file and the salary structure.
+ *
+ * Gross is deliberately absent: it is the sum of the six components and the
+ * database generates it, so there is nothing for the browser to send.
+ */
+export const employeeFormSchema = z.object({
+  /** Blank on create means the system assigns the next EMP code. */
+  code: optionalText(20),
+  name: z.string().trim().min(1, 'Name is required').max(200),
+  designation: optionalText(120),
+  phone: optionalText(40),
+  nid: optionalText(40),
+  address: optionalText(400),
+  joinedOn: optionalDate,
+
+  basic: nonNegativeMoney.default('0'),
+  houseRent: nonNegativeMoney.default('0'),
+  medical: nonNegativeMoney.default('0'),
+  conveyance: nonNegativeMoney.default('0'),
+  mobileAllowance: nonNegativeMoney.default('0'),
+  otherAllowance: nonNegativeMoney.default('0'),
+
+  paymentMethod: z.enum(['cash', 'bank', 'mfs']).default('cash'),
+  bankName: optionalText(120),
+  accountNo: optionalText(60),
+  mfsNumber: optionalText(40),
+
+  reason: optionalText(300),
+});
+export type EmployeeFormInput = z.infer<typeof employeeFormSchema>;
+
+/** Starting a month. Everything else about the run is worked out. */
+export const payrollRunFormSchema = z.object({
+  period: periodSchema,
+  perDayBasis: z.enum(['thirty', 'twenty_six', 'actual']).default('thirty'),
+  /**
+   * Whether this month takes advances back. The action reads the checkbox and
+   * sends a real boolean, so an absent field here means the caller left it out
+   * rather than that somebody unticked a box.
+   */
+  recoverAdvances: z.boolean().default(true),
+  notes: optionalText(1000),
+});
+export type PayrollRunFormInput = z.infer<typeof payrollRunFormSchema>;
+
+/**
+ * One row of the payroll grid: only what HR keys.
+ *
+ * No net and no absence cost, because both are worked out on the server from
+ * these figures and the run's basis, the same rule that keeps a bill total off
+ * the browser.
+ */
+export const payrollLineFormSchema = z.object({
+  id: z.string().uuid(),
+  absentDays: z
+    .string()
+    .trim()
+    .regex(/^\d+(\.\d)?$/, 'Enter unpaid absence in days, to one decimal')
+    .refine((value) => Number(value) <= 31, 'A month has at most 31 days')
+    .default('0'),
+  bonus: nonNegativeMoney.default('0'),
+  additionalAllowance: nonNegativeMoney.default('0'),
+  advanceDeduction: nonNegativeMoney.default('0'),
+  otherDeduction: nonNegativeMoney.default('0'),
+  remarks: optionalText(300),
+});
+export type PayrollLineFormInput = z.infer<typeof payrollLineFormSchema>;
+
+// payrollStepSchema was here. It validated the typed name of whoever was
+// approving or paying a run, which named users (2026-08-14) made unnecessary:
+// the name now comes from the session and there is no field to validate.
+
+export const payrollReopenSchema = z.object({
+  id: z.string().uuid(),
+  reason: z
+    .string()
+    .trim()
+    .min(3, 'State why this payroll is being reopened')
+    .max(300),
+});
+
+export const leaveFormSchema = z
+  .object({
+    employeeId: z.string().uuid('Select an employee'),
+    leaveType: z.enum(['casual', 'sick', 'earned']),
+    fromDate: isoDateSchema,
+    toDate: isoDateSchema,
+    days: z
+      .string()
+      .trim()
+      .regex(/^\d+(\.\d)?$/, 'Enter the days taken, to one decimal')
+      .refine((value) => Number(value) > 0, 'Enter more than zero days'),
+    reason: optionalText(300),
+    editReason: optionalText(300),
+  })
+  .refine((value) => value.toDate >= value.fromDate, {
+    message: 'The last day cannot be before the first',
+    path: ['toDate'],
+  });
+export type LeaveFormInput = z.infer<typeof leaveFormSchema>;
+
+export const expenseClaimFormSchema = z.object({
+  employeeId: z.string().uuid('Select an employee'),
+  claimedOn: isoDateSchema,
+  category: z.enum(['transport', 'courier', 'fuel', 'parking', 'other']),
+  description: z
+    .string()
+    .trim()
+    .min(1, 'State what the claim is for')
+    .max(300),
+  amount: positiveMoney,
+  orderNo: optionalText(60),
+  notes: optionalText(1000),
+  reason: optionalText(300),
+});
+export type ExpenseClaimFormInput = z.infer<typeof expenseClaimFormSchema>;
+
+/** Paying a claim back. The money moved, so it carries a date and a method. */
+export const reimburseClaimSchema = z.object({
+  id: z.string().uuid(),
+  reimbursedOn: isoDateSchema,
+  mode: paymentModeSchema,
+  reference: optionalText(80),
+});
+
+export const expenseFormSchema = z.object({
+  spentOn: isoDateSchema,
+  // The category carries the cost tier: see EXPENSE_CATEGORIES in types.ts,
+  // which is the one place that mapping lives.
+  category: z.enum([
+    'freight_inward',
+    'freight_outward',
+    'lab_test',
+    'direct_other',
+    'commission',
+    'rent',
+    'utilities',
+    'salary_related',
+    'transport',
+    'repairs',
+    'office',
+    'entertainment',
+    'government_fees',
+    'bank_charges',
+    'other',
+  ]),
+  /** Who was paid. Free text: most are not a party we otherwise trade with. */
+  payee: optionalText(200),
+  description: z
+    .string()
+    .trim()
+    .min(1, 'State what this expense was for')
+    .max(300),
+  amount: positiveMoney,
+  mode: paymentModeSchema,
+  reference: optionalText(80),
+  /** The order this cost belongs to, so it can be costed against that order. */
+  orderNo: optionalText(60),
+  notes: optionalText(1000),
+  reason: optionalText(300),
+});
+export type ExpenseFormInput = z.infer<typeof expenseFormSchema>;
+
+export const advanceFormSchema = z
+  .object({
+    employeeId: z.string().uuid('Select an employee'),
+    paidOn: isoDateSchema,
+    amount: positiveMoney,
+    mode: paymentModeSchema,
+
+    // How it was agreed to come back. Recorded here because it is agreed when
+    // the cash is handed over, which is what lets payroll fill the deduction in
+    // rather than somebody keying it for every person every month.
+    recoveryMode: z.enum(['manual', 'full', 'installment']).default('manual'),
+    installmentAmount: positiveMoney.or(z.literal('')).default(''),
+    recoverFrom: periodSchema.or(z.literal('')).default(''),
+
+    reference: optionalText(80),
+    notes: optionalText(1000),
+    reason: optionalText(300),
+  })
+  .superRefine((value, ctx) => {
+    // An installment with no figure would look scheduled and recover nothing.
+    if (value.recoveryMode === 'installment' && value.installmentAmount === '') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['installmentAmount'],
+        message: 'State how much is recovered each month',
+      });
+    }
+  });
+export type AdvanceFormInput = z.infer<typeof advanceFormSchema>;
+
 export const deleteSchema = z.object({
   id: z.string().uuid(),
   reason: z.string().trim().min(3, 'State why this is being removed').max(300),
 });
+
+/**
+ * A password, stated once as a rule so the create form and the reset form
+ * cannot disagree. Twelve characters and nothing else: a length floor is the
+ * only rule that reliably buys strength, and a composition rule ("one capital,
+ * one symbol") mostly buys Password1! written on a note under the keyboard.
+ */
+export const passwordSchema = z
+  .string()
+  .min(12, 'Use at least twelve characters')
+  .max(200, 'That password is too long');
+
+export const userRoleSchema = z.enum(['owner', 'accounts', 'viewer']);
+
+export const userFormSchema = z.object({
+  name: z.string().trim().min(2, 'Enter the full name').max(120),
+  // Stored lower case so an address cannot be registered twice in two cases.
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email('Enter a valid email address')
+    .max(200),
+  password: passwordSchema,
+  role: userRoleSchema,
+});
+export type UserFormInput = z.infer<typeof userFormSchema>;
+
+export const userRoleChangeSchema = z.object({
+  id: z.string().min(1),
+  role: userRoleSchema,
+});
+
+export const userStatusChangeSchema = z.object({
+  id: z.string().min(1),
+  status: z.enum(['active', 'disabled']),
+});
+
+export const userPasswordResetSchema = z.object({
+  id: z.string().min(1),
+  password: passwordSchema,
+});
+
+/** Name and email, whether somebody is editing their own or an Owner is. */
+export const userProfileSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().trim().min(2, 'Enter the full name').max(120),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .email('Enter a valid email address')
+    .max(200),
+});
+export type UserProfileInput = z.infer<typeof userProfileSchema>;
+
+/**
+ * Changing your own password. The current one is required, which is what makes
+ * this different from an Owner's reset: it proves who is at the keyboard.
+ */
+export const ownPasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Enter your current password'),
+    newPassword: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.newPassword !== value.confirmPassword) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['confirmPassword'],
+        message: 'The two new passwords do not match',
+      });
+    }
+  });
 
 /** The first error message from a ZodError, which is what the form shows. */
 export function firstError(error: z.ZodError): string {

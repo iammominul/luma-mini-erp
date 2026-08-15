@@ -9,10 +9,10 @@ import { billFormSchema, billLineSchema, firstError } from './schemas';
 
 const line = {
   description: 'S/J 100% Cotton, Lot 12',
-  fabricType: 'S/J',
   color: 'Black',
   challanNo: '1050',
   orderNo: '75-T',
+  lotNo: 'LOT-9',
   greyKg: '1240.5',
   finishedKg: '1198.25',
   rate: '159.00',
@@ -40,13 +40,13 @@ describe('billLineSchema', () => {
       ...line,
       challanNo: '',
       orderNo: '',
-      fabricType: '',
+      lotNo: '',
       color: '',
     });
     expect(parsed.challanNo).toBeNull();
     expect(parsed.orderNo).toBeNull();
     // Recorded when the paper bill states them, absent when it does not.
-    expect(parsed.fabricType).toBeNull();
+    expect(parsed.lotNo).toBeNull();
     expect(parsed.color).toBeNull();
   });
 
@@ -63,7 +63,7 @@ describe('billLineSchema', () => {
     ['a zero grey weight', { greyKg: '0' }],
     ['a rate that is not a number', { rate: 'nine' }],
     ['too many decimals on the weight', { greyKg: '1.2345' }],
-    ['too many decimals on the rate', { rate: '1.234' }],
+    ['too many decimals on the rate', { rate: '1.2345678' }],
     ['a missing description', { description: '' }],
   ])('reports %s without throwing', (_name, patch) => {
     const result = billLineSchema.safeParse({ ...line, ...patch });
@@ -79,18 +79,15 @@ describe('billFormSchema', () => {
     partyId: '11111111-1111-4111-8111-111111111111',
     direction: 'issued' as const,
     billNo: '889',
-    bookNo: '3',
     billDate: '2026-07-28',
-    reference: '',
     notes: '',
     reason: '',
     lines: [line],
   };
 
-  it('accepts a bill with its hand-written number and book', () => {
+  it('accepts a bill with its hand-written number', () => {
     const parsed = billFormSchema.parse(bill);
     expect(parsed.billNo).toBe('889');
-    expect(parsed.bookNo).toBe('3');
     expect(parsed.lines).toHaveLength(1);
   });
 
@@ -102,8 +99,10 @@ describe('billFormSchema', () => {
     }
   });
 
-  it('allows a bill with no book number recorded', () => {
-    expect(billFormSchema.parse({ ...bill, bookNo: '' }).bookNo).toBeNull();
+  it('keeps the lot number off a line that has none', () => {
+    const line = { ...bill.lines[0]!, lotNo: '' };
+    expect(billFormSchema.parse({ ...bill, lines: [line] }).lines[0]!.lotNo)
+      .toBeNull();
   });
 
   it('refuses a bill with no lines', () => {

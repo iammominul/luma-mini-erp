@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Money } from './money';
 import {
   formatQtyKg,
+  formatRate,
   lineAmount,
   parseQtyKg,
   parseRate,
@@ -26,15 +27,31 @@ describe('parseQtyKg', () => {
 });
 
 describe('parseRate', () => {
-  it('reads a rate as poisha', () => {
-    expect(parseRate('45')).toBe(4500n);
-    expect(parseRate('45.5')).toBe(4550n);
-    expect(parseRate('45.55')).toBe(4555n);
+  it('reads a rate as micro-taka', () => {
+    expect(parseRate('45')).toBe(45_000_000n);
+    expect(parseRate('45.5')).toBe(45_500_000n);
+    expect(parseRate('45.55')).toBe(45_550_000n);
+    expect(parseRate('125.228555')).toBe(125_228_555n);
     expect(parseRate('0')).toBe(0n);
   });
 
-  it('rejects a rate finer than a poisha', () => {
-    expect(() => parseRate('45.555')).toThrow(RangeError);
+  it('rejects a rate finer than a micro-taka', () => {
+    expect(() => parseRate('45.5555555')).toThrow(RangeError);
+    expect(() => parseRate('-45')).toThrow(RangeError);
+    expect(() => parseRate('')).toThrow(RangeError);
+  });
+});
+
+describe('formatRate', () => {
+  it('shows two decimals for an ordinary rate', () => {
+    expect(formatRate('30.000000')).toBe('30.00');
+    expect(formatRate('108.500000')).toBe('108.50');
+    expect(formatRate('45')).toBe('45.00');
+  });
+
+  it('keeps every place a back-computed rate needs', () => {
+    expect(formatRate('125.228555')).toBe('125.228555');
+    expect(formatRate('101.760500')).toBe('101.7605');
   });
 });
 
@@ -56,6 +73,24 @@ describe('lineAmount', () => {
     expect(lineAmount('0.005', '1').toDecimalString()).toBe('0.01');
     // 0.004 kg at 1.00 rounds down.
     expect(lineAmount('0.004', '1').toDecimalString()).toBe('0.00');
+  });
+
+  it('reproduces a bill book amount from a back-computed rate', () => {
+    // Bill 78 of the Bangla Japan book: 5141 kg billed at 643,798.00, with no
+    // rate on the paper. Two decimals cannot express the rate that gets back
+    // to it, and the 125.23 first keyed in overbilled by 9.43.
+    expect(lineAmount('5141', '125.23').toDecimalString()).toBe('643807.43');
+    expect(lineAmount('5141', '125.228166').toDecimalString()).toBe(
+      '643798.00',
+    );
+
+    // The two largest bills in the book, both of which needed the finer places.
+    expect(lineAmount('4569', '115.738674').toDecimalString()).toBe(
+      '528810.00',
+    );
+    expect(lineAmount('2200', '135.365455').toDecimalString()).toBe(
+      '297804.00',
+    );
   });
 
   it('handles a zero rate (a free reprocess line)', () => {
