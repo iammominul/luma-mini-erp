@@ -13,7 +13,9 @@ jobs:
     # inside a throwaway schema by the tests themselves.
     services:
       postgres:
-        image: postgres:16
+        # The version Neon runs, so CI proves the schema against the server it
+        # will actually meet. See the note in docker-compose.yml.
+        image: postgres:18
         env:
           POSTGRES_USER: ci
           POSTGRES_PASSWORD: ci
