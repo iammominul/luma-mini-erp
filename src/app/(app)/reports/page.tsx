@@ -1,6 +1,5 @@
-import Link from 'next/link';
 import { TradingSummary } from '@/components/TradingSummary';
-import { PageTitle, StatTile } from '@/components/ui';
+import { DownloadButton, PageTitle, StatTile } from '@/components/ui';
 import { formatTaka } from '@/lib/format';
 import { statementFor } from '@/lib/profit';
 import { RangePicker, rangeLabel, readRange } from './range';
@@ -22,12 +21,12 @@ export default async function ProfitStatementPage({
         title="Profit Statement"
         subtitle="What was billed, what it cost, and what is left, for any range of dates."
         action={
-          <Link
+          <DownloadButton
             href={`/reports/pdf?from=${range.from}&to=${range.to}`}
-            className="inline-flex min-h-11 items-center justify-center rounded border border-[var(--color-line)] bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-50 md:min-h-0 md:px-3 md:py-1.5"
+            variant="secondary"
           >
             Download PDF
-          </Link>
+          </DownloadButton>
         }
       />
 

@@ -118,7 +118,7 @@ export function PayrollWorkflow({
             , which prints on the payslip and goes in the activity log.
           </p>
           <div className="flex flex-wrap items-end gap-3">
-            <Button type="submit" disabled={approving}>
+            <Button type="submit" icon="check" disabled={approving}>
               {approving ? 'Approving' : 'Approve Payroll'}
             </Button>
           </div>
@@ -151,7 +151,7 @@ export function PayrollWorkflow({
                   />
                 </Field>
               </div>
-              <Button type="submit" disabled={paying}>
+              <Button type="submit" icon="check" disabled={paying}>
                 {paying ? 'Saving' : 'Mark Paid'}
               </Button>
             </div>
@@ -221,7 +221,7 @@ function ReopenForm({
             <TextInput name="reason" maxLength={300} required autoComplete="off" />
           </Field>
         </div>
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" icon="undo" disabled={pending}>
           {pending ? 'Reopening' : 'Reopen Payroll'}
         </Button>
       </div>

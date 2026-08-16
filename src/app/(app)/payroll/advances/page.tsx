@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Column } from '@/components/DataTable';
 import { DataTable } from '@/components/DataTable';
-import { Button, Card, PageTitle } from '@/components/ui';
+import { Card, LinkButton, PageTitle } from '@/components/ui';
 import { sumMoney } from '@/lib/amount';
 import { formatDate } from '@/lib/dates';
 import { formatTaka } from '@/lib/format';
@@ -78,9 +78,9 @@ export default async function AdvancesPage() {
         title="Salary Advances"
         subtitle="Money handed to an employee before payday, recovered from a later salary."
         action={
-          <Link href="/payroll/advances/new">
-            <Button>New Advance</Button>
-          </Link>
+          <LinkButton href="/payroll/advances/new" icon="plus">
+            New Advance
+          </LinkButton>
         }
       />
 

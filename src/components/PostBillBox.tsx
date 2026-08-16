@@ -28,7 +28,7 @@ export function PostBillBox({
     <form action={submit} className="flex items-center gap-2">
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="side" value={side} />
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" icon="check" disabled={pending}>
         {pending ? 'Posting' : 'Post Bill'}
       </Button>
       {state.error ? <Notice tone="error">{state.error}</Notice> : null}

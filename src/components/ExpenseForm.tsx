@@ -212,7 +212,7 @@ export function ExpenseForm({
       {state.error ? <Notice tone="error">{state.error}</Notice> : null}
 
       <FormActions>
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" icon="check" disabled={pending}>
           {pending ? 'Saving' : submitLabel}
         </Button>
         <CancelLink href={cancelHref} />

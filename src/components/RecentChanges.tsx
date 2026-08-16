@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { NavIcon } from './NavIcon';
+import { Icon } from './Icon';
 import type { ActivityEntry } from '@/lib/types';
 
 /**
@@ -47,7 +47,7 @@ export function RecentChanges({ entries }: { entries: ActivityEntry[] }) {
         title="Recent changes"
         className="inline-flex h-11 w-11 items-center justify-center rounded text-white/80 hover:bg-white/10 hover:text-white md:h-9 md:w-9"
       >
-        <NavIcon name="recent" className="h-5 w-5" />
+        <Icon name="recent" className="h-5 w-5" />
       </button>
 
       {open ? (

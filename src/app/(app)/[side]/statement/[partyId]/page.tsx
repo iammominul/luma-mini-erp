@@ -1,12 +1,13 @@
-import Link from 'next/link';
 import { notFound, permanentRedirect } from 'next/navigation';
 import { formatTaka } from '@/lib/format';
 import type { Column } from '@/components/DataTable';
 import { DataTable } from '@/components/DataTable';
 import {
+  Button,
   Card,
   CardHeader,
   DownloadButton,
+  LinkButton,
   StatTile,
 } from '@/components/ui';
 import { formatDate, todayInDhaka } from '@/lib/dates';
@@ -196,18 +197,20 @@ export default async function StatementPage({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link
+          <LinkButton
             href={`/${side}/bills/new?party=${party.id}`}
-            className="inline-flex min-h-11 items-center justify-center rounded border border-[var(--color-line)] bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-50 md:min-h-0 md:px-3 md:py-1.5"
+            variant="secondary"
+            icon="plus"
           >
             New {copy.billSingular}
-          </Link>
-          <Link
+          </LinkButton>
+          <LinkButton
             href={`/${side}/settlements/new?party=${party.id}`}
-            className="inline-flex min-h-11 items-center justify-center rounded border border-[var(--color-line)] bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-50 md:min-h-0 md:px-3 md:py-1.5"
+            variant="secondary"
+            icon="plus"
           >
             New {copy.settlementSingular}
-          </Link>
+          </LinkButton>
           <DownloadButton href={pdfHref}>Party Ledger PDF</DownloadButton>
         </div>
       </div>
@@ -267,15 +270,17 @@ export default async function StatementPage({
               className="min-h-11 w-full rounded border border-[var(--color-line)] bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
             />
           </label>
-          <button className="inline-flex min-h-11 w-full items-center justify-center rounded bg-[var(--color-navy)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-navy-600)] sm:w-auto md:min-h-0 md:px-3 md:py-1.5">
+          <Button size="filter" block>
             Apply
-          </button>
-          <Link
+          </Button>
+          <LinkButton
             href={`/${side}/statement/${handle}`}
-            className="inline-flex min-h-11 w-full items-center justify-center rounded border border-[var(--color-line)] bg-white px-4 py-2.5 text-sm hover:bg-gray-50 sm:w-auto md:min-h-0 md:px-3 md:py-1.5"
+            variant="secondary"
+            size="filter"
+            block
           >
             All Entries
-          </Link>
+          </LinkButton>
         </form>
       </Card>
 

@@ -101,7 +101,7 @@ function ProfileForm({ name, email }: { name: string; email: string }) {
       </Field>
       {state.error ? <Notice tone="error">{state.error}</Notice> : null}
       {state.done ? <Notice>{state.done}</Notice> : null}
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" icon="check" disabled={pending}>
         {pending ? 'Saving' : 'Save Details'}
       </Button>
     </form>
@@ -146,7 +146,7 @@ function PasswordForm() {
       </Field>
       {state.error ? <Notice tone="error">{state.error}</Notice> : null}
       {state.done ? <Notice>{state.done}</Notice> : null}
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" icon="check" disabled={pending}>
         {pending ? 'Saving' : 'Change Password'}
       </Button>
     </form>
@@ -167,7 +167,7 @@ function SignOutOthers() {
       </p>
       {state.error ? <Notice tone="error">{state.error}</Notice> : null}
       {state.done ? <Notice>{state.done}</Notice> : null}
-      <Button type="submit" variant="secondary" disabled={pending}>
+      <Button type="submit" variant="secondary" icon="signout" disabled={pending}>
         {pending ? 'Signing Out' : 'Sign Out Other Devices'}
       </Button>
     </form>

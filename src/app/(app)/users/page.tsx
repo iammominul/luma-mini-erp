@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Column } from '@/components/DataTable';
 import { DataTable } from '@/components/DataTable';
-import { Button, Card, Notice, PageTitle } from '@/components/ui';
+import { Card, LinkButton, Notice, PageTitle } from '@/components/ui';
 import { listUsers } from '@/lib/queries';
 import { roleDescription, roleLabel, ROLES } from '@/lib/permissions';
 import { requirePermission } from '@/lib/session';
@@ -100,9 +100,9 @@ export default async function UsersPage() {
         title="Users"
         subtitle="Who can sign in, and what each of them is allowed to do."
         action={
-          <Link href="/users/new">
-            <Button>New User</Button>
-          </Link>
+          <LinkButton href="/users/new" icon="plus">
+            New User
+          </LinkButton>
         }
       />
 

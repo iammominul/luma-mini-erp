@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { formatTaka } from '@/lib/format';
 import type { Column } from '@/components/DataTable';
 import { DataTable } from '@/components/DataTable';
-import { Card, CardHeader, PageTitle } from '@/components/ui';
+import { Card, CardHeader, LinkButton, PageTitle } from '@/components/ui';
 import { listParties } from '@/lib/queries';
 import { rolesLabel } from '@/lib/types';
 import { togglePartyActiveAction } from './actions';
@@ -110,12 +110,9 @@ export default async function PartiesPage() {
         title="Parties"
         subtitle="Customers send grey fabric and owe us. Subcontractors dye it and we owe them."
         action={
-          <Link
-            href="/parties/new"
-            className="inline-flex min-h-11 items-center justify-center rounded bg-[var(--color-navy)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-navy-600)] md:min-h-0 md:px-3 md:py-1.5"
-          >
+          <LinkButton href="/parties/new" icon="plus">
             Add Party
-          </Link>
+          </LinkButton>
         }
       />
 

@@ -29,7 +29,9 @@ export function DeleteBox({
 
   return (
     <details className="rounded border border-red-200 bg-white">
-      <summary className="cursor-pointer px-3 py-1.5 text-sm font-medium text-red-700">
+      {/* The pointer comes from the base rule in globals.css, which covers a
+          summary along with every button. */}
+      <summary className="px-3 py-1.5 text-sm font-medium text-red-700">
         {title}
       </summary>
       <form action={submit} className="space-y-3 border-t border-red-200 p-3">
@@ -42,7 +44,7 @@ export function DeleteBox({
           <Textarea name="reason" required maxLength={300} />
         </label>
         {state.error ? <Notice tone="error">{state.error}</Notice> : null}
-        <Button type="submit" variant="danger" disabled={pending}>
+        <Button type="submit" variant="danger" icon="trash" disabled={pending}>
           {pending ? 'Removing' : confirmLabel}
         </Button>
       </form>

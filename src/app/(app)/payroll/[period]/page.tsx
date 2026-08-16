@@ -3,6 +3,7 @@ import { notFound, permanentRedirect } from 'next/navigation';
 import { PayrollGrid } from '@/components/PayrollGrid';
 import { PayrollWorkflow } from '@/components/PayrollWorkflow';
 import {
+  Button,
   Card,
   CardHeader,
   EmptyRow,
@@ -126,12 +127,9 @@ export default async function PayrollRunPage({
         <form action={fillRecoveries} className="mb-3">
           <input type="hidden" name="runId" value={run.id} />
           <input type="hidden" name="period" value={run.period} />
-          <button
-            type="submit"
-            className="inline-flex min-h-11 items-center justify-center rounded border border-[var(--color-line)] bg-white px-4 py-2.5 text-sm font-medium hover:bg-gray-50 md:min-h-0 md:px-3 md:py-1.5"
-          >
+          <Button type="submit" variant="secondary" icon="check">
             Fill Advance Recoveries
-          </button>
+          </Button>
           <span className="ml-2 text-xs text-[var(--color-muted)]">
             Sets the Advance column from each employee&rsquo;s recovery
             agreement, replacing what is in it now.

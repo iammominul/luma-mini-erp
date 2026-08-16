@@ -1,6 +1,5 @@
-import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { Card } from './ui';
+import { Button, Card, LinkButton } from './ui';
 
 /**
  * The row of filters over a register.
@@ -44,15 +43,16 @@ export function FilterBar({
     <Card className="mb-4 p-3">
       <form className="flex flex-wrap items-end gap-3">
         {children}
-        <button className="inline-flex min-h-11 w-full items-center justify-center rounded bg-[var(--color-navy)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-navy-600)] sm:w-auto md:min-h-0 md:px-3 md:py-1.5">
+        {/* `filter` rather than the standard size: these two sit on the same
+            baseline as the fields beside them, and FILTER_CONTROL is a taller
+            control than the one ui.tsx uses on a form. No icons either, so a
+            filter row stays quiet. */}
+        <Button size="filter" block>
           {applyLabel}
-        </button>
-        <Link
-          href={clearHref}
-          className="inline-flex min-h-11 w-full items-center justify-center rounded border border-[var(--color-line)] bg-white px-4 py-2.5 text-sm hover:bg-gray-50 sm:w-auto md:min-h-0 md:px-3 md:py-1.5"
-        >
+        </Button>
+        <LinkButton href={clearHref} variant="secondary" size="filter" block>
           Clear
-        </Link>
+        </LinkButton>
       </form>
     </Card>
   );

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Column } from '@/components/DataTable';
 import { DataTable } from '@/components/DataTable';
-import { Button, Card, PageTitle, StatTile } from '@/components/ui';
+import { Card, LinkButton, PageTitle, StatTile } from '@/components/ui';
 import { sumMoney } from '@/lib/amount';
 import { formatTaka } from '@/lib/format';
 import { listEmployeeBalances } from '@/lib/queries';
@@ -101,9 +101,9 @@ export default async function EmployeesPage() {
         title="Employees"
         subtitle="The people on payroll, with what each still owes against an advance."
         action={
-          <Link href="/employees/new">
-            <Button>New Employee</Button>
-          </Link>
+          <LinkButton href="/employees/new" icon="plus">
+            New Employee
+          </LinkButton>
         }
       />
 

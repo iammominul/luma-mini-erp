@@ -1,6 +1,5 @@
-import Link from 'next/link';
 import { DataTable } from '@/components/DataTable';
-import { Card, PageTitle } from '@/components/ui';
+import { Button, Card, LinkButton, PageTitle } from '@/components/ui';
 import { activityFilterOptions, listActivity } from '@/lib/queries';
 import { requirePermission } from '@/lib/session';
 
@@ -165,15 +164,12 @@ export default async function AuditPage({
             />
           </label>
 
-          <button className="inline-flex min-h-11 w-full items-center justify-center rounded bg-[var(--color-navy)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[var(--color-navy-600)] sm:w-auto md:min-h-0 md:px-3 md:py-1.5">
+          <Button size="filter" block>
             Apply
-          </button>
-          <Link
-            href="/audit"
-            className="inline-flex min-h-11 w-full items-center justify-center rounded border border-[var(--color-line)] bg-white px-4 py-2.5 text-sm hover:bg-gray-50 sm:w-auto md:min-h-0 md:px-3 md:py-1.5"
-          >
+          </Button>
+          <LinkButton href="/audit" variant="secondary" size="filter" block>
             Clear
-          </Link>
+          </LinkButton>
         </form>
       </Card>
 
@@ -248,23 +244,17 @@ export default async function AuditPage({
           </span>
           <div className="flex items-center gap-2">
             {page > 1 ? (
-              <Link
-                href={pageHref(page - 1)}
-                className="inline-flex min-h-11 items-center justify-center rounded border border-[var(--color-line)] bg-white px-4 py-2.5 font-medium hover:bg-gray-50 md:min-h-0 md:px-3 md:py-1.5"
-              >
+              <LinkButton href={pageHref(page - 1)} variant="secondary">
                 Previous
-              </Link>
+              </LinkButton>
             ) : null}
             <span className="text-[var(--color-muted)]">
               Page {page} of {pages}
             </span>
             {page < pages ? (
-              <Link
-                href={pageHref(page + 1)}
-                className="inline-flex min-h-11 items-center justify-center rounded border border-[var(--color-line)] bg-white px-4 py-2.5 font-medium hover:bg-gray-50 md:min-h-0 md:px-3 md:py-1.5"
-              >
+              <LinkButton href={pageHref(page + 1)} variant="secondary">
                 Next
-              </Link>
+              </LinkButton>
             ) : null}
           </div>
         </div>

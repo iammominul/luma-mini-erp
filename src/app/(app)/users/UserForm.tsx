@@ -1,9 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { useActionState } from 'react';
 import {
   Button,
+  CancelLink,
   Card,
   Field,
   Notice,
@@ -84,14 +84,10 @@ export function UserForm() {
         {state.error ? <Notice tone="error">{state.error}</Notice> : null}
 
         <div className="flex gap-2">
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" icon="check" disabled={pending}>
             {pending ? 'Saving' : 'Add User'}
           </Button>
-          <Link href="/users">
-            <Button type="button" variant="secondary">
-              Cancel
-            </Button>
-          </Link>
+          <CancelLink href="/users" />
         </div>
       </form>
     </Card>

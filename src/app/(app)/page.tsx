@@ -4,7 +4,7 @@ import { CostSplitDonut } from '@/components/charts/CostSplitDonut';
 import { TradingSummary } from '@/components/TradingSummary';
 import { GroupedMonthChart } from '@/components/charts/GroupedMonthChart';
 import { DataTable } from '@/components/DataTable';
-import { Card, CardHeader, PageTitle, StatTile } from '@/components/ui';
+import { Button, Card, CardHeader, PageTitle, StatTile } from '@/components/ui';
 import {
   DASHBOARD_RANGES,
   type DashboardRange,
@@ -174,9 +174,11 @@ function RangeFilter({
             className={CONTROL}
           />
         </label>
-        <button className="inline-flex min-h-11 w-full items-center justify-center rounded border border-[var(--color-rule)] bg-white px-4 text-sm font-medium hover:bg-[var(--color-surface-2)] sm:w-auto md:h-[26px] md:min-h-0 md:px-2.5 md:text-[12px]">
+        {/* The standard size, not `filter`: this row's CONTROL is already the
+            26px one, so the button lines up with the two date fields as is. */}
+        <Button variant="secondary" block>
           Apply
-        </button>
+        </Button>
       </form>
     </div>
   );

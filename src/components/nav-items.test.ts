@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { ICON_NAMES } from './Icon';
 import {
   GROUPS,
+  PINNED,
   groupHolding,
   groupLabelFor,
   groupsFor,
@@ -139,5 +141,22 @@ describe('groupLabelFor', () => {
   // have already been given, so it does not repeat the permission check.
   it('names the group whatever the role, because it is not an offer', () => {
     expect(groupLabelFor('/users')).toBe('Administration');
+  });
+});
+
+/**
+ * Every mark the rail asks for has to exist. A name that does not match a path
+ * in Icon.tsx renders an empty svg: the menu keeps its spacing and simply shows
+ * nothing where the mark belongs, which is the kind of fault that survives a
+ * review because the screen still looks arranged.
+ */
+describe('the marks the rail asks for', () => {
+  it('are all drawn', () => {
+    const asked = [
+      ...PINNED.map((item) => item.icon),
+      ...GROUPS.map((group) => group.icon),
+    ];
+    expect(asked.length).toBeGreaterThan(0);
+    for (const name of asked) expect(ICON_NAMES).toContain(name);
   });
 });

@@ -6,7 +6,7 @@ import {
   FilterBar,
   FilterField,
 } from '@/components/FilterBar';
-import { Button, Card, PageTitle } from '@/components/ui';
+import { Card, LinkButton, PageTitle } from '@/components/ui';
 import { formatDate, todayInDhaka } from '@/lib/dates';
 import { leaveTypeLabel } from '@/lib/payroll';
 import { listLeaveRecords } from '@/lib/queries';
@@ -82,9 +82,9 @@ export default async function LeavePage({
         title="Leave"
         subtitle="Casual, sick and earned leave, recorded for the register. Paid leave never reduces a salary."
         action={
-          <Link href="/leave/new">
-            <Button>Record Leave</Button>
-          </Link>
+          <LinkButton href="/leave/new" icon="plus">
+            Record Leave
+          </LinkButton>
         }
       />
 
