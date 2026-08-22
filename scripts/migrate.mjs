@@ -23,6 +23,7 @@
  * makes it survivable.
  */
 import { applySchema, loadEnvFile } from './apply-schema.mjs';
+import { staleBackups } from './backup-branches.mjs';
 
 const NEON_API = 'https://console.neon.tech/api/v2';
 
@@ -88,6 +89,43 @@ async function backup(key) {
   console.log(`migrate: restore point created, Neon branch "${name}".`);
 }
 
+/**
+ * Delete all but the newest `keep` backup branches.
+ *
+ * Nothing removed one before this, and the Neon free plan caps how many a
+ * project may hold. Left alone, the cap arrives as a failure to create the
+ * restore point, which by the rule above fails the build: the deploy that
+ * cannot ship a fix is exactly what we were avoiding.
+ *
+ * Called after backup(), never before, so a failure between the two still
+ * leaves the previous release's restore point standing.
+ *
+ * A delete that will not go through is a warning, not a failure. The restore
+ * point for this release has already been taken by the time we get here, which
+ * is the part that matters; a branch somebody has protected or branched from is
+ * theirs to deal with, not a reason to stop a release.
+ */
+async function prune(key, keep = 5) {
+  const id = await projectId(key);
+  const { branches } = await neonRequest(`/projects/${id}/branches`, key);
+
+  // Which ones is decided in backup-branches.mjs, where it is tested. What gets
+  // returned here is deleted from the project holding the live book.
+  const stale = staleBackups(branches, keep);
+  if (stale.length === 0) return;
+
+  for (const branch of stale) {
+    try {
+      await neonRequest(`/projects/${id}/branches/${branch.id}`, key, {
+        method: 'DELETE',
+      });
+      console.log(`migrate: pruned old restore point "${branch.name}".`);
+    } catch (error) {
+      console.warn(`migrate: could not prune "${branch.name}": ${error.message}`);
+    }
+  }
+}
+
 if (!shouldRun()) process.exit(0);
 
 loadEnvFile('.env.production.local');
@@ -101,6 +139,14 @@ if (!url) {
 const key = process.env.NEON_API_KEY;
 if (key) {
   await backup(key);
+  // Tidying up is not worth a failed release. backup() above throws on purpose
+  // because a migration without a restore point is a different deploy; this one
+  // only keeps the branch count down, and next release will try again.
+  try {
+    await prune(key);
+  } catch (error) {
+    console.warn(`migrate: could not prune old restore points: ${error.message}`);
+  }
 } else {
   // Loud, and not fatal. Making this a hard failure would stop every deploy
   // until somebody adds the key, and a deploy that cannot ship a fix is its own

@@ -328,15 +328,21 @@ formatters. Do not "improve" them here. If one has a bug, fix it in both.
 
 ## 5. Commands
 
-| Command          | Does                                             |
-| ---------------- | ------------------------------------------------ |
-| `pnpm dev`       | Run locally on `http://localhost:5174`           |
-| `pnpm build`     | Production build                                 |
-| `pnpm typecheck` | Typecheck                                        |
-| `pnpm test`      | Unit tests (integration tests skip without a DB) |
-| `pnpm db:up`     | Start this repository's own Postgres (port 5434) |
-| `pnpm db:down`   | Stop it                                          |
-| `pnpm db:setup`  | Apply `db/schema.sql` to `DATABASE_URL`          |
+| Command          | Does                                                          |
+| ---------------- | ------------------------------------------------------------- |
+| `pnpm dev`       | Run locally on `http://localhost:5174`                        |
+| `pnpm build`     | Production build                                              |
+| `pnpm typecheck` | Typecheck                                                     |
+| `pnpm test`      | Unit tests (integration tests skip without a DB)              |
+| `pnpm db:up`     | Start this repository's own Postgres (port 5434)              |
+| `pnpm db:down`   | Stop it                                                       |
+| `pnpm db:setup`  | Apply `db/schema.sql` to `DATABASE_URL` (refuses a remote one) |
+| `pnpm db:pull`   | Copy production into the local `interim_dev`                  |
+
+`db:pull` is read only against production and is how a change gets built against
+the real book. It restores production's schema rather than `db/schema.sql`, so
+running `db:setup` straight after it rehearses exactly what the deploy will do.
+See rule 15 before writing the migration it is rehearsing.
 
 Run the full suite, including every SQL statement and server action, against a
 real Postgres:

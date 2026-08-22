@@ -16,20 +16,52 @@ import { splitSqlStatements } from './split-sql.mjs';
 const root = join(import.meta.dirname, '..');
 
 /**
- * Read KEY=value pairs out of a dotenv file into process.env, without
- * overwriting anything already set. Later files do not override earlier ones.
+ * Read KEY=value pairs out of a dotenv file and return them, or null if the
+ * file is not there. Nothing is put into process.env.
+ *
+ * pull-prod.mjs wants the values themselves rather than the merged environment:
+ * it has to read the production string out of one named file and can accept no
+ * other answer, and process.env may already hold a local one.
  */
-export function loadEnvFile(name) {
+export function readEnvFile(name) {
   const file = join(root, name);
-  if (!existsSync(file)) return false;
+  if (!existsSync(file)) return null;
+
+  const values = {};
   for (const line of readFileSync(file, 'utf8').split('\n')) {
     const match = /^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/.exec(line);
     if (!match) continue;
     const [, key, rawValue] = match;
+    values[key] = rawValue.replace(/^["']|["']$/g, '');
+  }
+  return values;
+}
+
+/**
+ * Read KEY=value pairs out of a dotenv file into process.env, without
+ * overwriting anything already set. Later files do not override earlier ones.
+ */
+export function loadEnvFile(name) {
+  const values = readEnvFile(name);
+  if (!values) return false;
+  for (const [key, value] of Object.entries(values)) {
     if (process.env[key]) continue;
-    process.env[key] = rawValue.replace(/^["']|["']$/g, '');
+    process.env[key] = value;
   }
   return true;
+}
+
+/**
+ * Whether a connection string names a database on this machine.
+ *
+ * Two callers want this for different reasons: connect() picks a driver with
+ * it, and setup-db.mjs refuses to write to anything it says no to. One
+ * definition, because the two answers have to agree. A script that reads a URL
+ * as remote while the driver reads it as local is a script guarding the wrong
+ * connection.
+ */
+export function isLocalUrl(url) {
+  return /@(localhost|127\.0\.0\.1|host\.docker\.internal)[:/]/.test(url);
 }
 
 /**
@@ -38,10 +70,7 @@ export function loadEnvFile(name) {
  * developer's Docker Postgres are the second case.
  */
 async function connect(url) {
-  const isLocal = /@(localhost|127\.0\.0\.1|host\.docker\.internal)[:/]/.test(
-    url,
-  );
-  if (!isLocal) return neon(url);
+  if (!isLocalUrl(url)) return neon(url);
 
   const { Pool } = await import('pg');
   const pool = new Pool({ connectionString: url });
