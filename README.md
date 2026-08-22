@@ -90,8 +90,8 @@ pnpm db:setup
 
 ### 4. Environment variables
 
-| Variable            | What it is                                                                    |
-| ------------------- | ----------------------------------------------------------------------------- |
+| Variable          | What it is                                                                    |
+| ----------------- | ----------------------------------------------------------------------------- |
 | `DATABASE_URL`    | The Neon pooled connection string.                                            |
 | `AUTH_SECRET`     | Random string Better Auth signs sessions with. See below.                     |
 | `AUTH_URL`        | Optional. Where the app is served. Unset, the origin is read off the request. |
@@ -100,6 +100,20 @@ pnpm db:setup
 | `COMPANY_PHONE`   | Printed on the contact line. More than one number is fine, comma separated.   |
 | `COMPANY_EMAIL`   | Printed on the contact line.                                                  |
 | `COMPANY_WEB`     | Printed on the contact line. Leave unset to omit it.                          |
+| `NEON_PROJECT_ID` | Production only. The Neon project a release takes its restore point in.       |
+| `NEON_API_KEY`    | Production only. Lets a release create that restore point. See below.         |
+
+`NEON_API_KEY` is what turns the restore point on. Without it a release still
+ships, having said `NO RESTORE POINT was created` in the build log and carried
+on, which is deliberate: a deploy that cannot ship a fix is its own kind of
+risk. With it, every release leaves a `backup/<timestamp>` branch and prunes all
+but the newest five.
+
+Set `NEON_PROJECT_ID` alongside it. An API key issued by the Neon console is
+scoped to the organization, and an org-scoped key cannot answer the "which
+projects can you see" question `scripts/migrate.mjs` falls back on, so without
+the id the backup step fails and takes the build with it. The id is in **Neon
+Console > Settings > General**; the key is in **Account settings > API keys**.
 
 The logo on the documents is `assets/letterhead-logo.svg`, committed with the
 app rather than configured. Replace that file to put another company on every
@@ -191,10 +205,19 @@ a local database, copy the data across rather than typing it again. Dump it in
 this table order, which is the order the foreign keys allow:
 
 ```bash
-for t in party counter bill bill_line payment activity_log; do
+for t in party counter employee bill bill_line payment expense advance \
+         payroll_run payroll_line leave_record expense_claim activity_log \
+         users auth_accounts; do
   pg_dump "$LOCAL_URL" --data-only --no-owner --no-privileges --column-inserts -t "public.$t"
 done > book.sql
 ```
+
+That is every table holding a record somebody entered, in the order the foreign
+keys allow: a party and an employee before anything referring to one, a bill
+before its lines, a payroll run before its lines. `sessions` and `verifications`
+are left out on purpose. They are Better Auth's working state, signed against
+the secret of the deployment that issued them, and they mean nothing anywhere
+else.
 
 Then load it into the Neon database, **after** `pnpm db:setup` has run there:
 
@@ -238,17 +261,38 @@ Never `vercel --prod` from your machine. It uploads whatever is in the folder,
 including files you have not committed, and labels the deployment with a commit
 it does not match, so the live site and `main` quietly stop agreeing.
 
-1. **Branch and work.** `pnpm dev` against the local Docker Postgres.
-2. **Open a pull request.** It gets a preview URL backed by its own Neon branch,
+1. **Take a copy of the book.** `pnpm db:up`, then `pnpm db:pull`. The local
+   database is now what production holds, so the change is built against real
+   parties, real bills and the real counter positions.
+2. **Rehearse the schema.** `pnpm db:setup`. That applies `db/schema.sql` to
+   production's schema, which is exactly what the deploy will do. A migration
+   that is going to fail on live data fails here instead, on your machine,
+   where the cost is nothing.
+3. **Branch and work.** `pnpm dev` on `http://localhost:5174`.
+4. **Check it locally.**
+
+   ```bash
+   pnpm typecheck
+   INTERIM_TEST_DATABASE_URL="postgresql://luma:luma@localhost:5434/interim_test" pnpm test
+   ```
+
+5. **Open a pull request.** It gets a preview URL backed by its own Neon branch,
    copied from production and deleted when the pull request closes. It is safe
-   to add and delete records there: none of it is the real book.
-3. **Wait for CI.** Typecheck, the full test suite against Postgres 18, and the
-   build.
-4. **Merge.** The production deploy runs `scripts/migrate.mjs` first, which
-   takes a `backup/<timestamp>` Neon branch and applies `db/schema.sql`, then
-   builds. A failed migration fails the build and production keeps serving the
-   previous release.
-5. **Check it.** Open the site, sign in, open a bill, download its PDF.
+   to add and delete records there: none of it is the real book. Open it, sign
+   in, and put the change through the way somebody in the office would.
+6. **Wait for both checks.** GitHub Actions runs typecheck, the full test suite
+   against Postgres 18 and the build. Vercel builds the preview.
+7. **Merge.** The production deploy runs `scripts/migrate.mjs` first, which
+   takes a `backup/<timestamp>` Neon branch, prunes all but the newest five, and
+   applies `db/schema.sql`, then builds. A failed migration fails the build and
+   production keeps serving the previous release.
+8. **Check production.** Sign in, open a recent bill and check its total,
+   download its PDF, and check one party's outstanding figure against what it
+   was before the deploy.
+
+Steps 1 and 2 are the ones that make the rest of it safe. A migration first
+meeting real data during the deploy that applies it is the way this book gets
+damaged.
 
 ### Before you write a migration
 
@@ -321,13 +365,10 @@ pnpm install
 pnpm dev            # http://localhost:5174
 ```
 
-The quickest local setup is to point `.env.local` at the Neon database and run
-`pnpm dev`. Nothing else is needed.
-
-`DATABASE_URL` can also point at a Postgres on your own machine, and the app
-switches drivers on its own when the host is `localhost`. This repository ships
-its own Docker Postgres, on port 5434 so it cannot collide with the full ERP on
-5433 or a native Postgres on 5432:
+Work against a Postgres on your own machine, never against the live Neon book.
+The app switches drivers on its own when the host is `localhost`, and this
+repository ships its own Docker Postgres on port 5434, so it cannot collide with
+the full ERP on 5433 or a native Postgres on 5432:
 
 ```bash
 pnpm db:up
@@ -340,6 +381,39 @@ this repository alone: nothing is shared with the full ERP, so either project
 can be started, stopped or archived without touching the other.
 
 Use a separate local database for testing, never the live Neon one.
+
+### Working against the real book
+
+An empty database hides the bugs worth finding. Fill the local one from
+production instead:
+
+```bash
+pnpm db:up
+pnpm db:pull        # production into interim_dev
+pnpm db:setup       # db/schema.sql on top: the migration rehearsal
+```
+
+`pnpm db:pull` is read only against production. It takes the connection string
+from `.env.production.local` (or `PROD_DATABASE_URL`), dumps through the
+container's own Postgres 18 client so nothing is version-skewed, and restores
+into `interim_dev`. It never touches `interim_test`, which the tests own, and it
+saves whatever `interim_dev` held first.
+
+What it restores is production's schema, not `db/schema.sql`. That is the point:
+`pnpm db:setup` afterwards applies `db/schema.sql` on top of the real shape, the
+same thing the deploy does, so a migration that is wrong against real rows fails
+on your machine rather than in front of the office.
+
+Session rows are deliberately left behind. The user accounts come across, so
+sign in locally with the same email and password you use on the live site.
+
+Both dumps land in `backups/`, which is gitignored. They hold every figure in
+the book in clear text: delete them when you are done, and never attach one to
+anything.
+
+To apply the schema to a database that is not on this machine, `pnpm db:setup`
+refuses unless you pass `--i-know-this-is-remote`. Production is migrated by the
+deploy, not from a terminal.
 
 ## Tests
 
@@ -366,6 +440,12 @@ CSV files for Excel. Do it weekly and keep the file off the server.
 
 Every amount in those files is text, not a number, so nothing is rounded on the
 way out.
+
+The `backup/<timestamp>` Neon branches each deploy leaves are not this. Only the
+newest five are kept, because the free plan caps how many branches a project may
+hold and a deploy that cannot create a restore point fails the build. They cover
+the last few releases and nothing further back, so the weekly download is the
+copy that actually survives.
 
 ## Handing over to the ERP
 
