@@ -19,6 +19,8 @@ export type Company = {
   phone: string;
   email: string;
   web: string;
+  /** The proprietor, for the capital and drawings the ERP posts per member. */
+  ownerName: string;
 };
 
 /**
@@ -33,5 +35,6 @@ export function company(): Company {
     phone: process.env.COMPANY_PHONE ?? '',
     email: process.env.COMPANY_EMAIL ?? '',
     web: process.env.COMPANY_WEB ?? '',
+    ownerName: process.env.COMPANY_OWNER_NAME ?? '',
   };
 }

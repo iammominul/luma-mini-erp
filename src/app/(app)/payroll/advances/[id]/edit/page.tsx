@@ -20,10 +20,7 @@ export default async function EditAdvancePage({
 
   return (
     <>
-      <PageTitle
-        title={`Edit Advance ${advance.docNo ?? ''}`}
-        subtitle="The old and new values are both kept in the activity log."
-      />
+      <PageTitle title={`Edit Advance ${advance.docNo ?? ''}`} />
       <AdvanceForm
         employees={employees.map((e) => ({
           id: e.id,
@@ -41,8 +38,7 @@ export default async function EditAdvancePage({
           amount: advance.amount.toDecimalString(),
           mode: advance.mode,
           recoveryMode: advance.recoveryMode,
-          installmentAmount:
-            advance.installmentAmount?.toDecimalString() ?? '',
+          installmentAmount: advance.installmentAmount?.toDecimalString() ?? '',
           recoverFrom: advance.recoverFrom ?? '',
           reference: advance.reference ?? '',
           notes: advance.notes ?? '',

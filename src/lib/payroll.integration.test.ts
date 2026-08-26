@@ -329,54 +329,6 @@ describe.skipIf(!CONNECTION)('payroll', () => {
     );
   }, 30_000);
 
-  it('reimburses a staff claim separately from payroll', async () => {
-    const { createExpenseClaim, reimburseExpenseClaim, InputError } =
-      await import('./mutations');
-    const { listExpenseClaims, moneyOutTotals } = await import('./queries');
-    const { findPayrollRun, listPayrollLines } = await import('./queries');
-
-    const run = (await findPayrollRun('2026-08'))!;
-    const line = (await listPayrollLines(run.id))[0]!;
-
-    const claimId = await createExpenseClaim({
-      employeeId: line.employeeId,
-      claimedOn: '2026-08-12',
-      category: 'transport',
-      description: 'Delivery to Gazipur',
-      amount: '850.00',
-      orderNo: null,
-      notes: null,
-      reason: null,
-    }, TEST_ACTOR);
-
-    const submitted = await listExpenseClaims({ status: 'submitted' });
-    expect(submitted).toHaveLength(1);
-    expect(submitted[0]!.docNo).toMatch(/^ECL-26-\d{4}$/);
-
-    // A submitted claim is not money out yet.
-    let out = await moneyOutTotals({ from: '2026-08-01', to: '2026-08-31' });
-    expect(out.claims.toDecimalString()).toBe('0.00');
-
-    await reimburseExpenseClaim({
-      id: claimId,
-      reimbursedOn: '2026-08-15',
-      mode: 'cash',
-      reference: null,
-    }, TEST_ACTOR);
-
-    out = await moneyOutTotals({ from: '2026-08-01', to: '2026-08-31' });
-    expect(out.claims.toDecimalString()).toBe('850.00');
-
-    // And it cannot be paid twice.
-    await expect(
-      reimburseExpenseClaim({
-        id: claimId,
-        reimbursedOn: '2026-08-16',
-        mode: 'cash',
-        reference: null,
-      }, TEST_ACTOR),
-    ).rejects.toBeInstanceOf(InputError);
-  }, 30_000);
   // Advance recovery, end to end: an agreement made when the cash is handed
   // over, filled in by Generate, and still overridable at every step.
   it('recovers an advance by installments once it is agreed', async () => {

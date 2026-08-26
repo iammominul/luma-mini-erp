@@ -25,8 +25,20 @@ import type { CostTier } from './types';
  * the two hides the number that tells you how the trade itself is doing.
  */
 
-/** A cost line on the statement, already tiered. */
-export type CostLine = { label: string; amount: Money; tier: CostTier };
+/**
+ * A cost line on the statement, already tiered.
+ *
+ * `note` says which book the figure came out of, which is what the Expense
+ * Register prints beside each line. It is carried here so the register can read
+ * the same list profit.ts builds instead of assembling a second one that drifts
+ * from it.
+ */
+export type CostLine = {
+  label: string;
+  amount: Money;
+  tier: CostTier;
+  note?: string;
+};
 
 export type ProfitStatement = {
   revenue: Money;
@@ -51,17 +63,25 @@ export type ProfitStatement = {
  * once, scaled up by a thousand, and comes back down as text. A percentage is
  * not money, so it is a string for display and nothing computes from it.
  *
+ * The last digit is rounded, not cut off. Integer division truncates, and a
+ * margin of 25,00,511.00 on 98,24,508.00 billed is 25.45%, which was reading as
+ * 25.4% while anybody checking it on a calculator got 25.5%. The half goes up on
+ * the magnitude, so a loss rounds the same way a profit does and the sign is
+ * carried separately.
+ *
  * Null when there is no revenue to take a share of. Zero revenue with a cost
  * against it is not a minus infinity percent margin, it is a period with
  * nothing sold in it, and the screen should say so rather than print a figure.
  */
 export function marginPercent(margin: Money, revenue: Money): string | null {
   if (revenue.isZero()) return null;
-  const scaled = (margin.poisha * 1000n) / revenue.poisha;
-  const negative = scaled < 0n;
-  const absolute = negative ? -scaled : scaled;
-  const whole = absolute / 10n;
-  const tenth = absolute % 10n;
+  const negative = margin.isNegative();
+  const magnitude = negative ? -margin.poisha : margin.poisha;
+  // Tenths of a percent, rounded half up: (m * 1000 / r) with half a tenth
+  // added before the division, both sides doubled so the half stays an integer.
+  const tenths = (magnitude * 2000n + revenue.poisha) / (revenue.poisha * 2n);
+  const whole = tenths / 10n;
+  const tenth = tenths % 10n;
   return `${negative ? '-' : ''}${whole}.${tenth}%`;
 }
 
@@ -82,7 +102,9 @@ export function profitStatement(input: {
 }): ProfitStatement {
   const directLines = input.costs.filter((line) => line.tier === 'direct');
   const sellingLines = input.costs.filter((line) => line.tier === 'selling');
-  const operatingLines = input.costs.filter((line) => line.tier === 'operating');
+  const operatingLines = input.costs.filter(
+    (line) => line.tier === 'operating',
+  );
 
   const directCost = sum(directLines);
   const sellingCost = sum(sellingLines);

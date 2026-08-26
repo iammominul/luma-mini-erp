@@ -19,7 +19,7 @@ export default async function NewLeavePage({
     <>
       <PageTitle
         title="Record Leave"
-        subtitle="For the register. Nothing here changes a salary."
+        subtitle="Does not change a salary."
       />
 
       {employees.length === 0 ? (

@@ -37,6 +37,7 @@ const company: Company = {
   phone: '+880 1778-661144, +880 1711-659155',
   email: 'info@lumatextile.com',
   web: 'www.lumatextile.com',
+  ownerName: 'Mominul Islam',
 };
 
 const customer: Party = {

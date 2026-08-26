@@ -23,9 +23,10 @@ const KIND_LABEL: Record<SearchHitKind, string> = {
   bill: 'Bill',
   order: 'Order',
   party: 'Party',
+  loan: 'Loan',
   payment: 'Receipt',
   expense: 'Voucher',
-  claim: 'Claim',
+  fund: 'Fund Voucher',
   advance: 'Advance',
 };
 
@@ -34,11 +35,14 @@ export default async function SearchPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const { q } = await searchParams;
   const term = (q ?? '').trim();
 
-  const hits = term.length >= 2 ? await searchRecords(term) : [];
+  // The role decides whether capital, drawings and the loan book are searchable
+  // at all. See searchRecords: hiding them from the results is the control.
+  const hits =
+    term.length >= 2 ? await searchRecords(term, { role: user.role }) : [];
 
   // Exactly one record answers to this number, so open it. Anything else is a
   // list of candidates to choose from.

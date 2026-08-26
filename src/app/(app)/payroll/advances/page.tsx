@@ -76,7 +76,6 @@ export default async function AdvancesPage() {
     <>
       <PageTitle
         title="Salary Advances"
-        subtitle="Money handed to an employee before payday, recovered from a later salary."
         action={
           <LinkButton href="/payroll/advances/new" icon="plus">
             New Advance

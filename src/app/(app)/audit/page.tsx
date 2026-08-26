@@ -18,7 +18,13 @@ const ENTITY_LABEL: Record<string, string> = {
   payment: 'Settlement',
   party: 'Party',
   expense: 'Expense',
+  // Kept although the module is gone. The log is append only by rule 5, so it
+  // still holds the rows those claims wrote, and the filter above is built from
+  // SELECT DISTINCT entity. Without this the screen offers a filter called
+  // expense_claim and prints a raw table name beside it.
   expense_claim: 'Expense Claim',
+  loan: 'Loan',
+  fund_movement: 'Fund Voucher',
   employee: 'Employee',
   advance: 'Advance',
   payroll_run: 'Payroll Run',
@@ -89,10 +95,7 @@ export default async function AuditPage({
 
   return (
     <>
-      <PageTitle
-        title="Audit Trail"
-        subtitle="Every change to the book, with who made it and why. Append only: nothing here is edited or removed."
-      />
+      <PageTitle title="Audit Trail" />
 
       <Card className="mb-4 p-3">
         {/* A plain GET form, so a filtered trail has an address that can be

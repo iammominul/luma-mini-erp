@@ -80,50 +80,56 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
     // The readiness probe has to run without error against a live connection.
     expect(typeof (await schemaReady())).toBe('boolean');
 
-    const customerId = await createParty({
-      code: null,
-      name: 'Bangla Japan Trading Ltd.',
-      roles: ['customer'],
-      contactPerson: 'Mr Rahman',
-      phone: '01700000000',
-      address: 'Gazipur',
-      openingBalance: '50000.00',
-      openingAsOf: '2026-06-30',
-    }, TEST_ACTOR);
+    const customerId = await createParty(
+      {
+        code: null,
+        name: 'Bangla Japan Trading Ltd.',
+        roles: ['customer'],
+        contactPerson: 'Mr Rahman',
+        phone: '01700000000',
+        address: 'Gazipur',
+        openingBalance: '50000.00',
+        openingAsOf: '2026-06-30',
+      },
+      TEST_ACTOR,
+    );
 
-    const billId = await createBill({
-      partyId: customerId,
-      direction: 'issued',
-      status: 'posted' as const,
-      billNo: '889',
-      natureOfWork: 'dyeing_finishing',
-      billDate: '2026-07-05',
-      narration: null,
-      notes: null,
-      reason: null,
-      lines: [
-        {
-          description: 'S/J 100% Cotton, Lot 12',
-          color: 'Navy',
-          challanNo: '1042',
-          orderNo: '75-T',
-          lotNo: null,
-          greyKg: '1250.5',
-          finishedKg: '1201.25',
-          rate: '45.5',
-        },
-        {
-          description: '1x1 Rib, Lot 13',
-          color: 'White',
-          challanNo: '1043',
-          orderNo: '75-T',
-          lotNo: null,
-          greyKg: '880',
-          finishedKg: null,
-          rate: '52.25',
-        },
-      ],
-    }, TEST_ACTOR);
+    const billId = await createBill(
+      {
+        partyId: customerId,
+        direction: 'issued',
+        status: 'posted' as const,
+        billNo: '889',
+        natureOfWork: 'dyeing_finishing',
+        billDate: '2026-07-05',
+        narration: null,
+        notes: null,
+        reason: null,
+        lines: [
+          {
+            description: 'S/J 100% Cotton, Lot 12',
+            color: 'Navy',
+            challanNo: '1042',
+            orderNo: '75-T',
+            lotNo: null,
+            greyKg: '1250.5',
+            finishedKg: '1201.25',
+            rate: '45.5',
+          },
+          {
+            description: '1x1 Rib, Lot 13',
+            color: 'White',
+            challanNo: '1043',
+            orderNo: '75-T',
+            lotNo: null,
+            greyKg: '880',
+            finishedKg: null,
+            rate: '52.25',
+          },
+        ],
+      },
+      TEST_ACTOR,
+    );
 
     const bill = await getBill(billId);
     expect(bill).not.toBeNull();
@@ -143,42 +149,48 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
     expect(bill!.lines[1]!.finishedKg).toBeNull();
 
     // The second customer bill takes the next number in the system series.
-    const secondBillId = await createBill({
-      partyId: customerId,
-      direction: 'issued',
-      status: 'posted' as const,
-      billNo: '890',
-      natureOfWork: 'dyeing_finishing',
-      billDate: '2026-07-18',
-      narration: null,
-      notes: null,
-      reason: null,
-      lines: [
-        {
-          description: 'Interlock, Lot 20',
-          color: 'Black',
-          challanNo: '1050',
-          orderNo: '76-T',
-          lotNo: null,
-          greyKg: '500',
-          finishedKg: null,
-          rate: '60',
-        },
-      ],
-    }, TEST_ACTOR);
+    const secondBillId = await createBill(
+      {
+        partyId: customerId,
+        direction: 'issued',
+        status: 'posted' as const,
+        billNo: '890',
+        natureOfWork: 'dyeing_finishing',
+        billDate: '2026-07-18',
+        narration: null,
+        notes: null,
+        reason: null,
+        lines: [
+          {
+            description: 'Interlock, Lot 20',
+            color: 'Black',
+            challanNo: '1050',
+            orderNo: '76-T',
+            lotNo: null,
+            greyKg: '500',
+            finishedKg: null,
+            rate: '60',
+          },
+        ],
+      },
+      TEST_ACTOR,
+    );
     expect((await getBill(secondBillId))!.docNo).toBe('CB-26-0002');
 
-    await createPayment({
-      partyId: customerId,
-      direction: 'in' as const,
-      reference: 'MR 5501',
-      paidOn: '2026-07-20',
-      amount: '100000.00',
-      mode: 'cheque',
-      narration: null,
-      notes: null,
-      reason: null,
-    }, TEST_ACTOR);
+    await createPayment(
+      {
+        partyId: customerId,
+        direction: 'in' as const,
+        reference: 'MR 5501',
+        paidOn: '2026-07-20',
+        amount: '100000.00',
+        mode: 'cheque',
+        narration: null,
+        notes: null,
+        reason: null,
+      },
+      TEST_ACTOR,
+    );
 
     const balances = await listPartyBalances('customer');
     expect(balances).toHaveLength(1);
@@ -222,29 +234,33 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
     expect(july.closing.toDecimalString()).toBe('82877.75');
 
     // Editing re-writes the lines and keeps the before and after in the log.
-    await updateBill(secondBillId, {
-      partyId: customerId,
-      direction: 'issued',
-      status: 'posted' as const,
-      billNo: '890',
-      natureOfWork: 'dyeing_finishing',
-      billDate: '2026-07-18',
-      narration: null,
-      notes: null,
-      reason: 'Weight slip corrected by the warehouse',
-      lines: [
-        {
-          description: 'Interlock, Lot 20',
-          color: 'Black',
-          challanNo: '1050',
-          orderNo: '76-T',
-          lotNo: null,
-          greyKg: '520',
-          finishedKg: '505.5',
-          rate: '60',
-        },
-      ],
-    }, TEST_ACTOR);
+    await updateBill(
+      secondBillId,
+      {
+        partyId: customerId,
+        direction: 'issued',
+        status: 'posted' as const,
+        billNo: '890',
+        natureOfWork: 'dyeing_finishing',
+        billDate: '2026-07-18',
+        narration: null,
+        notes: null,
+        reason: 'Weight slip corrected by the warehouse',
+        lines: [
+          {
+            description: 'Interlock, Lot 20',
+            color: 'Black',
+            challanNo: '1050',
+            orderNo: '76-T',
+            lotNo: null,
+            greyKg: '520',
+            finishedKg: '505.5',
+            rate: '60',
+          },
+        ],
+      },
+      TEST_ACTOR,
+    );
     const edited = (await getBill(secondBillId))!;
     expect(edited.total.toDecimalString()).toBe('31200.00');
     // The system number is never re-issued by an edit.
@@ -271,40 +287,46 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
     const { createBill, createParty, InputError } = await import('./mutations');
     const { getBill, listPartyBalances } = await import('./queries');
 
-    const subId = await createParty({
-      code: null,
-      name: 'Bhuiyan Fabrics Ltd.',
-      roles: ['subcontractor'],
-      contactPerson: null,
-      phone: null,
-      address: null,
-      openingBalance: '0.00',
-      openingAsOf: null,
-    }, TEST_ACTOR);
+    const subId = await createParty(
+      {
+        code: null,
+        name: 'Bhuiyan Fabrics Ltd.',
+        roles: ['subcontractor'],
+        contactPerson: null,
+        phone: null,
+        address: null,
+        openingBalance: '0.00',
+        openingAsOf: null,
+      },
+      TEST_ACTOR,
+    );
 
-    const billId = await createBill({
-      partyId: subId,
-      direction: 'received',
-      status: 'posted' as const,
-      billNo: 'RD-889',
-      natureOfWork: 'dyeing_finishing',
-      billDate: '2026-07-06',
-      narration: null,
-      notes: null,
-      reason: null,
-      lines: [
-        {
-          description: 'S/J 100% Cotton, Lot 12',
-          color: 'Navy',
-          challanNo: '1042',
-          orderNo: '75-T',
-          lotNo: null,
-          greyKg: '1250.5',
-          finishedKg: '1201.25',
-          rate: '28',
-        },
-      ],
-    }, TEST_ACTOR);
+    const billId = await createBill(
+      {
+        partyId: subId,
+        direction: 'received',
+        status: 'posted' as const,
+        billNo: 'RD-889',
+        natureOfWork: 'dyeing_finishing',
+        billDate: '2026-07-06',
+        narration: null,
+        notes: null,
+        reason: null,
+        lines: [
+          {
+            description: 'S/J 100% Cotton, Lot 12',
+            color: 'Navy',
+            challanNo: '1042',
+            orderNo: '75-T',
+            lotNo: null,
+            greyKg: '1250.5',
+            finishedKg: '1201.25',
+            rate: '28',
+          },
+        ],
+      },
+      TEST_ACTOR,
+    );
 
     // Their paper number is the bill's identity, and no system number is issued.
     const bill = await getBill(billId);
@@ -312,29 +334,32 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
     expect(bill!.docNo).toBeNull();
 
     await expect(
-      createBill({
-        partyId: subId,
-        direction: 'received',
-        status: 'posted' as const,
-        billNo: 'RD-889',
-        natureOfWork: 'dyeing_finishing',
-        billDate: '2026-07-07',
-        narration: null,
-        notes: null,
-        reason: null,
-        lines: [
-          {
-            description: 'Repeat',
-            color: null,
-            challanNo: null,
-            orderNo: null,
-            lotNo: null,
-            greyKg: '10',
-            finishedKg: null,
-            rate: '10',
-          },
-        ],
-      }, TEST_ACTOR),
+      createBill(
+        {
+          partyId: subId,
+          direction: 'received',
+          status: 'posted' as const,
+          billNo: 'RD-889',
+          natureOfWork: 'dyeing_finishing',
+          billDate: '2026-07-07',
+          narration: null,
+          notes: null,
+          reason: null,
+          lines: [
+            {
+              description: 'Repeat',
+              color: null,
+              challanNo: null,
+              orderNo: null,
+              lotNo: null,
+              greyKg: '10',
+              finishedKg: null,
+              rate: '10',
+            },
+          ],
+        },
+        TEST_ACTOR,
+      ),
     ).rejects.toBeInstanceOf(InputError);
 
     // One sign convention: a payable is negative, whoever it is owed to. The
@@ -344,40 +369,46 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
 
     // A subcontractor's number is scoped to them: another one may write RD-889
     // in their own book, and that is not a clash.
-    const otherId = await createParty({
-      code: null,
-      name: 'Nokshi Dyeing',
-      roles: ['subcontractor'],
-      contactPerson: null,
-      phone: null,
-      address: null,
-      openingBalance: '0.00',
-      openingAsOf: null,
-    }, TEST_ACTOR);
+    const otherId = await createParty(
+      {
+        code: null,
+        name: 'Nokshi Dyeing',
+        roles: ['subcontractor'],
+        contactPerson: null,
+        phone: null,
+        address: null,
+        openingBalance: '0.00',
+        openingAsOf: null,
+      },
+      TEST_ACTOR,
+    );
     await expect(
-      createBill({
-        partyId: otherId,
-        direction: 'received',
-        status: 'posted' as const,
-        billNo: 'RD-889',
-        natureOfWork: 'dyeing_finishing',
-        billDate: '2026-07-08',
-        narration: null,
-        notes: null,
-        reason: null,
-        lines: [
-          {
-            description: 'Same number, different subcontractor',
-            color: null,
-            challanNo: null,
-            orderNo: null,
-            lotNo: null,
-            greyKg: '10',
-            finishedKg: null,
-            rate: '10',
-          },
-        ],
-      }, TEST_ACTOR),
+      createBill(
+        {
+          partyId: otherId,
+          direction: 'received',
+          status: 'posted' as const,
+          billNo: 'RD-889',
+          natureOfWork: 'dyeing_finishing',
+          billDate: '2026-07-08',
+          narration: null,
+          notes: null,
+          reason: null,
+          lines: [
+            {
+              description: 'Same number, different subcontractor',
+              color: null,
+              challanNo: null,
+              orderNo: null,
+              lotNo: null,
+              greyKg: '10',
+              finishedKg: null,
+              rate: '10',
+            },
+          ],
+        },
+        TEST_ACTOR,
+      ),
     ).resolves.toBeTypeOf('string');
   }, 60_000);
 
@@ -386,16 +417,19 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
     const { getBill, listMovements, listPartyBalances } =
       await import('./queries');
 
-    const partyId = await createParty({
-      code: null,
-      roles: ['customer'],
-      name: 'Draft Test Knitwear',
-      contactPerson: null,
-      phone: null,
-      address: null,
-      openingBalance: '0.00',
-      openingAsOf: null,
-    }, TEST_ACTOR);
+    const partyId = await createParty(
+      {
+        code: null,
+        roles: ['customer'],
+        name: 'Draft Test Knitwear',
+        contactPerson: null,
+        phone: null,
+        address: null,
+        openingBalance: '0.00',
+        openingAsOf: null,
+      },
+      TEST_ACTOR,
+    );
 
     const line = {
       description: 'Black, Lot 1',
@@ -413,18 +447,21 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
     );
     const counterBefore = await currentBillCounter();
 
-    const draftId = await createBill({
-      partyId,
-      direction: 'issued',
-      status: 'draft',
-      billNo: 'D-1',
-      natureOfWork: 'dyeing_finishing',
-      billDate: '2026-07-15',
-      narration: null,
-      notes: null,
-      reason: null,
-      lines: [line],
-    }, TEST_ACTOR);
+    const draftId = await createBill(
+      {
+        partyId,
+        direction: 'issued',
+        status: 'draft',
+        billNo: 'D-1',
+        natureOfWork: 'dyeing_finishing',
+        billDate: '2026-07-15',
+        narration: null,
+        notes: null,
+        reason: null,
+        lines: [line],
+      },
+      TEST_ACTOR,
+    );
 
     const draft = await getBill(draftId);
     expect(draft!.status).toBe('draft');
@@ -457,7 +494,9 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
 
     // Posting twice is refused rather than quietly taking another number.
     const { InputError } = await import('./mutations');
-    await expect(postBill(draftId, TEST_ACTOR)).rejects.toBeInstanceOf(InputError);
+    await expect(postBill(draftId, TEST_ACTOR)).rejects.toBeInstanceOf(
+      InputError,
+    );
     expect(await currentBillCounter()).toBe(counterBefore + 1);
   }, 60_000);
 
@@ -475,73 +514,88 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
       rate: '50',
     };
 
-    const first = await createParty({
-      code: null,
-      name: 'Bookcheck One',
-      roles: ['customer'],
-      contactPerson: null,
-      phone: null,
-      address: null,
-      openingBalance: '0.00',
-      openingAsOf: null,
-    }, TEST_ACTOR);
-    const second = await createParty({
-      code: null,
-      name: 'Bookcheck Two',
-      roles: ['customer'],
-      contactPerson: null,
-      phone: null,
-      address: null,
-      openingBalance: '0.00',
-      openingAsOf: null,
-    }, TEST_ACTOR);
+    const first = await createParty(
+      {
+        code: null,
+        name: 'Bookcheck One',
+        roles: ['customer'],
+        contactPerson: null,
+        phone: null,
+        address: null,
+        openingBalance: '0.00',
+        openingAsOf: null,
+      },
+      TEST_ACTOR,
+    );
+    const second = await createParty(
+      {
+        code: null,
+        name: 'Bookcheck Two',
+        roles: ['customer'],
+        contactPerson: null,
+        phone: null,
+        address: null,
+        openingBalance: '0.00',
+        openingAsOf: null,
+      },
+      TEST_ACTOR,
+    );
 
-    await createBill({
-      partyId: first,
-      direction: 'issued',
-      status: 'posted' as const,
-      billNo: '1201',
-      natureOfWork: 'dyeing_finishing',
-      billDate: '2026-07-09',
-      narration: null,
-      notes: null,
-      reason: null,
-      lines: [line],
-    }, TEST_ACTOR);
+    await createBill(
+      {
+        partyId: first,
+        direction: 'issued',
+        status: 'posted' as const,
+        billNo: '1201',
+        natureOfWork: 'dyeing_finishing',
+        billDate: '2026-07-09',
+        narration: null,
+        notes: null,
+        reason: null,
+        lines: [line],
+      },
+      TEST_ACTOR,
+    );
 
     // LUMA writes one series, so 1201 cannot be written twice, even for a
     // different customer. This used to be scoped to the bill book, which meant
     // the same serial in another book was a different piece of paper; the book
     // is gone (2026-08-15) and the number now stands on its own.
     await expect(
-      createBill({
-        partyId: second,
-        direction: 'issued',
-        status: 'posted' as const,
-        billNo: '1201',
-        natureOfWork: 'dyeing_finishing',
-        billDate: '2026-07-10',
-        narration: null,
-        notes: null,
-        reason: null,
-        lines: [line],
-      }, TEST_ACTOR),
+      createBill(
+        {
+          partyId: second,
+          direction: 'issued',
+          status: 'posted' as const,
+          billNo: '1201',
+          natureOfWork: 'dyeing_finishing',
+          billDate: '2026-07-10',
+          narration: null,
+          notes: null,
+          reason: null,
+          lines: [line],
+        },
+        TEST_ACTOR,
+      ),
     ).rejects.toBeInstanceOf(InputError);
 
     // A different number for that customer is still ordinary.
     await expect(
-      createBill({
-        partyId: second,
-        direction: 'issued',
-        status: 'posted' as const,
-        billNo: '1202',
-        natureOfWork: 'dyeing_finishing',
-        billDate: '2026-07-10',
-        narration: null,
-        notes: null,
-        reason: null,
-        lines: [line],
-      }, TEST_ACTOR),
+      createBill(
+        {
+          partyId: second,
+          direction: 'issued',
+          status: 'posted' as const,
+          billNo: '1202',
+          natureOfWork: 'dyeing_finishing',
+          billDate: '2026-07-10',
+          narration: null,
+          notes: null,
+          reason: null,
+          lines: [line],
+        },
+        TEST_ACTOR,
+      ),
     ).resolves.toBeTypeOf('string');
   }, 60_000);
 
@@ -550,53 +604,67 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
       await import('./mutations');
     const { getParty, listParties } = await import('./queries');
 
-    const id = await createParty({
-      code: null,
-      name: 'Unique Textiles',
-      roles: ['customer'],
-      contactPerson: null,
-      phone: null,
-      address: null,
-      openingBalance: '0.00',
-      openingAsOf: null,
-    }, TEST_ACTOR);
-
-    await expect(
-      createParty({
+    const id = await createParty(
+      {
         code: null,
-        name: 'unique textiles',
+        name: 'Unique Textiles',
         roles: ['customer'],
         contactPerson: null,
         phone: null,
         address: null,
         openingBalance: '0.00',
         openingAsOf: null,
-      }, TEST_ACTOR),
+      },
+      TEST_ACTOR,
+    );
+
+    await expect(
+      createParty(
+        {
+          code: null,
+          name: 'unique textiles',
+          roles: ['customer'],
+          contactPerson: null,
+          phone: null,
+          address: null,
+          openingBalance: '0.00',
+          openingAsOf: null,
+        },
+        TEST_ACTOR,
+      ),
     ).rejects.toBeInstanceOf(InputError);
 
     await expect(
-      updateParty(id, {
-        code: null,
-        name: 'Unique Textiles',
-        roles: ['subcontractor'],
-        contactPerson: null,
-        phone: null,
-        address: null,
-        openingBalance: '0.00',
-        openingAsOf: null,
-      }, TEST_ACTOR),
+      updateParty(
+        id,
+        {
+          code: null,
+          name: 'Unique Textiles',
+          roles: ['subcontractor'],
+          contactPerson: null,
+          phone: null,
+          address: null,
+          openingBalance: '0.00',
+          openingAsOf: null,
+        },
+        TEST_ACTOR,
+      ),
     ).rejects.toBeInstanceOf(InputError);
 
-    await updateParty(id, {
-      code: null,
-      name: 'Unique Textiles Ltd',
-      roles: ['customer'],
-      contactPerson: 'Mrs Akter',
-      phone: '01800000000',
-      address: 'Narayanganj',
-      openingBalance: '1234.56',
-      openingAsOf: '2026-07-01',
-    }, TEST_ACTOR);
+    await updateParty(
+      id,
+      {
+        code: null,
+        name: 'Unique Textiles Ltd',
+        roles: ['customer'],
+        contactPerson: 'Mrs Akter',
+        phone: '01800000000',
+        address: 'Narayanganj',
+        openingBalance: '1234.56',
+        openingAsOf: '2026-07-01',
+      },
+      TEST_ACTOR,
+    );
     const party = await getParty(id);
     expect(party!.name).toBe('Unique Textiles Ltd');
     expect(party!.openingBalance.toDecimalString()).toBe('1234.56');
@@ -609,18 +677,22 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
 
   it('finds a party and a bill by the handle a URL carries', async () => {
     const { createBill, createParty } = await import('./mutations');
-    const { findBill, findParty, getBill, getParty } = await import('./queries');
+    const { findBill, findParty, getBill, getParty } =
+      await import('./queries');
 
-    const partyId = await createParty({
-      code: null,
-      name: 'Handle Test Textiles Ltd',
-      roles: ['customer'],
-      contactPerson: null,
-      phone: null,
-      address: null,
-      openingBalance: '0',
-      openingAsOf: '2026-07-01',
-    }, TEST_ACTOR);
+    const partyId = await createParty(
+      {
+        code: null,
+        name: 'Handle Test Textiles Ltd',
+        roles: ['customer'],
+        contactPerson: null,
+        phone: null,
+        address: null,
+        openingBalance: '0',
+        openingAsOf: '2026-07-01',
+      },
+      TEST_ACTOR,
+    );
     const party = (await getParty(partyId))!;
     expect(party.code).toMatch(/^CUS-\d{4,}$/);
 
@@ -630,29 +702,32 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
     expect((await findParty(partyId))!.id).toBe(partyId);
     expect((await findParty(party.code!.toLowerCase()))!.id).toBe(partyId);
 
-    const billId = await createBill({
-      partyId,
-      direction: 'issued',
-      status: 'posted',
-      billNo: 'HANDLE-1',
-      natureOfWork: 'dyeing_finishing',
-      billDate: '2026-07-15',
-      narration: null,
-      notes: null,
-      reason: null,
-      lines: [
-        {
-          description: 'Handle test',
-          color: null,
-          challanNo: null,
-          orderNo: null,
-          lotNo: null,
-          greyKg: '10',
-          finishedKg: null,
-          rate: '10',
-        },
-      ],
-    }, TEST_ACTOR);
+    const billId = await createBill(
+      {
+        partyId,
+        direction: 'issued',
+        status: 'posted',
+        billNo: 'HANDLE-1',
+        natureOfWork: 'dyeing_finishing',
+        billDate: '2026-07-15',
+        narration: null,
+        notes: null,
+        reason: null,
+        lines: [
+          {
+            description: 'Handle test',
+            color: null,
+            challanNo: null,
+            orderNo: null,
+            lotNo: null,
+            greyKg: '10',
+            finishedKg: null,
+            rate: '10',
+          },
+        ],
+      },
+      TEST_ACTOR,
+    );
     const docNo = (await getBill(billId))!.docNo!;
     expect(docNo).toMatch(/^CB-\d{2}-\d{4,}$/);
     expect((await findBill(docNo))!.id).toBe(billId);
@@ -661,7 +736,12 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
 
     // A handle that is neither shape must answer "no such record" rather than
     // reaching Postgres and throwing out of a ::uuid cast.
-    for (const junk of ['nonsense', '', 'CUS-0001-x', "'; drop table bill; --"]) {
+    for (const junk of [
+      'nonsense',
+      '',
+      'CUS-0001-x',
+      "'; drop table bill; --",
+    ]) {
       await expect(findParty(junk)).resolves.toBeNull();
       await expect(findBill(junk)).resolves.toBeNull();
       await expect(getParty(junk)).resolves.toBeNull();
@@ -673,16 +753,19 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
     const { createBill, createParty } = await import('./mutations');
     const { listBills } = await import('./queries');
 
-    const partyId = await createParty({
-      code: null,
-      name: 'Order Of Entry Knitwear Ltd',
-      roles: ['customer'],
-      contactPerson: null,
-      phone: null,
-      address: null,
-      openingBalance: '0',
-      openingAsOf: '2026-01-01',
-    }, TEST_ACTOR);
+    const partyId = await createParty(
+      {
+        code: null,
+        name: 'Order Of Entry Knitwear Ltd',
+        roles: ['customer'],
+        contactPerson: null,
+        phone: null,
+        address: null,
+        openingBalance: '0',
+        openingAsOf: '2026-01-01',
+      },
+      TEST_ACTOR,
+    );
 
     // Deliberately out of step: the highest number is the oldest date, so an
     // order that only looks right by accident cannot pass both checks.
@@ -692,29 +775,32 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
       ['85', '2026-05-20'],
     ];
     for (const [billNo, billDate] of written) {
-      await createBill({
-        partyId,
-        direction: 'issued',
-        status: 'posted',
-        billNo,
-        natureOfWork: 'dyeing_finishing',
-        billDate,
-        narration: null,
-        notes: null,
-        reason: null,
-        lines: [
-          {
-            description: 'As per bill register',
-            color: null,
-            challanNo: null,
-            orderNo: null,
-            lotNo: null,
-            greyKg: '100',
-            finishedKg: null,
-            rate: '50',
-          },
-        ],
-      }, TEST_ACTOR);
+      await createBill(
+        {
+          partyId,
+          direction: 'issued',
+          status: 'posted',
+          billNo,
+          natureOfWork: 'dyeing_finishing',
+          billDate,
+          narration: null,
+          notes: null,
+          reason: null,
+          lines: [
+            {
+              description: 'As per bill register',
+              color: null,
+              challanNo: null,
+              orderNo: null,
+              lotNo: null,
+              greyKg: '100',
+              finishedKg: null,
+              rate: '50',
+            },
+          ],
+        },
+        TEST_ACTOR,
+      );
     }
 
     const numbers = async (options: Parameters<typeof listBills>[0]) =>
@@ -748,43 +834,49 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
     const { createBill, createParty } = await import('./mutations');
     const { getBill } = await import('./queries');
 
-    const partyId = await createParty({
-      code: null,
-      name: 'Back Computed Rate Fabrics Ltd',
-      roles: ['customer'],
-      contactPerson: null,
-      phone: null,
-      address: null,
-      openingBalance: '0',
-      openingAsOf: '2026-01-01',
-    }, TEST_ACTOR);
+    const partyId = await createParty(
+      {
+        code: null,
+        name: 'Back Computed Rate Fabrics Ltd',
+        roles: ['customer'],
+        contactPerson: null,
+        phone: null,
+        address: null,
+        openingBalance: '0',
+        openingAsOf: '2026-01-01',
+      },
+      TEST_ACTOR,
+    );
 
     // The bill book recorded 5141 kg and Tk 643,798.00 and no rate at all. The
     // rate that gets back to that amount needs six decimals; at two it is
     // 125.23, which bills the customer 643,807.43 instead.
-    const billId = await createBill({
-      partyId,
-      direction: 'issued',
-      status: 'posted',
-      billNo: 'RATE-1',
-      natureOfWork: 'dyeing_finishing',
-      billDate: '2026-04-06',
-      narration: null,
-      notes: null,
-      reason: null,
-      lines: [
-        {
-          description: 'As per bill register',
-          color: null,
-          challanNo: null,
-          orderNo: null,
-          lotNo: null,
-          greyKg: '5141',
-          finishedKg: null,
-          rate: '125.228166',
-        },
-      ],
-    }, TEST_ACTOR);
+    const billId = await createBill(
+      {
+        partyId,
+        direction: 'issued',
+        status: 'posted',
+        billNo: 'RATE-1',
+        natureOfWork: 'dyeing_finishing',
+        billDate: '2026-04-06',
+        narration: null,
+        notes: null,
+        reason: null,
+        lines: [
+          {
+            description: 'As per bill register',
+            color: null,
+            challanNo: null,
+            orderNo: null,
+            lotNo: null,
+            greyKg: '5141',
+            finishedKg: null,
+            rate: '125.228166',
+          },
+        ],
+      },
+      TEST_ACTOR,
+    );
 
     const bill = (await getBill(billId))!;
     expect(bill.total.toDecimalString()).toBe('643798.00');
@@ -796,48 +888,54 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
    *
    * One order billed to a customer, knitted and dyed by two subcontractors,
    * with freight and a lab test against it, a commission to win it, an office
-   * expense that belongs to nobody in particular, and a staff claim paid back.
-   * Every one of those has to land in the right tier, and the claim has to land
-   * at all: for a while nothing counted a reimbursed claim anywhere.
+   * expense that belongs to nobody in particular. Every one of those has to
+   * land in the right tier.
    */
   it('sorts every kind of cost into the right tier of the profit statement', async () => {
-    const { createBill, createExpense, createParty, createEmployee } =
-      await import('./mutations');
-    const { createExpenseClaim, reimburseExpenseClaim } = await import(
-      './mutations'
+    const { createBill, createExpense, createParty } = await import(
+      './mutations',
     );
     const { statementFor } = await import('./profit');
 
-    const customer = await createParty({
-      code: null,
-      name: 'Costing Test Customer',
-      roles: ['customer'],
-      contactPerson: null,
-      phone: null,
-      address: null,
-      openingBalance: '0.00',
-      openingAsOf: null,
-    }, TEST_ACTOR);
-    const knitter = await createParty({
-      code: null,
-      name: 'Costing Test Knitting Mills',
-      roles: ['subcontractor'],
-      contactPerson: null,
-      phone: null,
-      address: null,
-      openingBalance: '0.00',
-      openingAsOf: null,
-    }, TEST_ACTOR);
-    const dyer = await createParty({
-      code: null,
-      name: 'Costing Test Dyeing Mills',
-      roles: ['subcontractor'],
-      contactPerson: null,
-      phone: null,
-      address: null,
-      openingBalance: '0.00',
-      openingAsOf: null,
-    }, TEST_ACTOR);
+    const customer = await createParty(
+      {
+        code: null,
+        name: 'Costing Test Customer',
+        roles: ['customer'],
+        contactPerson: null,
+        phone: null,
+        address: null,
+        openingBalance: '0.00',
+        openingAsOf: null,
+      },
+      TEST_ACTOR,
+    );
+    const knitter = await createParty(
+      {
+        code: null,
+        name: 'Costing Test Knitting Mills',
+        roles: ['subcontractor'],
+        contactPerson: null,
+        phone: null,
+        address: null,
+        openingBalance: '0.00',
+        openingAsOf: null,
+      },
+      TEST_ACTOR,
+    );
+    const dyer = await createParty(
+      {
+        code: null,
+        name: 'Costing Test Dyeing Mills',
+        roles: ['subcontractor'],
+        contactPerson: null,
+        phone: null,
+        address: null,
+        openingBalance: '0.00',
+        openingAsOf: null,
+      },
+      TEST_ACTOR,
+    );
 
     const bill = (
       partyId: string,
@@ -870,9 +968,18 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
     });
 
     // 1000 kg at the rate, so the rate doubles as the amount in thousands.
-    await createBill(bill(customer, 'issued', 'CT-1', 'dyeing_finishing', '100'), TEST_ACTOR);
-    await createBill(bill(knitter, 'received', 'CT-K1', 'knitting', '12'), TEST_ACTOR);
-    await createBill(bill(dyer, 'received', 'CT-D1', 'dyeing_finishing', '48'), TEST_ACTOR);
+    await createBill(
+      bill(customer, 'issued', 'CT-1', 'dyeing_finishing', '100'),
+      TEST_ACTOR,
+    );
+    await createBill(
+      bill(knitter, 'received', 'CT-K1', 'knitting', '12'),
+      TEST_ACTOR,
+    );
+    await createBill(
+      bill(dyer, 'received', 'CT-D1', 'dyeing_finishing', '48'),
+      TEST_ACTOR,
+    );
 
     const expense = (
       category: string,
@@ -891,47 +998,20 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
       reason: null,
     });
 
-    await createExpense(expense('freight_inward', '2100.00', 'ORD-COST-1'), TEST_ACTOR);
-    await createExpense(expense('lab_test', '450.00', 'ORD-COST-1'), TEST_ACTOR);
-    await createExpense(expense('commission', '3400.00', 'ORD-COST-1'), TEST_ACTOR);
+    await createExpense(
+      expense('freight_inward', '2100.00', 'ORD-COST-1'),
+      TEST_ACTOR,
+    );
+    await createExpense(
+      expense('lab_test', '450.00', 'ORD-COST-1'),
+      TEST_ACTOR,
+    );
+    await createExpense(
+      expense('commission', '3400.00', 'ORD-COST-1'),
+      TEST_ACTOR,
+    );
     await createExpense(expense('office', '900.00', null), TEST_ACTOR);
 
-    const employee = await createEmployee({
-      code: null,
-      name: 'Costing Test Employee',
-      designation: null,
-      phone: null,
-      nid: null,
-      address: null,
-      joinedOn: null,
-      basic: '0',
-      houseRent: '0',
-      medical: '0',
-      conveyance: '0',
-      mobileAllowance: '0',
-      otherAllowance: '0',
-      paymentMethod: 'cash' as const,
-      bankName: null,
-      accountNo: null,
-      mfsNumber: null,
-      reason: null,
-    }, TEST_ACTOR);
-    const claim = await createExpenseClaim({
-      employeeId: employee,
-      claimedOn: '2027-03-14',
-      category: 'transport',
-      description: 'Costing test factory visit',
-      amount: '650.00',
-      orderNo: null,
-      notes: null,
-      reason: null,
-    }, TEST_ACTOR);
-    await reimburseExpenseClaim({
-      id: claim,
-      reimbursedOn: '2027-03-15',
-      mode: 'cash',
-      reference: null,
-    }, TEST_ACTOR);
 
     const statement = await statementFor('2027-03-01', '2027-03-31');
 
@@ -941,21 +1021,27 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
     // Direct: knitting 12,000 + dyeing 48,000 + freight 2,100 + lab 450.
     expect(statement.directCost.toDecimalString()).toBe('62550.00');
     expect(statement.grossMargin.toDecimalString()).toBe('37450.00');
-    expect(statement.grossMarginPercent).toBe('37.4%');
+    expect(statement.grossMarginPercent).toBe('37.5%');
 
     // Commission is selling cost, kept out of the gross margin.
     expect(statement.sellingCost.toDecimalString()).toBe('3400.00');
     expect(statement.contribution.toDecimalString()).toBe('34050.00');
 
-    // Overhead: the office expense plus the reimbursed claim. The claim being
-    // in here is the regression test: it used to be counted nowhere at all.
-    expect(statement.operatingCost.toDecimalString()).toBe('1550.00');
-    expect(
-      statement.operatingLines.find((l) => l.label === 'Reimbursed Claims')
-        ?.amount.toDecimalString(),
-    ).toBe('650.00');
+    // Overhead: the office expense alone.
+    expect(statement.operatingCost.toDecimalString()).toBe('900.00');
 
-    expect(statement.netResult.toDecimalString()).toBe('32500.00');
+    expect(statement.netResult.toDecimalString()).toBe('33150.00');
+
+    // The dashboard draws the same margin a month at a time, and it has to be
+    // the same margin: direct cost there is the whole tier, freight and lab
+    // test included, not the subcontract bills on their own. Two figures under
+    // the one name on one screen is what this holds shut.
+    const { monthlyTrading } = await import('./queries');
+    const march = (await monthlyTrading('2027-03-01', '2027-03-31')).find(
+      (month) => month.period === '2027-03',
+    );
+    expect(march?.revenue.toDecimalString()).toBe('100000.00');
+    expect(march?.directCost.toDecimalString()).toBe('62550.00');
   }, 30_000);
 
   it('costs one order without ever apportioning overhead to it', async () => {
@@ -991,21 +1077,87 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
     const { createExpense } = await import('./mutations');
     const { statementFor } = await import('./profit');
 
-    await createExpense({
-      spentOn: '2027-04-02',
-      category: 'transport',
-      payee: 'Costing test',
-      description: 'Staff bus fare',
-      amount: '300.00',
-      mode: 'cash' as const,
-      reference: null,
-      orderNo: null,
-      notes: null,
-      reason: null,
-    }, TEST_ACTOR);
+    await createExpense(
+      {
+        spentOn: '2027-04-02',
+        category: 'transport',
+        payee: 'Costing test',
+        description: 'Staff bus fare',
+        amount: '300.00',
+        mode: 'cash' as const,
+        reference: null,
+        orderNo: null,
+        notes: null,
+        reason: null,
+      },
+      TEST_ACTOR,
+    );
 
     const statement = await statementFor('2027-04-01', '2027-04-30');
     expect(statement.operatingCost.toDecimalString()).toBe('300.00');
     expect(statement.directCost.isZero()).toBe(true);
+  }, 30_000);
+
+  /**
+   * All Dates is only as wide as this query, and a span read off the bills
+   * alone would quietly leave a payment or an expense outside the one range
+   * named for holding everything. The two entries here sit outside every other
+   * date in this file on purpose, so the assertion does not depend on what the
+   * tests above happened to record.
+   */
+  it('spans the whole book, not the bills alone', async () => {
+    const { createExpense, createParty, createPayment } =
+      await import('./mutations');
+    const { bookSpan } = await import('./queries');
+
+    const before = await bookSpan();
+    expect(before).not.toBeNull();
+
+    await createExpense(
+      {
+        spentOn: '2020-01-05',
+        category: 'office',
+        payee: 'Book span test',
+        description: 'The oldest thing in the book',
+        amount: '100.00',
+        mode: 'cash' as const,
+        reference: null,
+        orderNo: null,
+        notes: null,
+        reason: null,
+      },
+      TEST_ACTOR,
+    );
+
+    const party = await createParty(
+      {
+        code: null,
+        name: 'Book Span Test Customer',
+        roles: ['customer'],
+        contactPerson: null,
+        phone: null,
+        address: null,
+        openingBalance: '0.00',
+        openingAsOf: null,
+      },
+      TEST_ACTOR,
+    );
+    await createPayment(
+      {
+        partyId: party,
+        direction: 'in' as const,
+        reference: 'MR SPAN',
+        paidOn: '2030-06-20',
+        amount: '100.00',
+        mode: 'cash',
+        narration: null,
+        notes: null,
+        reason: null,
+      },
+      TEST_ACTOR,
+    );
+
+    const span = await bookSpan();
+    expect(span).toEqual({ first: '2020-01-05', last: '2030-06-20' });
   }, 30_000);
 });

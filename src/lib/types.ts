@@ -323,12 +323,23 @@ export const EXPENSE_CATEGORIES: {
   // truck carrying fabric. Freight now has its own direct categories and this
   // one means staff movement only. Rows recorded before the split were left
   // where they are, because nothing can tell which of the two they were.
-  { value: 'transport', label: 'Staff Transport and Travel', tier: 'operating' },
+  {
+    value: 'transport',
+    label: 'Staff Transport and Travel',
+    tier: 'operating',
+  },
   { value: 'repairs', label: 'Repairs and Maintenance', tier: 'operating' },
   { value: 'office', label: 'Office and Stationery', tier: 'operating' },
   { value: 'entertainment', label: 'Entertainment', tier: 'operating' },
   { value: 'government_fees', label: 'Government Fees', tier: 'operating' },
-  { value: 'bank_charges', label: 'Bank Charges', tier: 'operating' },
+  // Named for the full ERP's account 5500, which covers both. Interest paid
+  // along with a loan repayment is keyed on the repayment itself rather than
+  // here, so one cheque stays one entry; see FUND_CATEGORIES below.
+  {
+    value: 'bank_charges',
+    label: 'Bank Charges and Interest',
+    tier: 'operating',
+  },
   { value: 'other', label: 'Other', tier: 'operating' },
 ];
 
@@ -417,6 +428,158 @@ export type Expense = {
   /** The order this cost belongs to, when it belongs to one. */
   orderNo: string | null;
   notes: string | null;
+};
+
+// Fund flow ------------------------------------------------------------------
+//
+// How the business is funded: money the owner puts in, money the owner takes
+// out, and a loan borrowed and repaid.
+//
+// This is the full ERP's decision D23 and its posting rules 13 to 17, ported as
+// meaning rather than as mechanism. There is no chart of accounts here and no
+// journal, so the category IS the account code, everything is cash basis, and
+// every balance is computed on read. The reasoning, and what is deliberately
+// left out, is on the tables in db/schema.sql.
+
+export type FundCategory =
+  | 'opening_cash'
+  | 'capital_introduced'
+  | 'owner_drawing'
+  | 'loan_received'
+  | 'loan_repayment';
+
+/** Which way a movement pushes the cash balance. */
+export type FundDirection = 'in' | 'out';
+
+/**
+ * The one place a fund category maps to its direction, to whether it names a
+ * loan, and to the full ERP account it will post to when the book moves across.
+ *
+ * The same shape and the same reasoning as EXPENSE_CATEGORIES holding the cost
+ * tier. What differs is that nothing on a screen ever offers this list as a
+ * choice: each action posts one fixed category, so there is no way to record a
+ * row whose category and direction disagree because there is no way to pick one.
+ */
+export const FUND_CATEGORIES: {
+  value: FundCategory;
+  label: string;
+  direction: FundDirection;
+  /** True where the movement has to name the loan it belongs to. */
+  needsLoan: boolean;
+  /** The ERP account and posting rule this becomes on handover. */
+  erpAccount: string | null;
+}[] = [
+  {
+    value: 'opening_cash',
+    label: 'Opening Balance',
+    direction: 'in',
+    needsLoan: false,
+    erpAccount: null,
+  },
+  {
+    value: 'capital_introduced',
+    label: 'Capital Introduced',
+    direction: 'in',
+    needsLoan: false,
+    erpAccount: '3000 Owner Capital',
+  },
+  {
+    value: 'owner_drawing',
+    label: 'Drawings',
+    direction: 'out',
+    needsLoan: false,
+    erpAccount: '3100 Owner Drawings',
+  },
+  {
+    value: 'loan_received',
+    label: 'Loan Received',
+    direction: 'in',
+    needsLoan: true,
+    erpAccount: '2400 Working Capital Loans',
+  },
+  {
+    value: 'loan_repayment',
+    label: 'Loan Repayment',
+    direction: 'out',
+    needsLoan: true,
+    erpAccount: '2400 Working Capital Loans',
+  },
+];
+
+export function fundCategoryLabel(value: string): string {
+  return FUND_CATEGORIES.find((c) => c.value === value)?.label ?? value;
+}
+
+/**
+ * Which way a category runs. An unknown category counts as money out, which is
+ * the way of being wrong that cannot overstate the cash in hand. Same idea as
+ * expenseCategoryTier falling back to overhead.
+ */
+export function fundDirection(value: string): FundDirection {
+  return FUND_CATEGORIES.find((c) => c.value === value)?.direction ?? 'out';
+}
+
+/** True where the category has to name the loan it belongs to. */
+export function fundNeedsLoan(value: string): boolean {
+  return FUND_CATEGORIES.find((c) => c.value === value)?.needsLoan ?? false;
+}
+
+/** A loan: money borrowed from a bank, a person or another company. */
+export type Loan = {
+  id: string;
+  code: string | null;
+  lender: string;
+  reference: string | null;
+  takenOn: string;
+  /** Rate, tenor and security as the sanction letter states them. Not computed. */
+  terms: string | null;
+  active: boolean;
+  notes: string | null;
+};
+
+/**
+ * A loan with the figures computed on read, never stored.
+ *
+ * `outstanding` is what is still owed: received less principal repaid. Interest
+ * is carried beside it and never inside it, because a loan does not become more
+ * owed because interest was paid on it.
+ */
+export type LoanBalance = Loan & {
+  received: Money;
+  /** Principal only. */
+  repaid: Money;
+  outstanding: Money;
+  interestPaid: Money;
+  lastMovementOn: string | null;
+  movementCount: number;
+};
+
+export type FundMovement = {
+  id: string;
+  docNo: string | null;
+  movedOn: string;
+  category: FundCategory;
+  /** Read off the category, never stored on the row. */
+  direction: FundDirection;
+  loanId: string | null;
+  loanCode: string | null;
+  lender: string | null;
+  description: string;
+  /** The principal, the capital or the drawing. Never includes interest. */
+  amount: Money;
+  /** Only ever non-zero on a repayment. The ERP's account 5500. */
+  interestAmount: Money;
+  mode: PaymentMode;
+  reference: string | null;
+  notes: string | null;
+};
+
+/** What the owner has put in and taken out, worked out on read. */
+export type OwnerTotals = {
+  introduced: Money;
+  drawn: Money;
+  /** Introduced less drawn: what stands to the owner's name. */
+  standing: Money;
 };
 
 export type Advance = {
@@ -541,56 +704,6 @@ export type LeaveRecord = {
   /** Days taken, to one decimal so a half day works. */
   days: string;
   reason: string | null;
-};
-
-export type ExpenseClaimCategory =
-  | 'transport'
-  | 'courier'
-  | 'fuel'
-  | 'parking'
-  | 'other';
-
-/**
- * A claim is money somebody spent out of their own pocket and is owed back, so
- * every one of these is overhead: staff moving between factories, a courier, a
- * tank of fuel. Freight that belongs to the goods is an expense against the
- * company with its own direct category, not a claim, because putting the same
- * cost in both places is how it gets counted twice.
- */
-export const EXPENSE_CLAIM_CATEGORIES: {
-  value: ExpenseClaimCategory;
-  label: string;
-  tier: CostTier;
-}[] = [
-  { value: 'transport', label: 'Transport', tier: 'operating' },
-  { value: 'courier', label: 'Courier', tier: 'operating' },
-  { value: 'fuel', label: 'Fuel', tier: 'operating' },
-  { value: 'parking', label: 'Parking', tier: 'operating' },
-  { value: 'other', label: 'Other', tier: 'operating' },
-];
-
-export function expenseClaimCategoryLabel(value: string): string {
-  return (
-    EXPENSE_CLAIM_CATEGORIES.find((c) => c.value === value)?.label ?? value
-  );
-}
-
-/** Money a member of staff spent and is owed back. Never a payslip line. */
-export type ExpenseClaim = {
-  id: string;
-  docNo: string | null;
-  employeeId: string;
-  employeeName: string;
-  employeeCode: string | null;
-  claimedOn: string;
-  category: ExpenseClaimCategory;
-  description: string;
-  amount: Money;
-  status: 'submitted' | 'reimbursed';
-  reimbursedOn: string | null;
-  mode: PaymentMode | null;
-  reference: string | null;
-  notes: string | null;
 };
 
 /** '2026-08' reads as 'August 2026'. */

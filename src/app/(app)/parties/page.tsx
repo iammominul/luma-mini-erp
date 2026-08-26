@@ -108,7 +108,6 @@ export default async function PartiesPage() {
     <>
       <PageTitle
         title="Parties"
-        subtitle="Customers send grey fabric and owe us. Subcontractors dye it and we owe them."
         action={
           <LinkButton href="/parties/new" icon="plus">
             Add Party

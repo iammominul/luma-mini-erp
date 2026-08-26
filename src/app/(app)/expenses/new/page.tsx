@@ -8,10 +8,7 @@ export default async function NewExpensePage() {
   await requirePermission('expense:manage');
   return (
     <>
-      <PageTitle
-        title="New Expense"
-        subtitle="The voucher number is issued when this is saved."
-      />
+      <PageTitle title="New Expense" subtitle="Issued on save." />
       <ExpenseForm
         action={createExpenseAction}
         submitLabel="Save Expense"

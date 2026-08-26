@@ -99,7 +99,6 @@ export default async function EmployeesPage() {
     <>
       <PageTitle
         title="Employees"
-        subtitle="The people on payroll, with what each still owes against an advance."
         action={
           <LinkButton href="/employees/new" icon="plus">
             New Employee
@@ -123,7 +122,11 @@ export default async function EmployeesPage() {
             value={formatTaka(outstanding)}
             note="Still to come out of a future salary"
           />
-          <StatTile label="Salaries Paid" value={formatTaka(paid)} note="To date" />
+          <StatTile
+            label="Salaries Paid"
+            value={formatTaka(paid)}
+            note="To date"
+          />
         </div>
       ) : null}
 

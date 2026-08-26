@@ -17,10 +17,7 @@ export default async function NewAdvancePage({
 
   return (
     <>
-      <PageTitle
-        title="New Salary Advance"
-        subtitle="Recovered from a later salary. The voucher number is issued when this is saved."
-      />
+      <PageTitle title="New Salary Advance" subtitle="Issued on save." />
 
       {employees.length === 0 ? (
         <Notice tone="error">

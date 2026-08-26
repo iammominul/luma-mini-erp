@@ -9,8 +9,11 @@ import { currentUser } from '@/lib/session';
  * exactly as a server action does. Being called from a component that is only
  * rendered behind a login proves nothing about who is calling it.
  *
- * It reads and never writes, so it needs no permission beyond being signed in:
- * every record it can return is one a Viewer may already open by its address.
+ * It reads and never writes, and for most of the book it needs no permission
+ * beyond being signed in: those records are ones any signed-in account may
+ * already open by their address. Capital, drawings and the loan book are the
+ * exception, and the role is passed down so searchRecords can hold them back
+ * from an account that may not read them. The gate is there, not here.
  */
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +28,7 @@ export async function GET(request: Request) {
   const term = new URL(request.url).searchParams.get('q') ?? '';
   // Ten is what fits under the box without turning into a page of its own.
   // The Search screen is where the whole list lives.
-  const hits = await searchRecords(term, 10);
+  const hits = await searchRecords(term, { limit: 10, role: user.role });
 
   return NextResponse.json(
     { hits },

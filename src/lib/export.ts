@@ -1,3 +1,4 @@
+import { company } from './env';
 import { db } from './db';
 
 /**
@@ -11,6 +12,11 @@ import { db } from './db';
 
 export type ExportBundle = {
   exportedAt: string;
+  /**
+   * The proprietor. One owner, so capital and drawings carry no member of their
+   * own and this is where the ERP reads the name for its account 3000.
+   */
+  owner: { name: string };
   parties: unknown[];
   bills: unknown[];
   payments: unknown[];
@@ -26,15 +32,22 @@ export type ExportBundle = {
   /** Each run carries its own lines, the way a bill carries its lines. */
   payrollRuns: unknown[];
   leaveRecords: unknown[];
-  expenseClaims: unknown[];
+  /**
+   * Capital, drawings and the loan book. The category on a movement is the ERP
+   * account it posts to, so these load into its rules 13 to 17 directly.
+   */
+  loans: unknown[];
+  fundMovements: unknown[];
   activityLog: unknown[];
 };
 
 export async function exportEverything(): Promise<ExportBundle> {
   const sql = db();
+  const owner = company().ownerName;
   const rows = (await sql`
     SELECT jsonb_build_object(
       'exportedAt', to_char(now() AT TIME ZONE 'Asia/Dhaka', 'YYYY-MM-DD"T"HH24:MI:SS'),
+      'owner', jsonb_build_object('name', ${owner}::text),
       'parties', (
         SELECT COALESCE(jsonb_agg(jsonb_build_object(
           'id', p.id, 'code', p.code, 'name', p.name,
@@ -107,7 +120,13 @@ export async function exportEverything(): Promise<ExportBundle> {
           'spentOn', to_char(x.spent_on, 'YYYY-MM-DD'),
           'category', x.category, 'payee', x.payee,
           'description', x.description, 'amount', x.amount::text,
-          'mode', x.mode, 'reference', x.reference, 'notes', x.notes)
+          'mode', x.mode, 'reference', x.reference,
+          -- Was missing. The order reference is what lets a cost be read back
+          -- against the order it was incurred for, and the bundle is the ERP's
+          -- migration input: without it every per order figure has to be keyed
+          -- again on the other side.
+          'orderNo', x.order_no,
+          'notes', x.notes)
           ORDER BY x.spent_on, x.doc_no), '[]'::jsonb)
         FROM expense x),
       'advances', (
@@ -162,17 +181,39 @@ export async function exportEverything(): Promise<ExportBundle> {
           'days', lr.days::text, 'reason', lr.reason)
           ORDER BY lr.from_date), '[]'::jsonb)
         FROM leave_record lr JOIN employee em3 ON em3.id = lr.employee_id),
-      'expenseClaims', (
+      -- Fund flow. The category is the ERP's account, so a bundle loads into
+      -- its posting rules 13 to 17 without anybody reclassifying a voucher:
+      -- capital_introduced is 3000, owner_drawing is 3100, the two loan rows
+      -- are 2400, interestAmount is 5500, and mode decides whether the other
+      -- leg is 1000 Cash or 1100 Bank. loanCode names the lender a movement
+      -- belongs to, so nothing has to be joined back.
+      --
+      -- Capital and drawings carry no member, because this book has one owner
+      -- and no master row for them. The proprietor's name travels once at the
+      -- root of the bundle instead, from COMPANY_OWNER_NAME, so an import can
+      -- post rules 13 and 14 without stopping to ask whose money it was.
+      'loans', (
         SELECT COALESCE(jsonb_agg(jsonb_build_object(
-          'id', c.id, 'docNo', c.doc_no, 'employeeId', c.employee_id,
-          'employeeName', em4.name,
-          'claimedOn', to_char(c.claimed_on, 'YYYY-MM-DD'),
-          'category', c.category, 'description', c.description,
-          'amount', c.amount::text, 'status', c.status,
-          'reimbursedOn', to_char(c.reimbursed_on, 'YYYY-MM-DD'),
-          'mode', c.mode, 'reference', c.reference, 'notes', c.notes)
-          ORDER BY c.claimed_on, c.doc_no), '[]'::jsonb)
-        FROM expense_claim c JOIN employee em4 ON em4.id = c.employee_id),
+          'id', l.id, 'code', l.code, 'lender', l.lender,
+          'reference', l.reference,
+          'takenOn', to_char(l.taken_on, 'YYYY-MM-DD'),
+          'terms', l.terms, 'active', l.active, 'notes', l.notes)
+          ORDER BY l.code), '[]'::jsonb)
+        FROM loan l),
+      'fundMovements', (
+        SELECT COALESCE(jsonb_agg(jsonb_build_object(
+          'id', f.id, 'docNo', f.doc_no,
+          'movedOn', to_char(f.moved_on, 'YYYY-MM-DD'),
+          'category', f.category, 'loanId', f.loan_id,
+          'loanCode', l2.code, 'lender', l2.lender,
+          'description', f.description, 'amount', f.amount::text,
+          'interestAmount', f.interest_amount::text,
+          -- mode decides 1000 Cash against 1100 Bank on the ERP's rules 13 to
+          -- 17, so it travels even though the Cash Book shows one balance.
+          'mode', f.mode,
+          'reference', f.reference, 'notes', f.notes)
+          ORDER BY f.moved_on, f.doc_no), '[]'::jsonb)
+        FROM fund_movement f LEFT JOIN loan l2 ON l2.id = f.loan_id),
       'activityLog', (
         SELECT COALESCE(jsonb_agg(jsonb_build_object(
           'id', a.id::text,
@@ -187,6 +228,7 @@ export async function exportEverything(): Promise<ExportBundle> {
   return (
     rows[0]?.bundle ?? {
       exportedAt: '',
+      owner: { name: '' },
       parties: [],
       bills: [],
       payments: [],
@@ -195,7 +237,8 @@ export async function exportEverything(): Promise<ExportBundle> {
       advances: [],
       payrollRuns: [],
       leaveRecords: [],
-      expenseClaims: [],
+      loans: [],
+      fundMovements: [],
       activityLog: [],
     }
   );

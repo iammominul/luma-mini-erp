@@ -1,9 +1,4 @@
-import {
-  Card,
-  CardHeader,
-  DownloadButton,
-  PageTitle,
-} from '@/components/ui';
+import { Card, CardHeader, DownloadButton, PageTitle } from '@/components/ui';
 import { exportEverything } from '@/lib/export';
 
 export default async function BackupPage() {
@@ -11,10 +6,7 @@ export default async function BackupPage() {
 
   return (
     <>
-      <PageTitle
-        title="Backup and Export"
-        subtitle="Take a copy of the book. The JSON file is what the full ERP will read when it takes over."
-      />
+      <PageTitle title="Backup and Export" />
 
       <div className="mb-4 grid gap-4 sm:grid-cols-3">
         <Card className="px-4 py-3">

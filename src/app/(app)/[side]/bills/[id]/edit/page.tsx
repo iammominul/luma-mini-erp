@@ -25,10 +25,7 @@ export default async function EditBillPage({
 
   return (
     <>
-      <PageTitle
-        title={`Edit ${copy.billSingular} ${bill.billNo}`}
-        subtitle="The old and new values are both kept in the activity log."
-      />
+      <PageTitle title={`Edit ${copy.billSingular} ${bill.billNo}`} />
       <BillForm
         copy={copy}
         parties={parties.map((p) => ({ id: p.id, name: p.name }))}

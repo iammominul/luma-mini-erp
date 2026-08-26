@@ -1,10 +1,18 @@
 import Link from 'next/link';
 import { CategoryBarChart } from '@/components/charts/CategoryBarChart';
-import { CostSplitDonut } from '@/components/charts/CostSplitDonut';
-import { TradingSummary } from '@/components/TradingSummary';
 import { GroupedMonthChart } from '@/components/charts/GroupedMonthChart';
 import { DataTable } from '@/components/DataTable';
-import { Button, Card, CardHeader, PageTitle, StatTile } from '@/components/ui';
+import {
+  Band,
+  Button,
+  Card,
+  CardHeader,
+  FigureRows,
+  PageTitle,
+  type StatDelta,
+  StatTile,
+} from '@/components/ui';
+import { marginPercent } from '@/lib/costing';
 import {
   DASHBOARD_RANGES,
   type DashboardRange,
@@ -12,28 +20,28 @@ import {
   foldToTop,
   isDashboardRange,
   monthsBetween,
+  previousRange,
   rangeFor,
   shortMonth,
 } from '@/lib/dashboard';
-import { profitStatement, type CostLine } from '@/lib/costing';
 import { formatDate, todayInDhaka } from '@/lib/dates';
 import { formatTaka } from '@/lib/format';
 import { Money } from '@/lib/money';
+import { statementFor } from '@/lib/profit';
 import {
-  listEmployeeBalances,
+  bookSpan,
+  cashMovements,
   listPartyBalances,
   monthlyMovement,
   monthlyTrading,
   receivableAgeing,
-  profitFigures,
 } from '@/lib/queries';
+import { buildCashBook } from '@/lib/cashbook';
+import { buildCashFlow } from '@/lib/cashflow';
+import { can } from '@/lib/permissions';
+import { requireUser } from '@/lib/session';
 import { copyFor, type Side } from '@/lib/side';
-import {
-  expenseCategoryLabel,
-  expenseCategoryTier,
-  natureOfWorkLabel,
-  type PartyBalance,
-} from '@/lib/types';
+import { type PartyBalance } from '@/lib/types';
 
 function outstanding(balances: PartyBalance[]): PartyBalance[] {
   return balances
@@ -43,6 +51,52 @@ function outstanding(balances: PartyBalance[]): PartyBalance[] {
 
 function total(balances: PartyBalance[]): Money {
   return balances.reduce((sum, row) => sum.add(row.balance), Money.ZERO);
+}
+
+/**
+ * How a period figure moved against the same length of time before it.
+ *
+ * A figure on its own does not say whether it is good, and this is the cheapest
+ * thing that does. The change is worked out as Money and the share through
+ * marginPercent, which already rounds at the tenth and stays off the floats.
+ *
+ * Nothing is shown unless the previous period is a positive figure. A share of
+ * zero has no meaning, and a share of a previous loss comes back with its sign
+ * turned around, so a recovery from a loss would print as a fall. Saying
+ * nothing is the answer that cannot mislead.
+ *
+ * `tone` is the caller's answer to "is up good here". A cost is neutral: paint
+ * it green because the number rose and the screen is lying quietly.
+ */
+function deltaOf(
+  current: Money,
+  previous: Money,
+  tone: StatDelta['tone'] = 'good-up',
+): StatDelta | undefined {
+  if (previous.isZero() || previous.isNegative()) return undefined;
+  const change = current.subtract(previous);
+  if (change.isZero()) {
+    return { text: '0.0%', label: 'vs previous period', tone: 'neutral' };
+  }
+  const share = marginPercent(change, previous);
+  if (!share) return undefined;
+  return {
+    text: change.isNegative() ? share : `+${share}`,
+    label: 'vs previous period',
+    tone,
+  };
+}
+
+/** The link out of a section, to the report that owns the figures in it. */
+function SectionLink({ href }: { href: string }) {
+  return (
+    <Link
+      href={href}
+      className="text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--color-navy)] hover:underline"
+    >
+      Open Report
+    </Link>
+  );
 }
 
 function OutstandingCard({
@@ -197,7 +251,6 @@ export default async function DashboardPage({
     requested && isDashboardRange(requested) ? requested : 'last12';
 
   const today = todayInDhaka();
-  const preset = rangeFor(range, today);
 
   // Two dates beat a preset when both are given and readable. Keyed backwards
   // is a typo, not an empty dashboard, so they swap rather than showing zeroes.
@@ -205,78 +258,104 @@ export default async function DashboardPage({
     params.from && DATE_PATTERN.test(params.from) ? params.from : null;
   const askedTo = params.to && DATE_PATTERN.test(params.to) ? params.to : null;
   const custom = Boolean(askedFrom && askedTo);
+
+  // All Dates is the one preset that cannot be worked out from the calendar, so
+  // it costs a round trip to ask the book how far back it goes. Only that view
+  // pays it, and it has to be paid before the rest: every query below is read
+  // over the range this settles.
+  const span = range === 'allDates' && !custom ? await bookSpan() : null;
+  const preset = rangeFor(range, today, span);
+
   const from = custom
     ? askedFrom! <= askedTo!
       ? askedFrom!
       : askedTo!
     : preset.from;
-  const to = custom ? (askedFrom! <= askedTo! ? askedTo! : askedFrom!) : preset.to;
+  const to = custom
+    ? askedFrom! <= askedTo!
+      ? askedTo!
+      : askedFrom!
+    : preset.to;
 
   const rangeLabel = custom
     ? `${formatDate(from)} to ${formatDate(to)}`
     : (DASHBOARD_RANGES.find((r) => r.value === range)?.label ?? '');
+
+  // The period before this one, the same number of days long, for the change
+  // shown against each period figure. It is read in the same batch, so it costs
+  // no extra wait.
+  const before = previousRange(from, to);
 
   const [
     customers,
     subcontractors,
     movement,
     ageing,
-    employees,
-    figures,
+    result,
+    priorResult,
     tradingByMonth,
   ] = await Promise.all([
     listPartyBalances('customer'),
     listPartyBalances('subcontractor'),
     monthlyMovement('customer', from, to),
     receivableAgeing(today),
-    listEmployeeBalances(),
-    profitFigures(from, to),
+    // The statement is assembled in profit.ts and nowhere else, so this screen,
+    // the Profit Statement report and the PDF cannot disagree about what a cost
+    // is or which tier it belongs to.
+    statementFor(from, to),
+    statementFor(before.from, before.to),
     monthlyTrading(from, to),
   ]);
 
-  // Every cost arrives with the tier its category carries, and the statement
-  // only sorts them. Nothing here decides what kind of cost something is.
-  const costs: CostLine[] = [
-    ...figures.subcontract.map((row) => ({
-      label: natureOfWorkLabel(row.natureOfWork),
-      amount: row.amount,
-      tier: 'direct' as const,
-    })),
-    ...figures.expenses.map((row) => ({
-      label: expenseCategoryLabel(row.category),
-      amount: row.amount,
-      tier: expenseCategoryTier(row.category),
-    })),
-    { label: 'Salary', amount: figures.salary, tier: 'operating' as const },
-    // Reimbursed claims are money out of the business like any other. For a
-    // while nothing counted them and the net result was too high by the lot.
-    {
-      label: 'Reimbursed Claims',
-      amount: figures.claims,
-      tier: 'operating' as const,
-    },
-  ].filter((line) => !line.amount.isZero());
+  // The cash position, and only for a role entitled to it. It is a balance as
+  // of today over the whole book rather than a figure for the range, so the
+  // Cash Book is read with no bounds and everything folds into the opening.
+  const user = await requireUser();
+  const mayReadFunds = can(user.role, 'fund:read');
+  const cash = mayReadFunds ? await cashMovements() : [];
+  const cashPosition = buildCashBook({ movements: cash, to: today }).closing;
+  // Grouped over the range, which is a different question from the position
+  // above: what moved in the period against what is held right now.
+  const flow = mayReadFunds
+    ? buildCashFlow({ movements: cash, from, to })
+    : null;
 
-  const result = profitStatement({ revenue: figures.revenue, costs });
-
-  // The three tiers the categories already sort themselves into, which is what
-  // makes this a part to whole worth drawing as a ring. Nothing here decides
-  // what kind of cost something is: costing.ts did that from the category.
-  const costOut = result.directCost
-    .add(result.sellingCost)
-    .add(result.operatingCost);
-  const costSplit = [
-    datum('Cost of Sales', result.directCost),
-    datum('Selling Cost', result.sellingCost),
-    datum('Overhead', result.operatingCost),
-  ].filter((point) => point.value > 0);
+  // The statement already sorted every cost into its tier. Put them back in one
+  // list for the charts that draw all of them together.
+  const costs = [
+    ...result.directLines,
+    ...result.sellingLines,
+    ...result.operatingLines,
+  ];
 
   const receivable = total(customers);
   const payable = total(subcontractors);
-  const advances = employees.reduce(
-    (sum, employee) => sum.add(employee.advanceOutstanding),
+
+  /**
+   * The oldest of the receivable, as the composition line on that tile.
+   *
+   * It says "over 60 days" and never "overdue". Nothing in this book records a
+   * payment term, so it can say how old money is and cannot say that it is
+   * late. The share is of what the ageing itself covers, which is the posted
+   * bills, and not of the tile's own figure: a party's opening balance is in
+   * the balance and is not aged, so the two are the same only while every
+   * opening balance is zero.
+   */
+  const unpaidBills = ageing.reduce(
+    (sum, row) => sum.add(row.amount),
     Money.ZERO,
   );
+  const overSixtyDays = ageing
+    .filter(
+      (row) => row.bucket === '61 to 90 Days' || row.bucket === 'Over 90 Days',
+    )
+    .reduce((sum, row) => sum.add(row.amount), Money.ZERO);
+  const overSixtyShare = marginPercent(overSixtyDays, unpaidBills);
+  const ageingNote = overSixtyDays.isZero()
+    ? 'Nothing over 60 days'
+    : `Over 60 days: ${formatTaka(overSixtyDays)}${
+        overSixtyShare ? ` (${overSixtyShare} of unpaid bills)` : ''
+      }`;
 
   // Every month in the range, so a quiet month is a gap rather than a column
   // the axis quietly leaves out.
@@ -295,9 +374,13 @@ export default async function DashboardPage({
     };
   });
 
-  // Revenue, what it cost, and what was left, a month at a time. The margin is
-  // subtracted as Money and only then handed over as a bar length.
-  const tradingByPeriod = new Map(tradingByMonth.map((row) => [row.period, row]));
+  // Revenue, what it cost, and what was left, a month at a time. The cost is
+  // the whole direct tier, the same one the tile above takes off, so the months
+  // add up to the gross margin beside them. The margin is subtracted as Money
+  // and only then handed over as a bar length.
+  const tradingByPeriod = new Map(
+    tradingByMonth.map((row) => [row.period, row]),
+  );
   const marginPoints = months.map((period) => {
     const row = tradingByPeriod.get(period);
     const revenue = row?.revenue ?? Money.ZERO;
@@ -314,141 +397,177 @@ export default async function DashboardPage({
     };
   });
 
-  // Where the money went, which is every cost regardless of tier: salary and
-  // reimbursed claims included, because leaving either off would make the chart
-  // say the wrong thing about where the money actually goes.
-  const cashOut = foldToTop(
+  // Every cost in the period regardless of tier, the dyeing bought in included:
+  // leaving any of it off would make the chart say the wrong thing about what
+  // the period cost.
+  const costByCategory = foldToTop(
     costs.map((line) => ({ label: line.label, amount: line.amount })),
   );
-  const cashOutTotal = result.directCost
-    .add(result.sellingCost)
-    .add(result.operatingCost);
-
-  const topParties = outstanding(customers)
-    .slice(0, 6)
-    .map((row) => datum(row.party.name, row.balance));
 
   const ageingPoints = ageing.map((row) => datum(row.bucket, row.amount));
 
   return (
     <>
-      {/* The period sits in the head, beside the title, and pins with it. It is
-          what every figure below is computed over, so scrolling to a chart and
-          not being able to see which months it covers is the one thing this
-          screen must not do. */}
       <PageTitle
         title="Dashboard"
-        subtitle="Outstanding on both sides, and where the money went, computed from the entries made."
+        asOf={`As at ${formatDate(today)}`}
         controls={
           <RangeFilter active={range} from={from} to={to} custom={custom} />
         }
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Four figures lead, and they are the four a person opens this screen
+          for: what is owed to us, what we owe, what we are holding, and whether
+          the trading made anything. Everything else is a section under them
+          with its own heading and its own way through to the report that owns
+          it. Net Position is not up here: it is Receivable minus Payable, both
+          of which are already in the row, so a tile for it repeats two figures
+          the eye has just read. */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
-          label="Receivable from Customers"
+          label="Receivable"
           value={formatTaka(receivable)}
-          note={`${outstanding(customers).length} of ${customers.length} customers`}
+          note={`${outstanding(customers).length} customers | ${ageingNote}`}
         />
         <StatTile
-          label="Payable to Subcontractors"
+          label="Payable"
           value={formatTaka(payable)}
-          note={`${outstanding(subcontractors).length} of ${subcontractors.length} subcontractors`}
+          note={`${outstanding(subcontractors).length} subcontractors`}
         />
-        <StatTile
-          label="Gross Margin"
-          value={formatTaka(result.grossMargin)}
-          note={
-            result.grossMarginPercent
-              ? `${result.grossMarginPercent} of billing, ${rangeLabel.toLowerCase()}`
-              : `Nothing billed, ${rangeLabel.toLowerCase()}`
-          }
-        />
+        {mayReadFunds ? (
+          <StatTile
+            label="Cash and Bank"
+            value={formatTaka(cashPosition)}
+            note="Cash and bank, as keyed"
+          />
+        ) : (
+          <StatTile
+            label="Net Position"
+            value={formatTaka(receivable.subtract(payable))}
+            note="Receivable less payable"
+          />
+        )}
         <StatTile
           label={result.netResult.isNegative() ? 'Net Loss' : 'Net Result'}
           value={formatTaka(result.netResult)}
-          note="After commission, expenses and salary"
-        />
-        <StatTile
-          label="Net Position"
-          value={formatTaka(receivable.subtract(payable))}
-          note="Receivable less payable"
-        />
-        <StatTile
-          label="Cash Out"
-          value={formatTaka(cashOutTotal)}
-          note={`Expenses and salary, ${rangeLabel.toLowerCase()}`}
-        />
-        <StatTile
-          label="Advances Outstanding"
-          value={formatTaka(advances)}
-          note="Still to come back out of a salary"
+          note={rangeLabel}
+          delta={deltaOf(result.netResult, priorResult.netResult)}
         />
       </div>
 
-      <div className="mb-4 grid gap-4 lg:grid-cols-2">
-        <TradingSummary result={result} rangeLabel={rangeLabel} />
+      <div className="mt-2">
+        <Band title="Trading" action={<SectionLink href="/reports" />}>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <FigureRows
+              rows={[
+                { label: 'Billed', value: formatTaka(result.revenue) },
+                {
+                  label: 'Cost of Sales',
+                  value: formatTaka(result.directCost),
+                },
+                {
+                  label: 'Gross Margin',
+                  value: formatTaka(result.grossMargin),
+                  note: result.grossMarginPercent ?? undefined,
+                },
+                {
+                  label: 'Operating Cost',
+                  value: formatTaka(
+                    result.sellingCost.add(result.operatingCost),
+                  ),
+                },
+                {
+                  label: result.netResult.isNegative()
+                    ? 'Net Loss'
+                    : 'Net Result',
+                  value: formatTaka(result.netResult),
+                  note: result.netResultPercent ?? undefined,
+                  strong: true,
+                },
+              ]}
+            />
+            <GroupedMonthChart
+              title="Margin by Month"
+              series={[
+                { key: 'revenue', label: 'Billed Out' },
+                { key: 'directCost', label: 'Cost of Sales' },
+                { key: 'margin', label: 'Gross Margin' },
+              ]}
+              points={marginPoints}
+            />
+          </div>
+        </Band>
 
-        <GroupedMonthChart
-          title="Margin by Month"
-          note="What was billed out, what the subcontractors billed for it, and what was left. One month moves around because the two bills can fall in different months; the trend is what to read."
-          series={[
-            { key: 'revenue', label: 'Billed Out' },
-            { key: 'directCost', label: 'Subcontract Cost' },
-            { key: 'margin', label: 'Gross Margin' },
-          ]}
-          points={marginPoints}
-        />
+        {mayReadFunds && flow ? (
+          <Band
+            title="Money Movement"
+            action={<SectionLink href="/reports/cash-flow" />}
+          >
+            <div className="grid gap-4 lg:grid-cols-2">
+              <FigureRows
+                rows={[
+                  {
+                    label: 'Opening',
+                    value: formatTaka(flow.opening),
+                    muted: true,
+                  },
+                  { label: 'Money In', value: formatTaka(flow.totalIn) },
+                  { label: 'Money Out', value: formatTaka(flow.totalOut) },
+                  {
+                    label: 'Net from Trading',
+                    value: formatTaka(flow.groups[0]!.net),
+                  },
+                  {
+                    label: 'Net from Funding',
+                    value: formatTaka(flow.groups[1]!.net),
+                  },
+                  {
+                    label: 'Closing',
+                    value: formatTaka(flow.closing),
+                    strong: true,
+                  },
+                ]}
+              />
+              <GroupedMonthChart
+                title="Billed and Received"
+                series={[
+                  { key: 'billed', label: 'Billed' },
+                  { key: 'settled', label: 'Received' },
+                ]}
+                points={movementPoints}
+              />
+            </div>
+          </Band>
+        ) : null}
 
-        <GroupedMonthChart
-          title="Billed and Received"
-          note={`Customer bills raised against money received, ${rangeLabel.toLowerCase()}. Axis figures are in lakh; the exact amount is in the tooltip and the table.`}
-          series={[
-            { key: 'billed', label: 'Billed' },
-            { key: 'settled', label: 'Received' },
-          ]}
-          points={movementPoints}
-        />
+        <Band
+          title="Cost by Category"
+          action={<SectionLink href="/reports/expenses" />}
+        >
+          <CategoryBarChart
+            title="Every Cost in the Period"
+            columnLabel="Category"
+            valueLabel="Amount"
+            points={costByCategory}
+          />
+        </Band>
 
-        <CostSplitDonut
-          title="Where the Money Went"
-          note={`Every cost in the period by the tier its category carries, ${rangeLabel.toLowerCase()}. Cost of sales is the dyeing bought in; overhead is never split across orders.`}
-          points={costSplit}
-          total={formatTaka(costOut)}
-        />
-
-        <CategoryBarChart
-          title="Cash Out by Category"
-          note={`Operating expenses and salary paid, ${rangeLabel.toLowerCase()}.`}
-          columnLabel="Category"
-          valueLabel="Amount"
-          points={cashOut}
-        />
-
-        <CategoryBarChart
-          title="Receivable Ageing"
-          note={`How old the money owed is, counted from the bill date as at ${formatDate(today)}. Receipts are applied to the oldest bill first.`}
-          columnLabel="Age"
-          valueLabel="Receivable"
-          points={ageingPoints}
-          singleColor
-          emptyMessage="Nothing outstanding"
-        />
-
-        <CategoryBarChart
-          title="Customers by Balance"
-          note="The largest amounts owed, whatever period is selected above."
-          columnLabel="Customer"
-          valueLabel="Receivable"
-          points={topParties}
-          singleColor
-          emptyMessage="Nothing outstanding"
-        />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <OutstandingCard side="customers" balances={customers} />
-        <OutstandingCard side="subcontractors" balances={subcontractors} />
+        <Band title="Outstanding">
+          <div className="mb-4">
+            <CategoryBarChart
+              title="Receivable Ageing"
+              columnLabel="Age"
+              valueLabel="Receivable"
+              points={ageingPoints}
+              singleColor
+              emptyMessage="Nothing outstanding"
+            />
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <OutstandingCard side="customers" balances={customers} />
+            <OutstandingCard side="subcontractors" balances={subcontractors} />
+          </div>
+        </Band>
       </div>
     </>
   );

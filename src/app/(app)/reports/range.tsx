@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui';
-import { lastDayOf } from '@/lib/dashboard';
+import { allDatesRange, lastDayOf } from '@/lib/dashboard';
 import { formatDate, todayInDhaka } from '@/lib/dates';
+import { bookSpan } from '@/lib/queries';
 
 /**
  * The date range every report is read over.
@@ -16,6 +17,9 @@ import { formatDate, todayInDhaka } from '@/lib/dates';
  */
 export type ReportRange = { from: string; to: string };
 
+/** A range, and whether it was asked for as the whole book. */
+export type ResolvedRange = ReportRange & { allDates: boolean };
+
 /** This financial year so far, which is what a report defaults to. */
 export function defaultRange(): ReportRange {
   const today = todayInDhaka();
@@ -27,10 +31,7 @@ export function defaultRange(): ReportRange {
   return { from: `${startYear}-07-01`, to: today };
 }
 
-export function readRange(params: {
-  from?: string;
-  to?: string;
-}): ReportRange {
+export function readRange(params: { from?: string; to?: string }): ReportRange {
   const fallback = defaultRange();
   const valid = (value: string | undefined): string | null =>
     value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
@@ -41,32 +42,70 @@ export function readRange(params: {
   return from <= to ? { from, to } : { from: to, to: from };
 }
 
-export function rangeLabel(range: ReportRange): string {
-  return `${formatDate(range.from)} to ${formatDate(range.to)}`;
+/**
+ * The range a report is being read over, with All Dates resolved.
+ *
+ * All Dates is asked for as `?range=all` rather than as two dates worked out
+ * when the link was drawn, so a report someone bookmarked still means all dates
+ * next month instead of freezing on the day it was bookmarked. It costs a round
+ * trip to the book, and only that one view pays it.
+ *
+ * Two dates keyed by hand always win: somebody who asks for a period has asked
+ * for that period.
+ */
+export async function resolveRange(params: {
+  from?: string;
+  to?: string;
+  range?: string;
+}): Promise<ResolvedRange> {
+  const keyed = Boolean(params.from || params.to);
+  if (params.range === 'all' && !keyed) {
+    const span = await bookSpan();
+    return { ...allDatesRange(span, todayInDhaka()), allDates: true };
+  }
+  return { ...readRange(params), allDates: false };
 }
 
-/** A few ranges worth one click, since these are the ones actually asked for. */
-function shortcuts(): { label: string; range: ReportRange }[] {
+export function rangeLabel(range: ReportRange | ResolvedRange): string {
+  const dates = `${formatDate(range.from)} to ${formatDate(range.to)}`;
+  // The name and the period both, because a figure quoted off an All Dates
+  // report still has to be tied to the dates it covers.
+  return 'allDates' in range && range.allDates ? `All Dates (${dates})` : dates;
+}
+
+/**
+ * A few ranges worth one click, since these are the ones actually asked for.
+ *
+ * Three of them carry their dates in the link, because a financial year is the
+ * same two dates whoever opens it. All Dates carries its name instead, for the
+ * reason on resolveRange.
+ */
+function shortcuts(): { label: string; query: string }[] {
   const today = todayInDhaka();
   const [year, month] = today.split('-').map(Number);
   if (!year || !month) return [];
   const financialYearStart = month >= 7 ? year : year - 1;
+  const dates = (range: ReportRange) => `from=${range.from}&to=${range.to}`;
   return [
     {
       label: 'This Month',
-      range: { from: `${year}-${String(month).padStart(2, '0')}-01`, to: today },
+      query: dates({
+        from: `${year}-${String(month).padStart(2, '0')}-01`,
+        to: today,
+      }),
     },
     {
       label: 'This Financial Year',
-      range: { from: `${financialYearStart}-07-01`, to: today },
+      query: dates({ from: `${financialYearStart}-07-01`, to: today }),
     },
     {
       label: 'Last Financial Year',
-      range: {
+      query: dates({
         from: `${financialYearStart - 1}-07-01`,
         to: lastDayOf(financialYearStart, 6),
-      },
+      }),
     },
+    { label: 'All Dates', query: 'range=all' },
   ];
 }
 
@@ -105,7 +144,7 @@ export function RangePicker({
         {shortcuts().map((shortcut) => (
           <Link
             key={shortcut.label}
-            href={`${basePath}?from=${shortcut.range.from}&to=${shortcut.range.to}`}
+            href={`${basePath}?${shortcut.query}`}
             className="rounded border border-[var(--color-line)] px-2.5 py-1.5 text-xs hover:bg-gray-50"
           >
             {shortcut.label}

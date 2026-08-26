@@ -24,6 +24,8 @@ const ALL: Permission[] = [
   'settlement:manage',
   'expense:read',
   'expense:manage',
+  'fund:read',
+  'fund:manage',
   'employee:read',
   'employee:manage',
   'payroll:read',
@@ -71,10 +73,29 @@ describe('can', () => {
     expect(can('owner', 'user:manage')).toBe(true);
   });
 
+  it('lets Accounts write the cash book', () => {
+    // Capital, drawings and the loan book are the owner's own position, and
+    // there is an argument for holding them back. They are granted because
+    // Accounts is the person who writes the cash book, and a Cash Book with the
+    // drawings removed shows a running balance that does not add up.
+    expect(can('accounts', 'fund:read')).toBe(true);
+    expect(can('accounts', 'fund:manage')).toBe(true);
+    expect(can('viewer', 'fund:read')).toBe(false);
+    expect(can('viewer', 'fund:manage')).toBe(false);
+  });
+
+  // The two reads a Viewer does not hold. 'activity:read' is the audit trail,
+  // which names who did what; 'fund:read' is the owner's own money and the cash
+  // position built on it.
+  const NOT_FOR_VIEWER: readonly Permission[] = ['activity:read', 'fund:read'];
+
   it('gives a Viewer every read and no write', () => {
     for (const permission of ALL) {
       const allowed = can('viewer', permission);
-      if (permission.endsWith(':read') && permission !== 'activity:read') {
+      if (
+        permission.endsWith(':read') &&
+        !NOT_FOR_VIEWER.includes(permission)
+      ) {
         expect(allowed).toBe(true);
       } else {
         expect(allowed).toBe(false);

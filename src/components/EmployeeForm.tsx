@@ -107,10 +107,7 @@ export function EmployeeForm({
             />
           </Field>
 
-          <Field
-            label="Employee Code"
-            hint="Leave blank and the next code is assigned, as EMP-0001."
-          >
+          <Field label="Employee Code" hint="Blank assigns the next code.">
             <TextInput
               type="text"
               name="code"

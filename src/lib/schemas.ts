@@ -352,30 +352,6 @@ export const leaveFormSchema = z
   });
 export type LeaveFormInput = z.infer<typeof leaveFormSchema>;
 
-export const expenseClaimFormSchema = z.object({
-  employeeId: z.string().uuid('Select an employee'),
-  claimedOn: isoDateSchema,
-  category: z.enum(['transport', 'courier', 'fuel', 'parking', 'other']),
-  description: z
-    .string()
-    .trim()
-    .min(1, 'State what the claim is for')
-    .max(300),
-  amount: positiveMoney,
-  orderNo: optionalText(60),
-  notes: optionalText(1000),
-  reason: optionalText(300),
-});
-export type ExpenseClaimFormInput = z.infer<typeof expenseClaimFormSchema>;
-
-/** Paying a claim back. The money moved, so it carries a date and a method. */
-export const reimburseClaimSchema = z.object({
-  id: z.string().uuid(),
-  reimbursedOn: isoDateSchema,
-  mode: paymentModeSchema,
-  reference: optionalText(80),
-});
-
 export const expenseFormSchema = z.object({
   spentOn: isoDateSchema,
   // The category carries the cost tier: see EXPENSE_CATEGORIES in types.ts,
@@ -434,7 +410,10 @@ export const advanceFormSchema = z
   })
   .superRefine((value, ctx) => {
     // An installment with no figure would look scheduled and recover nothing.
-    if (value.recoveryMode === 'installment' && value.installmentAmount === '') {
+    if (
+      value.recoveryMode === 'installment' &&
+      value.installmentAmount === ''
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['installmentAmount'],
@@ -443,6 +422,96 @@ export const advanceFormSchema = z
     }
   });
 export type AdvanceFormInput = z.infer<typeof advanceFormSchema>;
+
+/**
+ * A loan, and the money it put in the account, on one form.
+ *
+ * These used to be two saves on two screens: create an account, then create a
+ * voucher against it. A loan does not exist until money has moved, so the two
+ * are one action and one transaction. `amount` is what came in, not a facility
+ * ceiling: a ceiling is words and belongs in `terms`.
+ */
+export const loanFormSchema = z.object({
+  lender: z.string().trim().min(1, 'Enter the lender').max(160),
+  amount: positiveMoney,
+  takenOn: isoDateSchema,
+  mode: paymentModeSchema,
+  /** Rate, tenor and security, as the sanction letter states them. */
+  terms: optionalText(500),
+  reference: optionalText(80),
+  notes: optionalText(1000),
+  reason: optionalText(300),
+});
+export type LoanFormInput = z.infer<typeof loanFormSchema>;
+
+/** Editing the loan record itself. The money it received is a movement. */
+export const loanEditSchema = z.object({
+  lender: z.string().trim().min(1, 'Enter the lender').max(160),
+  takenOn: isoDateSchema,
+  terms: optionalText(500),
+  reference: optionalText(80),
+  active: z.enum(['yes', '']).default('yes'),
+  notes: optionalText(1000),
+  reason: optionalText(300),
+});
+export type LoanEditInput = z.infer<typeof loanEditSchema>;
+
+/**
+ * An installment: principal off the debt, interest as a cost, one cheque.
+ *
+ * There is no category field, here or on any other form in this file. The
+ * action decides it, so a screen cannot post a movement of the wrong kind and
+ * there is nothing to validate about a choice nobody makes.
+ */
+export const loanRepaymentSchema = z.object({
+  loanId: z.string().uuid('Select a loan'),
+  movedOn: isoDateSchema,
+  amount: positiveMoney,
+  interestAmount: nonNegativeMoney.or(z.literal('')).default(''),
+  mode: paymentModeSchema,
+  reference: optionalText(80),
+  notes: optionalText(1000),
+  reason: optionalText(300),
+});
+export type LoanRepaymentInput = z.infer<typeof loanRepaymentSchema>;
+
+/** A further drawing on a facility already opened. */
+export const loanDrawdownSchema = z.object({
+  loanId: z.string().uuid('Select a loan'),
+  movedOn: isoDateSchema,
+  amount: positiveMoney,
+  mode: paymentModeSchema,
+  reference: optionalText(80),
+  notes: optionalText(1000),
+  reason: optionalText(300),
+});
+export type LoanDrawdownInput = z.infer<typeof loanDrawdownSchema>;
+
+/**
+ * Capital in or a drawing out. One owner, so there is nobody to pick.
+ *
+ * Four fields, and `mode` is one of them: the Cash Book shows one combined
+ * balance, but the ERP's rules 13 and 14 post the other leg to 1000 Cash or
+ * 1100 Bank and this is the only thing that says which.
+ */
+export const ownerMovementSchema = z.object({
+  movedOn: isoDateSchema,
+  amount: positiveMoney,
+  mode: paymentModeSchema,
+  notes: optionalText(1000),
+  reason: optionalText(300),
+});
+export type OwnerMovementInput = z.infer<typeof ownerMovementSchema>;
+
+/** The balance the book opens on. One figure, entered once. */
+export const openingBalanceSchema = z.object({
+  movedOn: isoDateSchema,
+  amount: positiveMoney,
+  mode: paymentModeSchema,
+  notes: optionalText(1000),
+  reason: optionalText(300),
+});
+export type OpeningBalanceInput = z.infer<typeof openingBalanceSchema>;
 
 export const deleteSchema = z.object({
   id: z.string().uuid(),

@@ -1,4 +1,8 @@
-import type { ContentTable, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces';
+import type {
+  ContentTable,
+  TableCell,
+  TDocumentDefinitions,
+} from 'pdfmake/interfaces';
 import { formatDate } from '../dates';
 import type { Company } from '../env';
 import type { ProfitStatement } from '../costing';
@@ -47,12 +51,12 @@ export function buildProfitStatementDocument({
     ],
   ];
 
-  const tier = (
-    label: string,
-    lines: ProfitStatement['directLines'],
-  ): void => {
+  const tier = (label: string, lines: ProfitStatement['directLines']): void => {
     if (lines.length === 0) return;
-    rows.push([{ text: label, italics: true, margin: [0, 4, 0, 0] }, { text: '' }]);
+    rows.push([
+      { text: label, italics: true, margin: [0, 4, 0, 0] },
+      { text: '' },
+    ]);
     for (const line of lines) {
       rows.push([
         { text: `    ${line.label}`, margin: [8, 0, 0, 0] },
@@ -129,8 +133,7 @@ export function buildProfitStatementDocument({
         margin: [0, 0, 0, 2],
       },
       {
-        text:
-          'Bills count in the period they are raised. Expenses, salary and reimbursed claims count when they are paid. A customer bill and the subcontract bill behind it can fall in different periods, so a short period moves around while a longer one settles. This is a trading result computed from the bills and payments recorded, not an audited profit, and it carries no opening or closing stock.',
+        text: 'Bills count in the period they are raised. Expenses, salary and loan interest count when they are paid. A customer bill and the subcontract bill behind it can fall in different periods, so a short period moves around while a longer one settles. Repaying a loan is not a cost and is not in these figures: only the interest paid on it is, because the principal settles a liability. Capital introduced and drawings are not here either, for the same reason. This is a trading result computed from the bills and payments recorded, not an audited profit, and it carries no opening or closing stock.',
         fontSize: 7.5,
         alignment: 'justify',
       },

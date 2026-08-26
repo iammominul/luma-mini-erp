@@ -22,9 +22,10 @@ const KIND_LABEL: Record<SearchHitKind, string> = {
   bill: 'Bill',
   order: 'Order',
   party: 'Party',
+  loan: 'Loan',
   payment: 'Receipt',
   expense: 'Voucher',
-  claim: 'Claim',
+  fund: 'Fund Voucher',
   advance: 'Advance',
 };
 
@@ -177,7 +178,7 @@ export function SearchBox({ className = '' }: { className?: string }) {
           aria-expanded={open}
           aria-controls={listId}
           aria-autocomplete="list"
-          placeholder="Search a bill number, order, party or voucher"
+          placeholder="Global Search"
           aria-label="Search records"
           className="min-h-11 w-full rounded border border-white/20 bg-white/10 px-3 py-2 pr-14 text-base text-white outline-none placeholder:text-white/50 focus:border-white/50 focus:bg-white/15 md:min-h-0 md:py-1.5 md:text-sm"
         />
@@ -196,7 +197,11 @@ export function SearchBox({ className = '' }: { className?: string }) {
           ) : (
             <ul id={listId} role="listbox" className="max-h-96 overflow-y-auto">
               {hits.map((hit, index) => (
-                <li key={`${hit.kind}-${hit.href}-${hit.code}`} role="option" aria-selected={index === active}>
+                <li
+                  key={`${hit.kind}-${hit.href}-${hit.code}`}
+                  role="option"
+                  aria-selected={index === active}
+                >
                   <button
                     type="button"
                     onClick={() => go(hit)}

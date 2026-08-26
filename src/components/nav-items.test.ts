@@ -25,6 +25,17 @@ describe('groupsFor', () => {
     expect(hrefsFor('viewer')).not.toContain('/users');
   });
 
+  // Capital, drawings and the loan book are behind 'fund:read', which a Viewer
+  // does not hold. Named here rather than left to the generic test above, so
+  // moving the permission to the Owner alone breaks a test that says why.
+  it('keeps the fund screens away from a Viewer', () => {
+    for (const href of ['/loans', '/owner', '/reports/cash-flow']) {
+      expect(hrefsFor('owner')).toContain(href);
+      expect(hrefsFor('accounts')).toContain(href);
+      expect(hrefsFor('viewer')).not.toContain(href);
+    }
+  });
+
   it('offers an unknown role nothing that needs a permission', () => {
     const gated = GROUPS.flatMap((group) =>
       group.items.filter((item) => item.needs).map((item) => item.href),
@@ -90,6 +101,16 @@ describe('isActive and groupHolding', () => {
     expect(groupHolding(groups, '/nowhere')).toBeNull();
   });
 
+  // The two Outstanding entries share a label, so the only thing telling them
+  // apart is the group. That has to hold, or the short label is a bug.
+  it('keeps the two Outstanding entries distinguishable by their group', () => {
+    const groups = groupsFor('owner');
+    expect(groupHolding(groups, '/customers')).toBe('receivables');
+    expect(groupHolding(groups, '/subcontractors')).toBe('payables');
+    expect(groupLabelFor('/customers')).toBe('Receivables');
+    expect(groupLabelFor('/subcontractors')).toBe('Payables');
+  });
+
   // The two sides are the first thing the menu separates, so a screen must
   // never land in the group for the other direction of money.
   it('keeps each side of the book in its own group', () => {
@@ -123,9 +144,18 @@ describe('groupLabelFor', () => {
     expect(groupLabelFor('/customers/bills/CB-26-0113')).toBe('Receivables');
     expect(groupLabelFor('/subcontractors/bills')).toBe('Payables');
     expect(groupLabelFor('/payroll/advances')).toBe('HR and Payroll');
-    expect(groupLabelFor('/expenses')).toBe('Cash and Expenses');
-    expect(groupLabelFor('/parties')).toBe('Master Data');
-    expect(groupLabelFor('/audit')).toBe('Administration');
+    expect(groupLabelFor('/expenses')).toBe('Cash and Funds');
+    expect(groupLabelFor('/loans')).toBe('Cash and Funds');
+    expect(groupLabelFor('/owner')).toBe('Cash and Funds');
+    expect(groupLabelFor('/parties')).toBe('Setup');
+    expect(groupLabelFor('/reports/cash-flow')).toBe('Reports');
+    expect(groupLabelFor('/audit')).toBe('Settings');
+  });
+
+  // The Cash Book is reached by drilling a Cash Flow line rather than from the
+  // rail, so it is the one screen whose crumb cannot come from a menu entry.
+  it('names the group for a screen reached by drilling into another', () => {
+    expect(groupLabelFor('/reports/cash-book')).toBe('Reports');
   });
 
   it('says nothing for a screen outside every group', () => {
@@ -140,7 +170,7 @@ describe('groupLabelFor', () => {
   // The crumb is a label, not an offer. It says where you are on a screen you
   // have already been given, so it does not repeat the permission check.
   it('names the group whatever the role, because it is not an offer', () => {
-    expect(groupLabelFor('/users')).toBe('Administration');
+    expect(groupLabelFor('/users')).toBe('Settings');
   });
 });
 

@@ -24,10 +24,7 @@ export default async function EditExpensePage({
 
   return (
     <>
-      <PageTitle
-        title={`Edit Expense ${expense.docNo ?? ''}`}
-        subtitle="The old and new values are both kept in the activity log."
-      />
+      <PageTitle title={`Edit Expense ${expense.docNo ?? ''}`} />
       <ExpenseForm
         action={updateExpenseAction}
         submitLabel="Save Changes"

@@ -22,10 +22,7 @@ export default async function EditEmployeePage({
 
   return (
     <>
-      <PageTitle
-        title={`Edit ${employee.name}`}
-        subtitle="The old and new values are both kept in the activity log."
-      />
+      <PageTitle title={`Edit ${employee.name}`} />
       <EmployeeForm
         action={updateEmployeeAction}
         submitLabel="Save Changes"

@@ -51,10 +51,10 @@ export function PayrollWorkflow({
     WorkflowState,
     FormData
   >(approve, {});
-  const [paidState, paidSubmit, paying] = useActionState<WorkflowState, FormData>(
-    markPaid,
-    {},
-  );
+  const [paidState, paidSubmit, paying] = useActionState<
+    WorkflowState,
+    FormData
+  >(markPaid, {});
   const [reopenState, reopenSubmit, reopening] = useActionState<
     WorkflowState,
     FormData
@@ -218,7 +218,12 @@ function ReopenForm({
             label="Reason for Reopening"
             hint="Kept in the activity log with the figures as they stood."
           >
-            <TextInput name="reason" maxLength={300} required autoComplete="off" />
+            <TextInput
+              name="reason"
+              maxLength={300}
+              required
+              autoComplete="off"
+            />
           </Field>
         </div>
         <Button type="submit" icon="undo" disabled={pending}>

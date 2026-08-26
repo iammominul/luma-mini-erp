@@ -19,7 +19,6 @@ import {
   findEmployee,
   listAdvances,
   listEmployeeBalances,
-  listExpenseClaims,
   listLeaveRecords,
   listPayrollRuns,
 } from '@/lib/queries';
@@ -43,11 +42,10 @@ export default async function EmployeePage({
   }
 
   const year = todayInDhaka().slice(0, 4);
-  const [advances, balances, leave, claims, runs] = await Promise.all([
+  const [advances, balances, leave, runs] = await Promise.all([
     listAdvances({ employeeId: employee.id }),
     listEmployeeBalances(),
     listLeaveRecords({ employeeId: employee.id, year }),
-    listExpenseClaims({ employeeId: employee.id }),
     listPayrollRuns(),
   ]);
   const balance = balances.find((b) => b.id === employee.id);
@@ -262,40 +260,6 @@ export default async function EmployeePage({
                       Edit
                     </Link>
                   </Td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </Table>
-      </Card>
-
-      <Card>
-        <CardHeader title="Expense Claims" />
-        <Table>
-          <thead>
-            <tr>
-              <Th>Claim</Th>
-              <Th>Date</Th>
-              <Th>Category</Th>
-              <Th>Status</Th>
-              <Th numeric>Amount</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {claims.length === 0 ? (
-              <EmptyRow columns={5}>No claims made.</EmptyRow>
-            ) : (
-              claims.map((claim) => (
-                <tr key={claim.id} className="hover:bg-gray-50">
-                  <Td className="whitespace-nowrap font-medium">
-                    {claim.docNo ?? ''}
-                  </Td>
-                  <Td className="whitespace-nowrap">
-                    {formatDate(claim.claimedOn)}
-                  </Td>
-                  <Td>{claim.category}</Td>
-                  <Td>{claim.status}</Td>
-                  <Td numeric>{formatTaka(claim.amount)}</Td>
                 </tr>
               ))
             )}

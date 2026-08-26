@@ -1,7 +1,9 @@
 import { Money } from './money';
 import { formatTaka } from './format';
+import type { BookSpan } from './dashboard';
 import { db } from './db';
 import { isDocNo, isUuid } from './ids';
+import { can } from './permissions';
 import type {
   LeaveType,
   PerDayBasis,
@@ -21,8 +23,11 @@ import {
   type EmployeeBalance,
   type Expense,
   type ExpenseCategory,
-  type ExpenseClaim,
-  type ExpenseClaimCategory,
+  type FundCategory,
+  type FundMovement,
+  type Loan,
+  type LoanBalance,
+  type OwnerTotals,
   type LeaveRecord,
   type NatureOfWork,
   type Party,
@@ -38,9 +43,12 @@ import {
   type PayrollRunSummary,
   type PayrollStatus,
   expenseCategoryTier,
+  fundCategoryLabel,
+  fundDirection,
   natureOfWorkLabel,
   paymentModeLabel,
 } from './types';
+import type { CashMovement, CashSource } from './cashbook';
 
 /**
  * Every read in the app. Nothing here writes.
@@ -845,7 +853,7 @@ export async function schemaReady(): Promise<boolean> {
   `) as Row[];
   return Boolean(rows[0]?.ready);
 }
-// HR, payroll and staff claims -------------------------------------------------
+// HR and payroll -------------------------------------------------
 //
 // Same two conventions as everything above: money arrives as a NUMERIC string
 // and becomes Money at once, a date arrives through to_char as 'YYYY-MM-DD'.
@@ -1228,6 +1236,224 @@ export async function findExpense(handle: string): Promise<Expense | null> {
   return row ? toExpense(row) : null;
 }
 
+// Fund flow ------------------------------------------------------------------
+
+function toLoan(row: Row): Loan {
+  return {
+    id: text(row.id),
+    code: maybe(row.code),
+    lender: text(row.lender),
+    reference: maybe(row.reference),
+    takenOn: text(row.taken_on),
+    terms: maybe(row.terms),
+    active: Boolean(row.active),
+    notes: maybe(row.notes),
+  };
+}
+
+function toFundMovement(row: Row): FundMovement {
+  const category = text(row.category) as FundCategory;
+  return {
+    id: text(row.id),
+    docNo: maybe(row.doc_no),
+    movedOn: text(row.moved_on),
+    category,
+    // Read off the category rather than stored on the row, so there is one
+    // place the mapping lives and no way for the two to disagree.
+    direction: fundDirection(category),
+    loanId: maybe(row.loan_id),
+    loanCode: maybe(row.loan_code),
+    lender: maybe(row.lender),
+    description: text(row.description),
+    amount: money(row.amount),
+    interestAmount: money(row.interest_amount),
+    mode: text(row.mode) as PaymentMode,
+    reference: maybe(row.reference),
+    notes: maybe(row.notes),
+  };
+}
+
+/**
+ * Every loan with what is still owed on it, worked out on read.
+ *
+ * Outstanding is received less principal repaid. Interest is carried beside it
+ * and never inside it, because a loan does not become more owed because
+ * interest was paid on it.
+ *
+ * The movements are aggregated in a grouped subquery and joined on loan_id
+ * rather than joined directly, which would repeat the loan row once per
+ * movement and multiply every figure taken off it.
+ */
+export async function listLoans(
+  options: { activeOnly?: boolean } = {},
+): Promise<LoanBalance[]> {
+  const sql = db();
+  const activeOnly = options.activeOnly ?? false;
+  const rows = (await sql`
+    SELECT l.id, l.code, l.lender, l.reference,
+      to_char(l.taken_on, 'YYYY-MM-DD') AS taken_on, l.terms, l.active, l.notes,
+      COALESCE(m.received, 0) AS received,
+      COALESCE(m.repaid, 0) AS repaid,
+      COALESCE(m.received, 0) - COALESCE(m.repaid, 0) AS outstanding,
+      COALESCE(m.interest_paid, 0) AS interest_paid,
+      to_char(m.last_moved_on, 'YYYY-MM-DD') AS last_moved_on,
+      COALESCE(m.movements, 0) AS movements
+    FROM loan l
+    LEFT JOIN (
+      SELECT loan_id,
+        SUM(amount) FILTER (WHERE category = 'loan_received') AS received,
+        SUM(amount) FILTER (WHERE category = 'loan_repayment') AS repaid,
+        SUM(interest_amount) AS interest_paid,
+        MAX(moved_on) AS last_moved_on,
+        COUNT(*) AS movements
+      FROM fund_movement WHERE loan_id IS NOT NULL GROUP BY loan_id
+    ) m ON m.loan_id = l.id
+    WHERE (${activeOnly}::boolean = false OR l.active)
+    ORDER BY l.active DESC, l.taken_on DESC, l.lender
+  `) as Row[];
+  return rows.map((row) => ({
+    ...toLoan(row),
+    received: money(row.received),
+    repaid: money(row.repaid),
+    outstanding: money(row.outstanding),
+    interestPaid: money(row.interest_paid),
+    lastMovementOn: maybe(row.last_moved_on),
+    movementCount: count(row.movements),
+  }));
+}
+
+export async function getLoan(id: string): Promise<Loan | null> {
+  if (!isUuid(id)) return null;
+  const sql = db();
+  const rows = (await sql`
+    SELECT id, code, lender, reference,
+      to_char(taken_on, 'YYYY-MM-DD') AS taken_on, terms, active, notes
+    FROM loan WHERE id = ${id}::uuid
+  `) as Row[];
+  const row = rows[0];
+  return row ? toLoan(row) : null;
+}
+
+/** By loan code or by uuid, the same rule a party follows. */
+export async function findLoan(handle: string): Promise<Loan | null> {
+  if (isUuid(handle)) return getLoan(handle);
+  const sql = db();
+  const rows = (await sql`
+    SELECT id, code, lender, reference,
+      to_char(taken_on, 'YYYY-MM-DD') AS taken_on, terms, active, notes
+    FROM loan WHERE lower(code) = lower(${handle})
+  `) as Row[];
+  const row = rows[0];
+  return row ? toLoan(row) : null;
+}
+
+/** How many movements point at a loan, which is what stops a delete. */
+export async function loanMovementCount(id: string): Promise<number> {
+  if (!isUuid(id)) return 0;
+  const sql = db();
+  const rows = (await sql`
+    SELECT COUNT(*) AS entries FROM fund_movement WHERE loan_id = ${id}::uuid
+  `) as Row[];
+  return count(rows[0]?.entries);
+}
+
+/** One loan's own movements, for its ledger. */
+export async function listLoanMovements(
+  loanId: string,
+): Promise<FundMovement[]> {
+  if (!isUuid(loanId)) return [];
+  const sql = db();
+  const rows = (await sql`
+    SELECT f.id, f.doc_no, to_char(f.moved_on, 'YYYY-MM-DD') AS moved_on,
+      f.category, f.loan_id, l.code AS loan_code, l.lender, f.description,
+      f.amount, f.interest_amount, f.mode, f.reference, f.notes
+    FROM fund_movement f JOIN loan l ON l.id = f.loan_id
+    WHERE f.loan_id = ${loanId}::uuid
+    ORDER BY f.moved_on, f.created_at
+  `) as Row[];
+  return rows.map(toFundMovement);
+}
+
+/** What the owner put in and took out, most recent first. */
+export async function listOwnerMovements(
+  options: { from?: string | null; to?: string | null; limit?: number } = {},
+): Promise<FundMovement[]> {
+  const sql = db();
+  const from = options.from ?? null;
+  const to = options.to ?? null;
+  const rows = (await sql`
+    SELECT f.id, f.doc_no, to_char(f.moved_on, 'YYYY-MM-DD') AS moved_on,
+      f.category, f.loan_id, NULL::text AS loan_code, NULL::text AS lender,
+      f.description, f.amount, f.interest_amount, f.mode, f.reference, f.notes
+    FROM fund_movement f
+    WHERE f.category IN ('capital_introduced', 'owner_drawing')
+      AND (${from}::date IS NULL OR f.moved_on >= ${from}::date)
+      AND (${to}::date IS NULL OR f.moved_on <= ${to}::date)
+    ORDER BY f.moved_on DESC, f.created_at DESC
+    LIMIT ${options.limit ?? 500}::int
+  `) as Row[];
+  return rows.map(toFundMovement);
+}
+
+/**
+ * What the owner has put in and taken out, and what stands to their name.
+ *
+ * One owner, so there is nothing to group by. This is deliberately not built on
+ * the loan ledger: it needs three totals and no running balance, no ordering
+ * guarantee and no interest column, and sharing that module is what would put
+ * the account kind back into the model.
+ */
+export async function ownerTotals(
+  options: { from?: string | null; to?: string | null } = {},
+): Promise<OwnerTotals> {
+  const sql = db();
+  const from = options.from ?? null;
+  const to = options.to ?? null;
+  const rows = (await sql`
+    SELECT
+      COALESCE(SUM(amount) FILTER (WHERE category = 'capital_introduced'), 0)
+        AS introduced,
+      COALESCE(SUM(amount) FILTER (WHERE category = 'owner_drawing'), 0)
+        AS drawn
+    FROM fund_movement
+    WHERE (${from}::date IS NULL OR moved_on >= ${from}::date)
+      AND (${to}::date IS NULL OR moved_on <= ${to}::date)
+  `) as Row[];
+  const row = rows[0] ?? {};
+  const introduced = money(row.introduced);
+  const drawn = money(row.drawn);
+  return { introduced, drawn, standing: introduced.subtract(drawn) };
+}
+
+/** The opening balance row, if one has been set. */
+export async function openingBalance(): Promise<FundMovement | null> {
+  const sql = db();
+  const rows = (await sql`
+    SELECT f.id, f.doc_no, to_char(f.moved_on, 'YYYY-MM-DD') AS moved_on,
+      f.category, f.loan_id, NULL::text AS loan_code, NULL::text AS lender,
+      f.description, f.amount, f.interest_amount, f.mode, f.reference, f.notes
+    FROM fund_movement f WHERE f.category = 'opening_cash'
+  `) as Row[];
+  const row = rows[0];
+  return row ? toFundMovement(row) : null;
+}
+
+export async function getFundMovement(
+  id: string,
+): Promise<FundMovement | null> {
+  if (!isUuid(id)) return null;
+  const sql = db();
+  const rows = (await sql`
+    SELECT f.id, f.doc_no, to_char(f.moved_on, 'YYYY-MM-DD') AS moved_on,
+      f.category, f.loan_id, l.code AS loan_code, l.lender, f.description,
+      f.amount, f.interest_amount, f.mode, f.reference, f.notes
+    FROM fund_movement f LEFT JOIN loan l ON l.id = f.loan_id
+    WHERE f.id = ${id}::uuid
+  `) as Row[];
+  const row = rows[0];
+  return row ? toFundMovement(row) : null;
+}
+
 export async function listAdvances(
   options: {
     employeeId?: string | null;
@@ -1271,6 +1497,48 @@ export async function getAdvance(id: string): Promise<Advance | null> {
 }
 
 // Dashboard -------------------------------------------------------------------
+
+/**
+ * The first and last date anything in the book is dated, which is what All
+ * Dates resolves to on the dashboard and on every report.
+ *
+ * It reads the five things a period screen counts: bills, payments, expenses,
+ * payroll runs and fund movements. A fund movement is in here because an
+ * opening balance is usually the earliest row in the book and All Dates has to
+ * reach it. A payroll run is dated by its month, so
+ * it widens to the first and last day of that month. Nothing is joined, because
+ * this is five separate questions; LEAST and GREATEST ignore a source with
+ * nothing in it and answer null only when every one of them is empty.
+ *
+ * Null is an empty book, and the caller turns that into today to today rather
+ * than into an error. Draft bills count toward the window: it is the span the
+ * book covers, not a figure, and a draft becoming posted should not move it.
+ */
+export async function bookSpan(): Promise<BookSpan | null> {
+  const sql = db();
+  const rows = (await sql`
+    SELECT
+      to_char(LEAST(
+        (SELECT MIN(bill_date) FROM bill),
+        (SELECT MIN(paid_on) FROM payment),
+        (SELECT MIN(spent_on) FROM expense),
+        (SELECT MIN(moved_on) FROM fund_movement),
+        (SELECT MIN(to_date(period, 'YYYY-MM')) FROM payroll_run)
+      ), 'YYYY-MM-DD') AS first_on,
+      to_char(GREATEST(
+        (SELECT MAX(bill_date) FROM bill),
+        (SELECT MAX(paid_on) FROM payment),
+        (SELECT MAX(spent_on) FROM expense),
+        (SELECT MAX(moved_on) FROM fund_movement),
+        (SELECT MAX((to_date(period, 'YYYY-MM')
+          + INTERVAL '1 month' - INTERVAL '1 day')::date) FROM payroll_run)
+      ), 'YYYY-MM-DD') AS last_on
+  `) as Row[];
+
+  const first = maybe(rows[0]?.first_on);
+  const last = maybe(rows[0]?.last_on);
+  return first && last ? { first, last } : null;
+}
 
 /**
  * Billed and settled per month for one side of the business.
@@ -1382,14 +1650,15 @@ export async function receivableAgeing(
  * 2. subcontractor bills, split by nature of work so knitting reads apart from
  *    dyeing
  * 3. expenses by category, whose tier the caller resolves
- * 4. salary paid and reimbursed employee claims, both overhead
+ * 4. salary paid and loan interest, both overhead
  *
- * Claims are in here deliberately. Reimbursing one is money leaving the
- * business, and for a while nothing counted it at all, so the net result shown
- * was too high by whatever staff had been paid back.
+ * Loan interest is in here deliberately and the loan principal beside it is
+ * deliberately not: repaying a loan settles a liability and costs nothing, and
+ * a statement that counted the principal would report a loss in every month a
+ * loan is being paid down.
  *
  * The basis is mixed and stated on the screen rather than hidden: bills count
- * when raised, expenses and salary and claims when paid.
+ * when raised, expenses and salary and interest when paid.
  */
 export async function profitFigures(
   from: string,
@@ -1399,7 +1668,8 @@ export async function profitFigures(
   subcontract: { natureOfWork: NatureOfWork; amount: Money }[];
   expenses: { category: ExpenseCategory; amount: Money }[];
   salary: Money;
-  claims: Money;
+  /** Interest and charges paid on a working capital loan. ERP account 5500. */
+  interest: Money;
 }> {
   const sql = db();
   const [revenueRows, subcontractRows, expenseRows, paidRows] =
@@ -1427,10 +1697,10 @@ export async function profitFigures(
             WHERE r.status = 'paid'
               AND r.period >= to_char(${from}::date, 'YYYY-MM')
               AND r.period <= to_char(${to}::date, 'YYYY-MM')), 0) AS salary,
-          COALESCE((SELECT SUM(amount) FROM expense_claim
-            WHERE status = 'reimbursed'
-              AND reimbursed_on >= ${from}::date
-              AND reimbursed_on <= ${to}::date), 0) AS claims
+          COALESCE((SELECT SUM(interest_amount) FROM fund_movement
+            WHERE category = 'loan_repayment'
+              AND moved_on >= ${from}::date
+              AND moved_on <= ${to}::date), 0) AS interest
       `,
     ])) as [Row[], Row[], Row[], Row[]];
 
@@ -1445,7 +1715,7 @@ export async function profitFigures(
       amount: money(row.total),
     })),
     salary: money(paidRows[0]?.salary),
-    claims: money(paidRows[0]?.claims),
+    interest: money(paidRows[0]?.interest),
   };
 }
 
@@ -1623,6 +1893,15 @@ export async function orderDetail(orderNo: string): Promise<{
 /**
  * Revenue against direct cost, month by month, so the trend of the margin is
  * visible even though any one month is noisy for the reason above.
+ *
+ * Direct cost is the whole of the direct tier, not the subcontract bills alone:
+ * the freight carrying the fabric and the lab test on the order come off before
+ * the gross margin on the profit statement, so they have to come off here too.
+ * Otherwise the dashboard prints two different figures under the one name, and
+ * the months would not add up to the tile above them.
+ *
+ * Nothing is joined. Three sources are read and folded by period here, because
+ * joining bills to expenses would pair every bill with every expense.
  */
 export async function monthlyTrading(
   from: string,
@@ -1642,18 +1921,49 @@ export async function monthlyTrading(
       WHERE status = 'posted' AND direction = 'received'
         AND bill_date >= ${from}::date AND bill_date <= ${to}::date
       GROUP BY 1
+    ), spent AS (
+      SELECT to_char(spent_on, 'YYYY-MM') AS period, category, SUM(amount) AS total
+      FROM expense
+      WHERE spent_on >= ${from}::date AND spent_on <= ${to}::date
+      GROUP BY 1, 2
     )
-    SELECT COALESCE(i.period, r.period) AS period,
-      COALESCE(i.total, 0) AS revenue,
-      COALESCE(r.total, 0) AS direct_cost
-    FROM issued i FULL OUTER JOIN received r ON r.period = i.period
-    ORDER BY 1
+    SELECT period, 'revenue' AS bucket, NULL::text AS category, total FROM issued
+    UNION ALL
+    SELECT period, 'subcontract', NULL::text, total FROM received
+    UNION ALL
+    SELECT period, 'expense', category, total FROM spent
   `) as Row[];
-  return rows.map((row) => ({
-    period: text(row.period),
-    revenue: money(row.revenue),
-    directCost: money(row.direct_cost),
-  }));
+
+  // The tier lives with the category, in types.ts, and is resolved here so the
+  // SQL never has to carry a second copy of that list.
+  const byPeriod = new Map<
+    string,
+    { period: string; revenue: Money; directCost: Money }
+  >();
+  for (const row of rows) {
+    const period = text(row.period);
+    const amount = money(row.total);
+    const bucket = text(row.bucket);
+    const entry = byPeriod.get(period) ?? {
+      period,
+      revenue: Money.ZERO,
+      directCost: Money.ZERO,
+    };
+
+    if (bucket === 'revenue') {
+      entry.revenue = entry.revenue.add(amount);
+    } else if (
+      bucket === 'subcontract' ||
+      expenseCategoryTier(text(row.category)) === 'direct'
+    ) {
+      entry.directCost = entry.directCost.add(amount);
+    }
+    byPeriod.set(period, entry);
+  }
+
+  return [...byPeriod.values()].sort((a, b) =>
+    a.period.localeCompare(b.period),
+  );
 }
 
 /** Salary paid out across a range of months, as one figure for the dashboard. */
@@ -1869,113 +2179,184 @@ export async function leaveTakenByType(
   }));
 }
 
-function toExpenseClaim(row: Row): ExpenseClaim {
-  return {
-    id: text(row.id),
-    docNo: maybe(row.doc_no),
-    employeeId: text(row.employee_id),
-    employeeName: text(row.employee_name),
-    employeeCode: maybe(row.employee_code),
-    claimedOn: text(row.claimed_on),
-    category: text(row.category) as ExpenseClaimCategory,
-    description: text(row.description),
-    amount: money(row.amount),
-    status: text(row.status) as 'submitted' | 'reimbursed',
-    reimbursedOn: maybe(row.reimbursed_on),
-    mode: maybe(row.mode) as PaymentMode | null,
-    reference: maybe(row.reference),
-    notes: maybe(row.notes),
-  };
-}
-
-export async function listExpenseClaims(
-  options: {
-    employeeId?: string | null;
-    status?: string | null;
-    /** The date the money was spent, which is what a claim is filed against. */
-    from?: string | null;
-    to?: string | null;
-  } = {},
-): Promise<ExpenseClaim[]> {
-  const sql = db();
-  const employeeId = options.employeeId ?? null;
-  const status = options.status ?? null;
-  const from = options.from ?? null;
-  const to = options.to ?? null;
-  const rows = (await sql`
-    SELECT c.id, c.doc_no, c.employee_id, e.name AS employee_name,
-      e.code AS employee_code, to_char(c.claimed_on, 'YYYY-MM-DD') AS claimed_on,
-      c.category, c.description, c.amount, c.status,
-      to_char(c.reimbursed_on, 'YYYY-MM-DD') AS reimbursed_on,
-      c.mode, c.reference, c.notes
-    FROM expense_claim c JOIN employee e ON e.id = c.employee_id
-    WHERE (${employeeId}::uuid IS NULL OR c.employee_id = ${employeeId}::uuid)
-      AND (${status}::text IS NULL OR c.status = ${status}::text)
-      AND (${from}::date IS NULL OR c.claimed_on >= ${from}::date)
-      AND (${to}::date IS NULL OR c.claimed_on <= ${to}::date)
-    ORDER BY c.claimed_on DESC, c.created_at DESC
-    LIMIT 500
-  `) as Row[];
-  return rows.map(toExpenseClaim);
-}
-
-export async function getExpenseClaim(
-  id: string,
-): Promise<ExpenseClaim | null> {
-  if (!isUuid(id)) return null;
-  const sql = db();
-  const rows = (await sql`
-    SELECT c.id, c.doc_no, c.employee_id, e.name AS employee_name,
-      e.code AS employee_code, to_char(c.claimed_on, 'YYYY-MM-DD') AS claimed_on,
-      c.category, c.description, c.amount, c.status,
-      to_char(c.reimbursed_on, 'YYYY-MM-DD') AS reimbursed_on,
-      c.mode, c.reference, c.notes
-    FROM expense_claim c JOIN employee e ON e.id = c.employee_id
-    WHERE c.id = ${id}::uuid
-  `) as Row[];
-  const row = rows[0];
-  return row ? toExpenseClaim(row) : null;
+/**
+ * Which Cash Book row a fund movement produces. The category mapping stays in
+ * TypeScript, beside FUND_CATEGORIES, so the SQL below carries no second copy
+ * of it. An unrecognized category counts as money out, which is the way of
+ * being wrong that cannot overstate the cash in hand.
+ */
+function cashSourceForFund(category: string, leg: string): CashSource {
+  if (leg === 'interest') return 'loan_interest';
+  switch (category) {
+    case 'opening_cash':
+      return 'opening';
+    case 'capital_introduced':
+      return 'capital';
+    case 'loan_received':
+      return 'loan_received';
+    case 'loan_repayment':
+      return 'loan_repayment';
+    case 'owner_drawing':
+      return 'drawing';
+    default:
+      return 'drawing';
+  }
 }
 
 /**
- * What went out over a window: company expenses, advances, salaries actually
- * paid, and claims reimbursed. A claim that is only submitted is not money out.
+ * Where a Cash Book row is read back to.
+ *
+ * Every source is named. There is deliberately no catch-all `default` that
+ * builds a URL: the three kinds of fund row go to two different screens, and a
+ * single fallback would send capital and drawings to a loan address that does
+ * not exist, silently, with nothing to catch it.
  */
-export async function moneyOutTotals(
-  options: { from?: string | null; to?: string | null } = {},
-): Promise<{
-  expenses: Money;
-  advances: Money;
-  salaries: Money;
-  claims: Money;
-}> {
+function cashHref(source: CashSource, link: string | null): string | null {
+  switch (source) {
+    case 'receipt':
+      return link ? `/customers/settlements/${link}` : null;
+    case 'payment':
+      return link ? `/subcontractors/settlements/${link}` : null;
+    case 'expense':
+      return link ? `/expenses/${link}/edit` : null;
+    case 'salary':
+      return link ? `/payroll/${link}` : null;
+    case 'advance':
+      return link ? `/payroll/advances/${link}/edit` : null;
+    case 'capital':
+    case 'drawing':
+      return '/owner';
+    case 'loan_received':
+    case 'loan_repayment':
+    case 'loan_interest':
+      return link ? `/loans/${link}` : '/loans';
+    case 'opening':
+      return null;
+  }
+}
+
+/**
+ * Every movement of cash in the book, in one list, for the Cash Book and the
+ * cash position.
+ *
+ * A UNION ALL and never a join, for the reason given on profitFigures: these
+ * are separate questions, and joining them would pair every receipt with every
+ * expense. The joins inside each branch are many-to-one lookups for a name and
+ * cannot multiply a row.
+ *
+ * **It takes no date bound.** buildCashBook folds everything before `from` into
+ * the opening balance, so it has to see the whole book. Bounding the dates here
+ * would silently produce a wrong opening, which is the easiest way to get this
+ * feature wrong.
+ *
+ * One voucher comes back as two rows, and that is the point. A loan repayment
+ * emits the principal and, where there is one, the interest: the cash that left
+ * is their sum, and splitting them here is what stops every caller having to
+ * remember to add them, and what lets the interest be a cost while the
+ * principal beside it is not.
+ *
+ * A salary counts on the day its line was marked paid, which is the day the
+ * cash moved. profitFigures counts a paid run against its own month instead.
+ * The two answer different questions and are allowed to differ.
+ */
+export async function cashMovements(): Promise<CashMovement[]> {
   const sql = db();
-  const from = options.from ?? null;
-  const to = options.to ?? null;
   const rows = (await sql`
-    SELECT
-      COALESCE((SELECT SUM(amount) FROM expense
-        WHERE (${from}::date IS NULL OR spent_on >= ${from}::date)
-          AND (${to}::date IS NULL OR spent_on <= ${to}::date)), 0) AS expenses,
-      COALESCE((SELECT SUM(amount) FROM advance
-        WHERE (${from}::date IS NULL OR paid_on >= ${from}::date)
-          AND (${to}::date IS NULL OR paid_on <= ${to}::date)), 0) AS advances,
-      COALESCE((SELECT SUM(l.net_paid) FROM payroll_line l
-        WHERE l.paid_on IS NOT NULL
-          AND (${from}::date IS NULL OR l.paid_on >= ${from}::date)
-          AND (${to}::date IS NULL OR l.paid_on <= ${to}::date)), 0) AS salaries,
-      COALESCE((SELECT SUM(amount) FROM expense_claim
-        WHERE status = 'reimbursed'
-          AND (${from}::date IS NULL OR reimbursed_on >= ${from}::date)
-          AND (${to}::date IS NULL OR reimbursed_on <= ${to}::date)), 0) AS claims
+    SELECT pay.id::text AS id,
+      CASE WHEN pay.direction = 'in' THEN 'receipt' ELSE 'payment' END AS source,
+      NULL::text AS category,
+      NULL::text AS leg,
+      to_char(pay.paid_on, 'YYYY-MM-DD') AS date,
+      pay.amount AS amount,
+      pay.mode AS mode,
+      pay.reference AS reference,
+      CASE WHEN pay.direction = 'in' THEN 'Received from ' ELSE 'Paid to ' END
+        || pt.name AS particulars,
+      pay.id::text AS link,
+      NULL::bigint AS seq,
+      to_char(pay.created_at AT TIME ZONE 'Asia/Dhaka',
+        'YYYY-MM-DD"T"HH24:MI:SS.US') AS recorded_at
+    FROM payment pay JOIN party pt ON pt.id = pay.party_id
+
+    UNION ALL
+    SELECT x.id::text, 'expense', NULL, NULL,
+      to_char(x.spent_on, 'YYYY-MM-DD'), x.amount, x.mode, x.doc_no,
+      x.description || COALESCE(', ' || x.payee, ''),
+      COALESCE(x.doc_no, x.id::text),
+      NULLIF(regexp_replace(COALESCE(x.doc_no, ''), '^.*-', ''), '')::bigint,
+      to_char(x.created_at AT TIME ZONE 'Asia/Dhaka', 'YYYY-MM-DD"T"HH24:MI:SS.US')
+    FROM expense x
+
+    UNION ALL
+    SELECT l.id::text, 'salary', NULL, NULL,
+      to_char(l.paid_on, 'YYYY-MM-DD'), l.net_paid, e.payment_method, r.doc_no,
+      'Salary to ' || e.name || ', ' || r.period,
+      r.period, NULL,
+      to_char(l.created_at AT TIME ZONE 'Asia/Dhaka', 'YYYY-MM-DD"T"HH24:MI:SS.US')
+    FROM payroll_line l
+      JOIN payroll_run r ON r.id = l.run_id
+      JOIN employee e ON e.id = l.employee_id
+    WHERE l.paid_on IS NOT NULL
+
+    UNION ALL
+    SELECT a.id::text, 'advance', NULL, NULL,
+      to_char(a.paid_on, 'YYYY-MM-DD'), a.amount, a.mode, a.doc_no,
+      'Salary Advance to ' || ea.name, a.id::text,
+      NULLIF(regexp_replace(COALESCE(a.doc_no, ''), '^.*-', ''), '')::bigint,
+      to_char(a.created_at AT TIME ZONE 'Asia/Dhaka', 'YYYY-MM-DD"T"HH24:MI:SS.US')
+    FROM advance a JOIN employee ea ON ea.id = a.employee_id
+
+
+    -- The movement itself: an opening, capital in, a drawing, or a principal.
+    -- A transfer is handled by the two branches below instead.
+    UNION ALL
+    SELECT f.id::text, 'fund', f.category, NULL,
+      to_char(f.moved_on, 'YYYY-MM-DD'), f.amount, f.mode, f.doc_no,
+      f.description || COALESCE(', ' || l.lender, ''),
+      -- A loan row is read back to its loan, everything else to its own screen,
+      -- so the link is the loan code where there is one.
+      COALESCE(l.code, f.doc_no, f.id::text),
+      NULLIF(regexp_replace(COALESCE(f.doc_no, ''), '^.*-', ''), '')::bigint,
+      to_char(f.created_at AT TIME ZONE 'Asia/Dhaka', 'YYYY-MM-DD"T"HH24:MI:SS.US')
+    FROM fund_movement f LEFT JOIN loan l ON l.id = f.loan_id
+
+    -- Interest leaves the account on the same day as the principal it was paid
+    -- with, and it is a cost where the principal is not, so it reads as its own
+    -- row. The id is suffixed so two rows off one voucher stay distinct and the
+    -- ordering tie-break still terminates.
+    UNION ALL
+    SELECT f.id::text || ':interest', 'fund', f.category, 'interest',
+      to_char(f.moved_on, 'YYYY-MM-DD'), f.interest_amount, f.mode, f.doc_no,
+      'Interest and Charges, ' || l.lender,
+      COALESCE(l.code, f.doc_no, f.id::text),
+      NULLIF(regexp_replace(COALESCE(f.doc_no, ''), '^.*-', ''), '')::bigint,
+      to_char(f.created_at AT TIME ZONE 'Asia/Dhaka', 'YYYY-MM-DD"T"HH24:MI:SS.US')
+    FROM fund_movement f JOIN loan l ON l.id = f.loan_id
+    WHERE f.category = 'loan_repayment' AND f.interest_amount > 0
+
+
   `) as Row[];
-  const row = rows[0] ?? {};
-  return {
-    expenses: money(row.expenses),
-    advances: money(row.advances),
-    salaries: money(row.salaries),
-    claims: money(row.claims),
-  };
+
+  return rows.map((row): CashMovement => {
+    const raw = text(row.source);
+    const source =
+      raw === 'fund'
+        ? cashSourceForFund(text(row.category), text(row.leg))
+        : (raw as CashSource);
+    const link = maybe(row.link);
+    return {
+      id: text(row.id),
+      source,
+      date: text(row.date),
+      particulars: text(row.particulars),
+      mode: text(row.mode),
+      reference: maybe(row.reference),
+      href: cashHref(source, link),
+      seq: row.seq === null || row.seq === undefined ? null : count(row.seq),
+      recordedAt: text(row.recorded_at),
+      amount: money(row.amount),
+    };
+  });
 }
 
 /**
@@ -2099,9 +2480,10 @@ export type SearchHitKind =
   | 'bill'
   | 'order'
   | 'party'
+  | 'loan'
   | 'payment'
   | 'expense'
-  | 'claim'
+  | 'fund'
   | 'advance';
 
 export type SearchHit = {
@@ -2129,22 +2511,35 @@ const HIT_ORDER: SearchHitKind[] = [
   'bill',
   'order',
   'party',
+  'loan',
   'payment',
   'expense',
-  'claim',
+  'fund',
   'advance',
 ];
 
 /** Below this a name is a different name, not a misspelling of this one. */
 const NAME_SIMILARITY = 0.3;
 
+/**
+ * The top bar search, over everything the caller is entitled to open.
+ *
+ * The role is a parameter and not a convenience. Every other kind here is a
+ * record any signed-in account may already reach by its address, so search
+ * needed no permission of its own. Capital, drawings and the loan book are not:
+ * they are behind 'fund:read', and a search that returned them regardless would
+ * hand a Viewer the owner's drawings the moment they typed a lender's name.
+ */
 export async function searchRecords(
   term: string,
-  limit = 25,
+  options: { limit?: number; role: string },
 ): Promise<SearchHit[]> {
   const trimmed = term.trim();
   // One character matches most of the book and answers nothing.
   if (trimmed.length < 2) return [];
+
+  const limit = options.limit ?? 25;
+  const mayReadFunds = can(options.role, 'fund:read');
 
   const sql = db();
   const like = `%${trimmed}%`;
@@ -2152,7 +2547,7 @@ export async function searchRecords(
   const lower = trimmed.toLowerCase();
 
   const results = (await Promise.all([
-      sql`
+    sql`
         SELECT bill.id, bill.bill_no, bill.doc_no, bill.direction,
           bill.total, party.name AS party_name
         FROM bill JOIN party ON party.id = bill.party_id
@@ -2167,9 +2562,9 @@ export async function searchRecords(
           bill.bill_date DESC
         LIMIT ${limit}::int
       `,
-      // An order is a free text reference on a bill line or an expense, not a
-      // table, so the candidates are the distinct references themselves.
-      sql`
+    // An order is a free text reference on a bill line or an expense, not a
+    // table, so the candidates are the distinct references themselves.
+    sql`
         SELECT order_no, COUNT(*)::int AS uses FROM (
           SELECT order_no FROM bill_line WHERE order_no ILIKE ${like}
           UNION ALL
@@ -2181,9 +2576,9 @@ export async function searchRecords(
           (order_no ILIKE ${prefix}) DESC, order_no
         LIMIT ${limit}::int
       `,
-      // The one place a misspelling is worth forgiving: a name typed from
-      // memory. The code beside it stays an exact and prefix match.
-      sql`
+    // The one place a misspelling is worth forgiving: a name typed from
+    // memory. The code beside it stays an exact and prefix match.
+    sql`
         SELECT id, code, name, active
         FROM party
         WHERE code ILIKE ${like}
@@ -2193,7 +2588,7 @@ export async function searchRecords(
           similarity(name, ${trimmed}) DESC, name
         LIMIT ${limit}::int
       `,
-      sql`
+    sql`
         SELECT payment.id, payment.reference, payment.direction, payment.amount,
           party.name AS party_name
         FROM payment JOIN party ON party.id = payment.party_id
@@ -2202,7 +2597,7 @@ export async function searchRecords(
           payment.paid_on DESC
         LIMIT ${limit}::int
       `,
-      sql`
+    sql`
         SELECT id, doc_no, description, amount
         FROM expense
         WHERE doc_no ILIKE ${like}
@@ -2211,17 +2606,7 @@ export async function searchRecords(
         ORDER BY (lower(coalesce(doc_no, '')) = ${lower}) DESC, spent_on DESC
         LIMIT ${limit}::int
       `,
-      sql`
-        SELECT expense_claim.id, expense_claim.doc_no, expense_claim.amount,
-          employee.name AS employee_name
-        FROM expense_claim
-          JOIN employee ON employee.id = expense_claim.employee_id
-        WHERE expense_claim.doc_no ILIKE ${like} OR employee.name % ${trimmed}
-        ORDER BY (lower(coalesce(expense_claim.doc_no, '')) = ${lower}) DESC,
-          expense_claim.claimed_on DESC
-        LIMIT ${limit}::int
-      `,
-      sql`
+    sql`
         SELECT advance.id, advance.doc_no, advance.amount, advance.reference,
           employee.name AS employee_name
         FROM advance JOIN employee ON employee.id = advance.employee_id
@@ -2232,10 +2617,46 @@ export async function searchRecords(
           advance.paid_on DESC
         LIMIT ${limit}::int
       `,
+    // The two fund queries are pushed only where the role may read them. An
+    // empty array in their place keeps the destructuring below unchanged.
+    mayReadFunds
+      ? sql`
+            SELECT id, code, lender, active
+            FROM loan
+            WHERE code ILIKE ${like}
+              OR lender ILIKE ${like}
+              OR similarity(lender, ${trimmed}) > ${NAME_SIMILARITY}::real
+            ORDER BY (lower(coalesce(code, '')) = ${lower}) DESC,
+              similarity(lender, ${trimmed}) DESC, lender
+            LIMIT ${limit}::int
+          `
+      : Promise.resolve([] as Row[]),
+    mayReadFunds
+      ? sql`
+            SELECT f.id, f.doc_no, f.category, f.amount, f.description,
+              l.lender, l.code AS loan_code
+            FROM fund_movement f LEFT JOIN loan l ON l.id = f.loan_id
+            WHERE f.doc_no ILIKE ${like}
+              OR f.reference ILIKE ${like}
+              OR l.lender % ${trimmed}
+              OR similarity(f.description, ${trimmed}) > ${NAME_SIMILARITY}::real
+            ORDER BY (lower(coalesce(f.doc_no, '')) = ${lower}) DESC,
+              f.moved_on DESC
+            LIMIT ${limit}::int
+          `
+      : Promise.resolve([] as Row[]),
   ])) as Row[][];
 
-  const [bills = [], orders = [], parties = [], payments = [], expenses = [], claims = [], advances = []] =
-    results;
+  const [
+    bills = [],
+    orders = [],
+    parties = [],
+    payments = [],
+    expenses = [],
+    advances = [],
+    loans = [],
+    fundMovements = [],
+  ] = results;
 
   const isExact = (...candidates: (string | null)[]) =>
     candidates.some((one) => (one ?? '').toLowerCase() === lower);
@@ -2292,6 +2713,36 @@ export async function searchRecords(
     });
   }
 
+  for (const row of loans) {
+    hits.push({
+      kind: 'loan',
+      code: maybe(row.code) ?? text(row.lender),
+      label: [text(row.lender), row.active === false ? 'Settled' : null]
+        .filter(Boolean)
+        .join(', '),
+      href: `/loans/${maybe(row.code) ?? text(row.id)}`,
+      exact: isExact(maybe(row.code), maybe(row.lender)),
+      indirect: false,
+    });
+  }
+
+  for (const row of fundMovements) {
+    hits.push({
+      kind: 'fund',
+      code: maybe(row.doc_no) ?? 'Fund Voucher',
+      label: [
+        fundCategoryLabel(text(row.category)),
+        maybe(row.lender),
+        formatTaka(money(row.amount)),
+      ]
+        .filter(Boolean)
+        .join(', '),
+      href: maybe(row.loan_code) ? `/loans/${text(row.loan_code)}` : '/owner',
+      exact: isExact(maybe(row.doc_no)),
+      indirect: isIndirect(maybe(row.doc_no), maybe(row.description)),
+    });
+  }
+
   for (const row of payments) {
     const side = text(row.direction) === 'in' ? 'customers' : 'subcontractors';
     hits.push({
@@ -2315,16 +2766,6 @@ export async function searchRecords(
     });
   }
 
-  for (const row of claims) {
-    hits.push({
-      kind: 'claim',
-      code: maybe(row.doc_no) ?? 'Claim',
-      label: `${text(row.employee_name)}, ${formatTaka(money(row.amount))}`,
-      href: '/claims',
-      exact: isExact(maybe(row.doc_no)),
-      indirect: isIndirect(maybe(row.doc_no)),
-    });
-  }
 
   for (const row of advances) {
     hits.push({

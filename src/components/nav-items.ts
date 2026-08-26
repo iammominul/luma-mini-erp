@@ -89,11 +89,16 @@ export const GROUPS: NavGroup[] = [
       { href: '/customers/bills', label: 'Customer Bills' },
       { href: '/customers/settlements', label: 'Money Receipts' },
       { href: '/customers/statement', label: 'Customer Ledger' },
-      // Named for the side it reports, not just 'Outstanding'. The two sides
-      // each have one, and inside its group the short label read fine while
-      // anywhere the group name is missing, in search or in the collapsed
-      // flyout, the two were the same word twice.
-      { href: '/customers', label: 'Customer Outstanding', exact: true },
+      // Back to the short label (2026-08-24), reversing the 2026-08-15 change
+      // that made these Customer Outstanding and Subcontractor Outstanding.
+      // That change was made against a worry rather than a case: the two are
+      // never read without their side beside them. In the rail the group
+      // heading is directly above, and on the screen itself Crumb prints the
+      // group over the title, so the page says Receivables and then
+      // Outstanding. Search never shows a menu label at all. What the long
+      // label did cost was real: it was the longest entry in the rail and set
+      // the width of the whole thing.
+      { href: '/customers', label: 'Outstanding', exact: true },
     ],
   },
   {
@@ -104,27 +109,33 @@ export const GROUPS: NavGroup[] = [
       { href: '/subcontractors/bills', label: 'Bills Received' },
       { href: '/subcontractors/settlements', label: 'Payments Made' },
       { href: '/subcontractors/statement', label: 'Subcontractor Ledger' },
-      { href: '/subcontractors', label: 'Subcontractor Outstanding', exact: true },
+      { href: '/subcontractors', label: 'Outstanding', exact: true },
     ],
   },
   // The two sides above took their ledgers with them, so what is left is the
-  // money that belongs to neither: what the business spent.
+  // money that belongs to neither.
   //
   // This group was called Accounts, after the department and after what Tally
-  // calls it. Two things were wrong with that. It holds Expenses and Expense
+  // calls it. Two things were wrong with that. It held Expenses and Expense
   // Claims and nothing else, so Accounts promised a ledger that is not in here,
   // and Accounts is also the name of a role, so a user signed in as Accounts
   // read their own role as a menu heading. Naming it Expenses instead would put
   // an item called Expenses inside a group called Expenses, which is the click
-  // that opens onto itself, so it says what both entries have in common: money
-  // going out in cash.
+  // that opens onto itself.
+  //
+  // It was then Cash and Expenses, which said what the two entries had in
+  // common: money going out in cash. Loans and the owner's account broke that,
+  // because capital introduced and a loan received are money coming in. What
+  // all three have in common now is money moving outside the party ledger and
+  // outside payroll, in either direction, which is what Cash and Funds says.
   {
     key: 'accounts',
-    label: 'Cash and Expenses',
+    label: 'Cash and Funds',
     icon: 'books',
     items: [
       { href: '/expenses', label: 'Expenses' },
-      { href: '/claims', label: 'Expense Claims' },
+      { href: '/loans', label: 'Loans', needs: 'fund:read' },
+      { href: '/owner', label: "Owner's Account", needs: 'fund:read' },
     ],
   },
   // One group, because a clerk looking for anything about a member of staff
@@ -150,6 +161,11 @@ export const GROUPS: NavGroup[] = [
     icon: 'reports',
     items: [
       { href: '/reports', label: 'Profit Statement', exact: true },
+      {
+        href: '/reports/cash-flow',
+        label: 'Cash Flow',
+        needs: 'fund:read',
+      },
       { href: '/reports/expenses', label: 'Expense Register' },
       { href: '/reports/orders', label: 'Order Costing' },
     ],
@@ -159,21 +175,25 @@ export const GROUPS: NavGroup[] = [
   // pinned at the top because a party is set up once and then billed against
   // for months: it is a master, not a daily screen.
   //
-  // It is a group of one on purpose. The obvious alternative was to put
-  // Customers under Receivables and Subcontractors under Payables, which is
-  // what Zoho and Odoo do, but both would open the same screen under two names
-  // and that is the one thing this menu must never do. Master Data is also
-  // where rate charts land if they ever arrive: the ERP's own group is Parties
-  // and Rates, and this is that group with the rates not yet built.
+  // Fund Accounts sits here on exactly that argument: a partner's capital
+  // account and a lender's loan account are opened once and moved against for
+  // years, and the balance on each is the outstanding, so the list is the
+  // report and there is no second screen for it.
+  //
+  // Parties is here rather than under Receivables and Payables, which is what
+  // Zoho and Odoo do, because splitting it would open the same screen under two
+  // names and that is the one thing this menu must never do. Master Data is
+  // also where rate charts land if they ever arrive: the ERP's own group is
+  // Parties and Rates, and this is that group with the rates not yet built.
   {
     key: 'masters',
-    label: 'Master Data',
+    label: 'Setup',
     icon: 'parties',
     items: [{ href: '/parties', label: 'Parties' }],
   },
   {
     key: 'admin',
-    label: 'Administration',
+    label: 'Settings',
     icon: 'admin',
     items: [
       { href: '/users', label: 'Users', needs: 'user:manage' },
@@ -204,14 +224,32 @@ export function groupsFor(role: string): NavGroup[] {
  * already on. A screen outside every group, which today is the dashboard
  * alone, has no crumb and says nothing rather than inventing one.
  */
+/**
+ * Screens reached by drilling into another screen rather than from the rail.
+ *
+ * The Cash Book is opened by clicking a line of the Cash Flow, so it is not a
+ * menu entry. Without this it would be the one screen in the app with no group
+ * printed over its title, because groupLabelFor finds the group by matching the
+ * path against the rail and answers null for anything outside it.
+ */
+const DRILL_DOWNS: { href: string; group: string }[] = [
+  { href: '/reports/cash-book', group: 'Reports' },
+];
+
 export function groupLabelFor(pathname: string): string | null {
+  const drill = DRILL_DOWNS.find((one) => pathname.startsWith(one.href));
+  if (drill) return drill.group;
+
   const found = GROUPS.find((group) =>
     group.items.some((item) => isActive(pathname, item)),
   );
   return found?.label ?? null;
 }
 
-export function groupHolding(groups: NavGroup[], pathname: string): string | null {
+export function groupHolding(
+  groups: NavGroup[],
+  pathname: string,
+): string | null {
   const found = groups.find((group) =>
     group.items.some((item) => isActive(pathname, item)),
   );

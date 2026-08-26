@@ -2,7 +2,17 @@
 
 import { useActionState } from 'react';
 import { LEAVE_TYPES } from '@/lib/payroll';
-import { Button, CancelLink, Card, Field, FormActions, Notice, Select, Textarea, TextInput } from './ui';
+import {
+  Button,
+  CancelLink,
+  Card,
+  Field,
+  FormActions,
+  Notice,
+  Select,
+  Textarea,
+  TextInput,
+} from './ui';
 import { useKeptValues } from './use-kept-values';
 
 export type LeaveFormState = { error?: string };
@@ -109,7 +119,7 @@ export function LeaveForm({
 
           <Field
             label="Days Taken"
-            hint="Typed rather than counted, because a weekly holiday in the middle is not a leave day. Half a day is 0.5."
+            hint="Typed, not counted. Half a day is 0.5."
           >
             <TextInput
               name="days"

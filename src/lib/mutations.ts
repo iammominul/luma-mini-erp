@@ -21,7 +21,10 @@ import {
   getBill,
   getEmployee,
   getExpense,
-  getExpenseClaim,
+  getFundMovement,
+  getLoan,
+  loanMovementCount,
+  openingBalance,
   getParty,
   getPayment,
   getUser,
@@ -36,19 +39,25 @@ import type {
   AdvanceFormInput,
   BillFormInput,
   EmployeeFormInput,
-  ExpenseClaimFormInput,
   ExpenseFormInput,
   LeaveFormInput,
+  LoanDrawdownInput,
+  LoanEditInput,
+  LoanFormInput,
+  LoanRepaymentInput,
+  OpeningBalanceInput,
+  OwnerMovementInput,
   PartyFormInput,
   PaymentFormInput,
   PayrollLineFormInput,
   PayrollRunFormInput,
   UserFormInput,
 } from './schemas';
-import type { Actor, BillDirection } from './types';
+import type { Actor, BillDirection, FundCategory } from './types';
 import {
   billLabel,
   expenseCategoryLabel,
+  fundCategoryLabel,
   paymentModeLabel,
   periodLabel,
   settlementLabel,
@@ -860,6 +869,427 @@ export async function deleteExpense(
   ]);
 }
 
+// Fund flow -------------------------------------------------------------------
+//
+// Capital, drawings and loans. The full ERP posts these as its rules 13 to 17;
+// here the category is the account and everything is computed on read.
+//
+// Nothing in this section takes a category from its caller. Each function fixes
+// one as a SQL literal, which is what lets the screens have no category picker
+// on them: there is no way to ask for a movement of the wrong kind.
+
+async function loanSnapshot(id: string): Promise<unknown> {
+  const sql = db();
+  const rows = (await sql`
+    SELECT to_jsonb(l) AS snapshot FROM loan l WHERE l.id = ${id}::uuid
+  `) as { snapshot: unknown }[];
+  return rows[0]?.snapshot ?? null;
+}
+
+async function fundMovementSnapshot(id: string): Promise<unknown> {
+  const sql = db();
+  const rows = (await sql`
+    SELECT to_jsonb(f) AS snapshot FROM fund_movement f WHERE f.id = ${id}::uuid
+  `) as { snapshot: unknown }[];
+  return rows[0]?.snapshot ?? null;
+}
+
+/**
+ * A loan and the money it put in the account, in one transaction.
+ *
+ * This used to be two saves on two screens. A loan does not exist until money
+ * has moved, so recording it is one action: the loan row, the loan_received
+ * movement against it, and a log row for each.
+ *
+ * Two counters are bumped in the same batch, which is the only new mechanic
+ * here. Both ids are generated in JavaScript so the movement can reference the
+ * loan without reading anything back, the same reason every other mutation in
+ * this file generates its own id.
+ */
+export async function createLoan(
+  input: LoanFormInput,
+  actor: Actor,
+): Promise<string> {
+  const sql = db();
+  const loanId = randomUUID();
+  const movementId = randomUUID();
+
+  await sql.transaction([
+    sql`
+      WITH bumped AS (
+        UPDATE counter SET value = value + 1 WHERE name = 'loan'
+        RETURNING value
+      )
+      INSERT INTO loan (id, code, lender, reference, taken_on, terms, notes)
+      SELECT ${loanId}::uuid,
+        'LOAN-' || lpad(bumped.value::text,
+          GREATEST(4, length(bumped.value::text)), '0'),
+        ${input.lender}::text, ${input.reference}, ${input.takenOn}::date,
+        ${input.terms}, ${input.notes}
+      FROM bumped
+    `,
+    sql`
+      WITH bumped AS (
+        UPDATE counter SET value = value + 1 WHERE name = 'fund_movement'
+        RETURNING value
+      )
+      INSERT INTO fund_movement (id, doc_no, moved_on, category, loan_id,
+        description, amount, mode, reference)
+      SELECT ${movementId}::uuid,
+        'FM-' || to_char(${input.takenOn}::date, 'YY') || '-' ||
+          lpad(bumped.value::text, GREATEST(4, length(bumped.value::text)), '0'),
+        ${input.takenOn}::date, 'loan_received', ${loanId}::uuid,
+        ${`Loan received from ${input.lender}`}::text,
+        ${input.amount}::numeric, ${input.mode}::text, ${input.reference}
+      FROM bumped
+    `,
+    sql`
+      INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason, after_json)
+      SELECT ${actor.id}::text, ${actor.name}::text, 'create', 'loan', l.id::text,
+        'Loan ' || l.code || ${`, ${input.lender}, Tk ${tk(input.amount)} taken on ${formatDate(input.takenOn)}`}::text,
+        ${input.reason}, to_jsonb(l)
+      FROM loan l WHERE l.id = ${loanId}::uuid
+    `,
+    sql`
+      INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason, after_json)
+      SELECT ${actor.id}::text, ${actor.name}::text, 'create', 'fund_movement', f.id::text,
+        'Fund voucher ' || f.doc_no ||
+          ${`, Loan Received, Tk ${tk(input.amount)} from ${input.lender}`}::text,
+        ${input.reason}, to_jsonb(f)
+      FROM fund_movement f WHERE f.id = ${movementId}::uuid
+    `,
+  ]);
+
+  // The counter CTE is the one way this can write nothing and still commit: an
+  // UPDATE that matches no row leaves the CTE empty and the INSERT ... SELECT
+  // inserts nothing. Reading the row back is what turns that into an error a
+  // person sees rather than a redirect to a page that is not there.
+  const written = await getLoan(loanId);
+  if (!written) {
+    throw new InputError(
+      'The loan could not be saved. The document number counter is missing from the database.',
+    );
+  }
+  return loanId;
+}
+
+/** The loan record itself. The money it received is a movement, not this. */
+export async function updateLoan(
+  id: string,
+  input: LoanEditInput,
+  actor: Actor,
+): Promise<void> {
+  const before = await getLoan(id);
+  if (!before) throw new InputError('That loan no longer exists.');
+
+  const sql = db();
+  const snapshot = await loanSnapshot(id);
+
+  await sql.transaction([
+    sql`
+      UPDATE loan SET lender = ${input.lender}::text,
+        reference = ${input.reference}, taken_on = ${input.takenOn}::date,
+        terms = ${input.terms}, active = ${input.active === 'yes'}::boolean,
+        notes = ${input.notes}, updated_at = now()
+      WHERE id = ${id}::uuid
+    `,
+    sql`
+      INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason,
+        before_json, after_json)
+      SELECT ${actor.id}::text, ${actor.name}::text, 'update', 'loan', l.id::text,
+        'Updated loan ' || COALESCE(l.code, l.id::text) || ${`, ${input.lender}`}::text,
+        ${input.reason}, ${asJson(snapshot)}::jsonb, to_jsonb(l)
+      FROM loan l WHERE l.id = ${id}::uuid
+    `,
+  ]);
+}
+
+/**
+ * Removing a loan.
+ *
+ * Every loan is created with a movement against it, so in practice this only
+ * ever succeeds on one whose movements have all been removed first. A loan that
+ * has been repaid is deactivated, not deleted: its movements have to keep
+ * pointing at the lender they were paid to.
+ */
+export async function deleteLoan(
+  id: string,
+  reason: string,
+  actor: Actor,
+): Promise<void> {
+  const before = await getLoan(id);
+  if (!before) throw new InputError('That loan no longer exists.');
+
+  const movements = await loanMovementCount(id);
+  if (movements > 0) {
+    throw new InputError(
+      `${before.lender} has ${movements} ${movements === 1 ? 'entry' : 'entries'} recorded against it. Mark it settled instead.`,
+    );
+  }
+
+  const sql = db();
+  const snapshot = await loanSnapshot(id);
+
+  await sql.transaction([
+    sql`
+      INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason, before_json)
+      VALUES (${actor.id}::text, ${actor.name}::text, 'delete', 'loan', ${id}::text,
+        ${`Removed loan ${before.code ?? ''}, ${before.lender}`}::text,
+        ${reason}, ${asJson(snapshot)}::jsonb)
+    `,
+    sql`DELETE FROM loan WHERE id = ${id}::uuid`,
+  ]);
+}
+
+/**
+ * One insert, used by every action that records a fund movement.
+ *
+ * The category is a parameter of this function and never of a form, so a screen
+ * cannot choose one. Each caller passes the single category its action means.
+ */
+async function recordFundMovement(
+  input: {
+    category: FundCategory;
+    movedOn: string;
+    amount: string;
+    interestAmount?: string;
+    loanId?: string | null;
+    description: string;
+    mode: string;
+    reference?: string | null;
+    notes?: string | null;
+    reason?: string | null;
+  },
+  actor: Actor,
+): Promise<string> {
+  const sql = db();
+  const id = randomUUID();
+
+  await sql.transaction([
+    sql`
+      WITH bumped AS (
+        UPDATE counter SET value = value + 1 WHERE name = 'fund_movement'
+        RETURNING value
+      )
+      INSERT INTO fund_movement (id, doc_no, moved_on, category, loan_id,
+        description, amount, interest_amount, mode, reference, notes)
+      SELECT ${id}::uuid,
+        'FM-' || to_char(${input.movedOn}::date, 'YY') || '-' ||
+          lpad(bumped.value::text, GREATEST(4, length(bumped.value::text)), '0'),
+        ${input.movedOn}::date, ${input.category}::text,
+        ${input.loanId ?? null}::uuid, ${input.description}::text,
+        ${input.amount}::numeric, ${input.interestAmount ?? '0'}::numeric,
+        ${input.mode}::text, ${input.reference ?? null}, ${input.notes ?? null}
+      FROM bumped
+    `,
+    sql`
+      INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason, after_json)
+      SELECT ${actor.id}::text, ${actor.name}::text, 'create', 'fund_movement', f.id::text,
+        'Fund voucher ' || f.doc_no ||
+          ${`, ${fundCategoryLabel(input.category)}, Tk ${tk(input.amount)} dated ${formatDate(input.movedOn)}`}::text,
+        ${input.reason ?? null}, to_jsonb(f)
+      FROM fund_movement f WHERE f.id = ${id}::uuid
+    `,
+  ]);
+
+  const written = await getFundMovement(id);
+  if (!written) {
+    throw new InputError(
+      'The entry could not be saved. The document number counter is missing from the database.',
+    );
+  }
+  return id;
+}
+
+/** An installment: principal off the debt, interest as a cost, one cheque. */
+export async function recordLoanRepayment(
+  input: LoanRepaymentInput,
+  actor: Actor,
+): Promise<string> {
+  const loan = await getLoan(input.loanId);
+  if (!loan) throw new InputError('That loan no longer exists.');
+
+  return recordFundMovement(
+    {
+      category: 'loan_repayment',
+      movedOn: input.movedOn,
+      amount: input.amount,
+      interestAmount:
+        input.interestAmount === '' ? '0' : input.interestAmount,
+      loanId: loan.id,
+      description: `Repayment to ${loan.lender}`,
+      mode: input.mode,
+      reference: input.reference,
+      notes: input.notes,
+      reason: input.reason,
+    },
+    actor,
+  );
+}
+
+/** A further drawing on a facility already opened. */
+export async function recordLoanDrawdown(
+  input: LoanDrawdownInput,
+  actor: Actor,
+): Promise<string> {
+  const loan = await getLoan(input.loanId);
+  if (!loan) throw new InputError('That loan no longer exists.');
+
+  return recordFundMovement(
+    {
+      category: 'loan_received',
+      movedOn: input.movedOn,
+      amount: input.amount,
+      loanId: loan.id,
+      description: `Loan received from ${loan.lender}`,
+      mode: input.mode,
+      reference: input.reference,
+      notes: input.notes,
+      reason: input.reason,
+    },
+    actor,
+  );
+}
+
+/** Money the owner puts into the business. */
+export async function recordCapital(
+  input: OwnerMovementInput,
+  actor: Actor,
+): Promise<string> {
+  return recordFundMovement(
+    {
+      category: 'capital_introduced',
+      movedOn: input.movedOn,
+      amount: input.amount,
+      description: 'Capital introduced',
+      mode: input.mode,
+      notes: input.notes,
+      reason: input.reason,
+    },
+    actor,
+  );
+}
+
+/** Money the owner takes out of the business. */
+export async function recordDrawing(
+  input: OwnerMovementInput,
+  actor: Actor,
+): Promise<string> {
+  return recordFundMovement(
+    {
+      category: 'owner_drawing',
+      movedOn: input.movedOn,
+      amount: input.amount,
+      description: 'Drawings',
+      mode: input.mode,
+      notes: input.notes,
+      reason: input.reason,
+    },
+    actor,
+  );
+}
+
+/**
+ * The balance the book opens on.
+ *
+ * There is one, and the unique index on the category holds that. The read
+ * before the write is only here to produce a message a person can act on: the
+ * index is what actually refuses a second one when two tabs race.
+ */
+export async function setOpeningBalance(
+  input: OpeningBalanceInput,
+  actor: Actor,
+): Promise<string> {
+  const existing = await openingBalance();
+  if (existing) {
+    throw new InputError(
+      `An opening balance of Tk ${tk(existing.amount.toDecimalString())} is already recorded, dated ${formatDate(existing.movedOn)}. Edit that entry rather than adding a second.`,
+    );
+  }
+
+  return recordFundMovement(
+    {
+      category: 'opening_cash',
+      movedOn: input.movedOn,
+      amount: input.amount,
+      description: 'Opening balance',
+      mode: input.mode,
+      notes: input.notes,
+      reason: input.reason,
+    },
+    actor,
+  );
+}
+
+/** Correcting a voucher already recorded. The category never changes. */
+export async function updateFundMovement(
+  id: string,
+  input: {
+    movedOn: string;
+    amount: string;
+    interestAmount?: string;
+    mode: string;
+    reference?: string | null;
+    notes?: string | null;
+    reason?: string | null;
+  },
+  actor: Actor,
+): Promise<void> {
+  const before = await getFundMovement(id);
+  if (!before) throw new InputError('That entry no longer exists.');
+
+  const sql = db();
+  const snapshot = await fundMovementSnapshot(id);
+  const interest =
+    before.category === 'loan_repayment'
+      ? (input.interestAmount === '' || input.interestAmount === undefined
+          ? '0'
+          : input.interestAmount)
+      : '0';
+
+  await sql.transaction([
+    sql`
+      UPDATE fund_movement SET moved_on = ${input.movedOn}::date,
+        amount = ${input.amount}::numeric,
+        interest_amount = ${interest}::numeric, mode = ${input.mode}::text,
+        reference = ${input.reference ?? null}, notes = ${input.notes ?? null},
+        updated_at = now()
+      WHERE id = ${id}::uuid
+    `,
+    sql`
+      INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason,
+        before_json, after_json)
+      SELECT ${actor.id}::text, ${actor.name}::text, 'update', 'fund_movement', f.id::text,
+        'Updated fund voucher ' || COALESCE(f.doc_no, f.id::text) ||
+          ${`, Tk ${tk(input.amount)}`}::text,
+        ${input.reason ?? null}, ${asJson(snapshot)}::jsonb, to_jsonb(f)
+      FROM fund_movement f WHERE f.id = ${id}::uuid
+    `,
+  ]);
+}
+
+export async function deleteFundMovement(
+  id: string,
+  reason: string,
+  actor: Actor,
+): Promise<void> {
+  const before = await getFundMovement(id);
+  if (!before) throw new InputError('That entry no longer exists.');
+
+  const sql = db();
+  const snapshot = await fundMovementSnapshot(id);
+
+  await sql.transaction([
+    sql`
+      INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason, before_json)
+      VALUES (${actor.id}::text, ${actor.name}::text, 'delete', 'fund_movement', ${id}::text,
+        ${`Removed fund voucher ${before.docNo ?? ''}, ${fundCategoryLabel(before.category)}, Tk ${tk(before.amount.toDecimalString())} dated ${formatDate(before.movedOn)}`}::text,
+        ${reason}, ${asJson(snapshot)}::jsonb)
+    `,
+    sql`DELETE FROM fund_movement WHERE id = ${id}::uuid`,
+  ]);
+}
+
 // Advances --------------------------------------------------------------------
 
 export async function createAdvance(
@@ -1488,108 +1918,6 @@ export async function deleteLeaveRecord(
   ]);
 }
 
-// Staff expense claims --------------------------------------------------------
-
-export async function createExpenseClaim(
-  input: ExpenseClaimFormInput,
-  actor: Actor,
-): Promise<string> {
-  const employee = await getEmployee(input.employeeId);
-  if (!employee) throw new InputError('Select an employee for this claim.');
-
-  const sql = db();
-  const id = randomUUID();
-
-  await sql.transaction([
-    sql`
-      WITH bumped AS (
-        UPDATE counter SET value = value + 1 WHERE name = 'expense_claim'
-        RETURNING value
-      )
-      INSERT INTO expense_claim (id, doc_no, employee_id, claimed_on, category,
-        description, amount, order_no, status)
-      SELECT ${id}::uuid,
-        'ECL-' || to_char(${input.claimedOn}::date, 'YY') || '-' ||
-          lpad(bumped.value::text, GREATEST(4, length(bumped.value::text)), '0'),
-        ${employee.id}::uuid, ${input.claimedOn}::date, ${input.category}::text,
-        ${input.description}::text, ${input.amount}::numeric,
-        ${input.orderNo}, 'submitted'
-      FROM bumped
-    `,
-    sql`
-      INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason, after_json)
-      SELECT ${actor.id}::text, ${actor.name}::text, 'create', 'expense_claim', c.id::text,
-        'Claim ' || c.doc_no ||
-          ${` from ${employee.name}, Tk ${tk(input.amount)}`}::text,
-        ${input.reason}, to_jsonb(c)
-      FROM expense_claim c WHERE c.id = ${id}::uuid
-    `,
-  ]);
-  return id;
-}
-
-/** Pays a claim back. Guarded so a claim cannot be reimbursed twice. */
-export async function reimburseExpenseClaim(
-  input: {
-    id: string;
-    reimbursedOn: string;
-    mode: string;
-    reference: string | null;
-  },
-  actor: Actor,
-): Promise<void> {
-  const claim = await getExpenseClaim(input.id);
-  if (!claim) throw new InputError('That claim no longer exists.');
-  if (claim.status === 'reimbursed') {
-    throw new InputError('That claim has already been reimbursed.');
-  }
-
-  const sql = db();
-  const results = (await sql.transaction([
-    sql`
-      UPDATE expense_claim
-      SET status = 'reimbursed', reimbursed_on = ${input.reimbursedOn}::date,
-        mode = ${input.mode}::text, reference = ${input.reference},
-        updated_at = now()
-      WHERE id = ${input.id}::uuid AND status = 'submitted'
-      RETURNING id
-    `,
-    sql`
-      INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, after_json)
-      SELECT ${actor.id}::text, ${actor.name}::text, 'update', 'expense_claim', c.id::text,
-        'Reimbursed claim ' || COALESCE(c.doc_no, c.id::text) ||
-          ${` to ${claim.employeeName}, Tk ${tk(claim.amount.toDecimalString())}`}::text,
-        to_jsonb(c)
-      FROM expense_claim c WHERE c.id = ${input.id}::uuid
-    `,
-  ])) as unknown[][];
-
-  if ((results[0] ?? []).length === 0) {
-    throw new InputError('That claim has already been reimbursed.');
-  }
-}
-
-export async function deleteExpenseClaim(
-  id: string,
-  reason: string,
-  actor: Actor,
-): Promise<void> {
-  const claim = await getExpenseClaim(id);
-  if (!claim) throw new InputError('That claim no longer exists.');
-
-  const sql = db();
-  await sql.transaction([
-    sql`
-      INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason, before_json)
-      SELECT ${actor.id}::text, ${actor.name}::text, 'delete', 'expense_claim', c.id::text,
-        ${`Removed claim ${claim.docNo ?? ''} from ${claim.employeeName}`}::text,
-        ${reason}, to_jsonb(c)
-      FROM expense_claim c WHERE c.id = ${id}::uuid
-    `,
-    sql`DELETE FROM expense_claim WHERE id = ${id}::uuid`,
-  ]);
-}
-
 // Users -----------------------------------------------------------------------
 //
 // Named accounts arrived on 2026-08-14 and replaced the single shared password.
@@ -1697,7 +2025,9 @@ export async function setUserStatus(
   if (before.status === status) return;
   if (status === 'disabled') {
     if (id === actor.id) {
-      throw new InputError('You cannot disable the account you are signed in with.');
+      throw new InputError(
+        'You cannot disable the account you are signed in with.',
+      );
     }
     await assertNotLastOwner(id, 'disabled');
   }

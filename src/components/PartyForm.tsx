@@ -2,7 +2,15 @@
 
 import { useActionState, useEffect, useRef, useState } from 'react';
 import { PARTY_ROLES } from '@/lib/types';
-import { Button, CancelLink, Field, FormActions, Notice, Textarea, TextInput } from './ui';
+import {
+  Button,
+  CancelLink,
+  Field,
+  FormActions,
+  Notice,
+  Textarea,
+  TextInput,
+} from './ui';
 import { useKeptValues } from './use-kept-values';
 
 export type PartyFormState = { error?: string };
@@ -110,10 +118,7 @@ export function PartyForm({
           />
         </Field>
 
-        <Field
-          label="Roles"
-          hint="A party can hold more than one. A role that has been traded under cannot be removed."
-        >
+        <Field label="Roles" hint="A role traded under cannot be removed.">
           <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
             {PARTY_ROLES.map((role) => (
               <label
@@ -158,10 +163,7 @@ export function PartyForm({
           />
         </Field>
 
-        <Field
-          label="Opening Balance (Tk)"
-          hint="What was outstanding when you started using this app. Positive means owed."
-        >
+        <Field label="Opening Balance (Tk)" hint="Positive means owed to us.">
           <TextInput
             name="openingBalance"
             value={field.openingBalance}

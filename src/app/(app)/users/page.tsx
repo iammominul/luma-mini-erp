@@ -98,7 +98,6 @@ export default async function UsersPage() {
     <>
       <PageTitle
         title="Users"
-        subtitle="Who can sign in, and what each of them is allowed to do."
         action={
           <LinkButton href="/users/new" icon="plus">
             New User

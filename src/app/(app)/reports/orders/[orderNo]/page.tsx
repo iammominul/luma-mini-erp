@@ -61,7 +61,7 @@ export default async function OrderDetailPage({
     <>
       <PageTitle
         title={`Order ${orderNo}`}
-        subtitle="Every bill and cost recorded against this order reference."
+        subtitle="Bills and costs against this reference."
         action={
           <Link href="/reports/orders" className="text-sm underline">
             All Orders
