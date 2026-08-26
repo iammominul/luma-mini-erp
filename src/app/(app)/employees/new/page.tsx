@@ -7,10 +7,7 @@ export default async function NewEmployeePage() {
   await requirePermission('employee:manage');
   return (
     <>
-      <PageTitle
-        title="New Employee"
-        subtitle="An employee is not a party: payroll never touches a party balance or a statement."
-      />
+      <PageTitle title="New Employee" />
       <EmployeeForm
         action={createEmployeeAction}
         submitLabel="Save Employee"

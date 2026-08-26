@@ -113,7 +113,6 @@ export default async function PayrollPage() {
     <>
       <PageTitle
         title="Payroll"
-        subtitle="Run a month, key what varies, approve it, then pay it."
       />
 
       <Card className="mb-4">

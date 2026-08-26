@@ -1,6 +1,7 @@
 import localFont from 'next/font/local';
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
+import { company } from '@/lib/env';
 import './globals.css';
 
 /**
@@ -47,7 +48,7 @@ const sans = localFont({
 });
 
 export const metadata: Metadata = {
-  title: 'Interim Billing',
+  title: company().name,
   description: 'Customer and subcontractor billing, receipts, and statements.',
 };
 

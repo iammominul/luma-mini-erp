@@ -1,19 +1,13 @@
 import Link from 'next/link';
 import type { Column } from '@/components/DataTable';
 import { DataTable } from '@/components/DataTable';
-import {
-  Card,
-  CardHeader,
-  Notice,
-  PageTitle,
-  StatTile,
-} from '@/components/ui';
+import { Card, CardHeader, Notice, PageTitle, StatTile } from '@/components/ui';
 import type { OrderMargin } from '@/lib/costing';
 import { coverage, orderMargin } from '@/lib/costing';
 import { formatTaka } from '@/lib/format';
 import { Money } from '@/lib/money';
 import { orderCosting } from '@/lib/queries';
-import { RangePicker, readRange } from '../range';
+import { RangePicker, resolveRange } from '../range';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,10 +83,13 @@ const orderColumns: Column<OrderMargin>[] = [
 export default async function OrderCostingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; range?: string }>;
 }) {
-  const range = readRange(await searchParams);
-  const { orders, attributed, total } = await orderCosting(range.from, range.to);
+  const range = await resolveRange(await searchParams);
+  const { orders, attributed, total } = await orderCosting(
+    range.from,
+    range.to,
+  );
 
   const margins = orders.map((order) => orderMargin(order));
   const revenueCoverage = coverage(attributed.revenue, total.revenue);
@@ -105,10 +102,7 @@ export default async function OrderCostingPage({
 
   return (
     <>
-      <PageTitle
-        title="Order Costing"
-        subtitle="What each order billed, what it cost, and what it contributed."
-      />
+      <PageTitle title="Order Costing" />
 
       <RangePicker basePath="/reports/orders" range={range} />
 
@@ -131,7 +125,8 @@ export default async function OrderCostingPage({
       </div>
 
       {/* Coverage is the honest health warning on this whole report. */}
-      {revenueCoverage.unattributed.isZero() && costCoverage.unattributed.isZero() ? null : (
+      {revenueCoverage.unattributed.isZero() &&
+      costCoverage.unattributed.isZero() ? null : (
         <Notice tone="info">
           {formatTaka(revenueCoverage.unattributed)} of billing and{' '}
           {formatTaka(costCoverage.unattributed)} of cost in this range carry no

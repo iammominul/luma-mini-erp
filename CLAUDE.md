@@ -154,6 +154,15 @@ users. Do not build for more.
       on what a role means. Fix a bug in both. The ERP's fourth role, `store`,
       is deliberately absent: it exists there for fabric and challan entry with
       no money figures, and every screen here is money.
+      **`fund:read` is the one read outside `READ_ONLY`** (2026-08-23), so a
+      Viewer sees no capital, no drawings, no loan book and no Cash Book.
+      Accounts holds both fund permissions, and that is a call rather than an
+      oversight: it is the account that writes the cash book, and a Cash Book
+      with the drawings taken out shows a running balance that does not add up,
+      which is worse than no cash book. Moving the pair to the Owner alone is
+      one line in `permissions.ts`, and the screens and the tile follow it.
+      `searchRecords` takes the role for the same reason: the top bar would
+      otherwise hand back a drawing to anyone who typed a lender's name.
     An account is disabled, never deleted, because its name has to stay on the
     activity log rows and payroll approvals it made. Disabling drops its
     sessions and refuses it new ones through a `databaseHooks.session.create`
@@ -186,6 +195,15 @@ users. Do not build for more.
     was affordable exactly once, against a book nobody was using yet, with a
     restore point taken and the migration rehearsed against a copy of production
     first. It is not the pattern to repeat now that the book is live.
+    **The fund tables were rewritten in place on 2026-08-24 and that did not
+    break this rule**, because they had never been deployed: neither existed on
+    `main` and neither had ever held a row. There was no window in which old
+    code could read a column being changed, so it was a first creation rather
+    than a change. The one trap it did carry is that `CREATE TABLE IF NOT
+    EXISTS` is a no-op against a development database that already had the
+    abandoned shape, so a guarded drop runs at the **top** of `db/schema.sql`,
+    before the definitions. Expense Claims came out the way the rule asks
+    instead, over two releases, because that table is live.
     Every production release takes a Neon `backup/<timestamp>` branch before the
     schema is touched. That is what makes a mistake survivable; it is not what
     makes it unlikely. This rule is the control.
@@ -276,6 +294,16 @@ formatters. Do not "improve" them here. If one has a bug, fix it in both.
   is replaced the way `assets/letterhead-logo.svg` is replaced. It is the symbol
   alone: the printed lockup carries a tagline that is four pixels tall at the
   size the bar draws it. The name beside it is `COMPANY_NAME`, never in the file.
+  **Screen text is a label, not an explainer** (2026-08-24). A screen says what
+  it is in its title, and the columns say what the figures are. An explanatory
+  sentence under every heading is what makes an app read as a tutorial rather
+  than a book, and this one had drifted into twenty of them, forty-one field
+  hints and several paragraph-length chart notes. A `subtitle` earns its place
+  only where it states something the screen cannot show, and a `hint` only where
+  the field would otherwise be keyed wrong; both are fragments, not sentences.
+  This rule is about **screen text**. The dense comments in the code are house
+  style and stay: they are for the next person editing the file, not for
+  somebody trying to get a bill out.
   **The rail splits the two sides, and that is a knowing divergence**
   (2026-08-15). The ERP's `11-navigation-and-admin.md` keeps one Money group
   holding both. Here the first two groups are Receivables and Payables, because
@@ -419,6 +447,67 @@ this app into the ERP:
 
 Everything these modules hold is cash out, so it reconciles with the ERP as
 payment history rather than as accounting, and it exports the same way.
+
+**Fund flow is the third exception, and it comes from the ERP's own register**
+(2026-08-23, simplified 2026-08-24). Capital the owner puts in, money the owner
+takes out, and a loan borrowed and repaid were unrecordable anywhere. That is
+decision **D23** in `luma-erp-planning/docs/decisions.md`, whose written default
+is to build posting rules 13 to 17 from its `spec/03-accounting.md`, and whose
+own note says why it could not wait: in a sole proprietorship, capital, drawings
+and loans are the difference between a profit figure and a solvency figure.
+
+**The first cut was too complicated and was rebuilt.** It carried a kind on the
+account so capital and loans could share one master, a composite foreign key to
+hold the two in step, seven categories in a dropdown, and two contra categories
+for cash moved between the drawer and the bank. Recording "I took a 10 lakh loan
+from Islami Bank" took two screens, two saves and thirteen fields. It is now one
+screen, one save and seven fields. That is the standard: **a sentence of business
+is one action.** Five limits hold it there:
+
+1. **The category is the account, and no screen ever offers it as a choice.**
+   `FUND_CATEGORIES` in `types.ts` maps each of the five to the ERP account it
+   posts to: `capital_introduced` is 3000, `owner_drawing` is 3100, the two loan
+   categories are 2400, and `interest_amount` on a repayment is 5500. Each
+   action fixes one category as a SQL literal, so no form takes a category, no
+   Zod schema validates one, and there is nothing to pick wrongly.
+2. **The principal never reaches the profit statement.** Repaying a loan settles
+   a liability and costs nothing. Only the interest paid with it is a cost, and
+   it arrives through `profit.ts` as one line the way Salary does. A statement
+   that counted the principal would report a loss in every month a loan is being
+   paid down. `loan.integration.test.ts` holds this.
+3. **Every balance is computed on read.** A loan's outstanding is what was drawn
+   less what was repaid, worked out each time. There is no sanctioned amount
+   column: it was a reference figure that was never arithmetic, so a ceiling is
+   words in `terms` and a facility drawn in tranches is drawn again.
+4. **A lender is a master row, and the only one.** `loan` holds one row per
+   lender, because a liability tracked by retyping a name splits the first time
+   somebody spells it differently. Capital and drawings need no master, because
+   there is one owner: `/owner` asks for a date, an amount, a method and a note,
+   and nothing else.
+5. **Deliberately absent.** Money lent out, because the business borrows and
+   does not lend. A fixed asset, because the ERP's D27 says account 1900 may not
+   be needed at all. Deduction at source, because the ERP's D63 is open. And a
+   cash versus bank split, because there is one drawer and one set of accounts
+   and nobody here reconciles them separately.
+
+**`mode` stays on the row even though the book shows one balance**, and removing
+it with the split would be a mistake. The ERP's rules 13 to 17 all name the
+other leg as "1000 Cash or 1100 Bank", and `mode` is the only thing that says
+which. It is also the difference between a sum by cheque and the same sum in
+notes, which a clerk needs to see.
+
+**Cash Flow is the screen and the Cash Book is the drill-down.** `cashflow.ts`
+groups the movements into Trading and Funding in a fixed line order, and each
+line links through to the Cash Book filtered by source. There is no Investing
+group because fixed assets are out of scope. The opening balance folds into the
+opening wherever it is dated, in both modules, or the two close on different
+figures: that was a real bug and there is a test named for it.
+
+**Expense Claims was removed** (2026-08-24) because the owner does not need it.
+A staff reimbursement is an ordinary expense voucher with the employee as the
+payee, and the tier is overhead either way, so the profit statement is unaffected
+in shape. `audit/page.tsx` keeps its `expense_claim` label permanently: the
+activity log is append only by rule 5 and outlives the table.
 
 **HR and payroll are separate.** HR holds the people: the personnel file and the
 salary structure on the `employee` row. Payroll works out the money, a month at

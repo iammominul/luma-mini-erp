@@ -13,6 +13,42 @@
 -- one balance, not two records nobody can add together, so the direction of a
 -- bill or a payment belongs to that document and not to the party.
 
+
+-- Replaced outright, not migrated (2026-08-24) --------------------------------
+--
+-- Fund flow was built in one session and never deployed: neither table exists
+-- on main, and neither ever held a row outside a development copy. The shape
+-- further down is therefore a first creation rather than a change, which is why
+-- rule 15 does not bite on it.
+--
+-- The pair is dropped first because CREATE TABLE IF NOT EXISTS is a no-op
+-- against a table that already exists. A developer who ran db:setup during that
+-- session has fund_movement with from_mode, so without this the new definition
+-- would silently not apply and the app would fail at runtime against columns
+-- that are not there.
+--
+-- This has to run BEFORE the definitions, which is why it is here and not in
+-- the migrations section at the foot of the file. Down there it would run after
+-- the create had already no-opped, and would drop the table for good.
+--
+-- Gated on from_mode, which is the one column only the abandoned shape has.
+-- This block is dead from the first production deploy onward and comes out in
+-- the release after that one.
+DO $drop_abandoned_fund$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = current_schema()
+      AND table_name = 'fund_movement' AND column_name = 'from_mode'
+  ) THEN
+    DROP TABLE fund_movement;
+    DROP TABLE IF EXISTS fund_account;
+    DELETE FROM counter WHERE name IN ('fund_capital', 'fund_loan');
+  END IF;
+END
+$drop_abandoned_fund$;
+
+
 CREATE TABLE IF NOT EXISTS party (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   -- The human-readable key a party is known by: CUS-0001, SUB-0001. Assigned by
@@ -490,8 +526,158 @@ CREATE UNIQUE INDEX IF NOT EXISTS expense_claim_doc_no_key
 CREATE UNIQUE INDEX IF NOT EXISTS payroll_run_doc_no_key
   ON payroll_run (doc_no) WHERE doc_no IS NOT NULL;
 
+-- Fund flow: capital, drawings and loans -------------------------------------
+--
+-- How the business is funded, which is the one kind of money movement the book
+-- had no room for. The full ERP settles this in its decision D23 and posts it
+-- as journal entries, its rules 13 to 17: capital introduced credits 3000, a
+-- drawing debits 3100, a loan received credits 2400, a repayment debits it, and
+-- interest debits 5500. There is no chart of accounts here and no journal,
+-- which CLAUDE.md rule 7 bans, so what crosses over is the meaning and not the
+-- mechanism. The category below is the account code, everything is cash basis,
+-- and every balance is computed on read.
+--
+-- This is the simplified shape (2026-08-24). The first cut carried a kind on
+-- the account so capital and loans could share one master, a composite foreign
+-- key to hold the two in step, and two contra categories for cash moved between
+-- the drawer and the bank. All of it is gone: there is one owner, so capital
+-- needs no master at all, and the Cash Book shows one combined balance, so a
+-- transfer is not an entry. What is left is a lender, a voucher, and five
+-- categories that no screen ever offers as a choice.
+--
+-- Deliberately absent, and each for a reason: money lent out, because the
+-- business borrows and does not lend, and rules 13 to 17 do not cover it; a
+-- fixed asset, because the ERP's D27 says account 1900 may not be needed at all
+-- and an asset here would have no depreciation and no register behind it;
+-- deduction at source, because the ERP's D63 is open and its stated default is
+-- that nothing posts to that account until a statutory professional answers the
+-- rate and the base.
+
+-- One row per loan: money borrowed from a bank, a person or another company.
+--
+-- A lender is a master row rather than free text on each voucher, and it is now
+-- the only master row in this area. A liability tracked by retyping a name
+-- splits into two the first time somebody spells it differently, and the split
+-- is invisible. Capital and drawings need no master because there is one owner.
+--
+-- There is no sanctioned amount column. It held a reference figure that was
+-- never arithmetic, and what is owed is always received less principal repaid.
+-- A facility with a ceiling states it in terms, in words, and a facility drawn
+-- in tranches is drawn by further loan_received rows.
+CREATE TABLE IF NOT EXISTS loan (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- 'LOAN-0001', from the counter bumped inside the same transaction as the
+  -- insert, the way a party code is issued.
+  code       text,
+  lender     text NOT NULL,
+  -- The sanction letter number or the loan account number, as written.
+  reference  text,
+  taken_on   date NOT NULL,
+  -- Rate, tenor, security, anything the sanction letter says, in words. This
+  -- app computes no schedule and must not look as though it does.
+  terms      text,
+  -- A settled loan is deactivated, never deleted, because its movements have to
+  -- keep pointing at the lender they were paid to.
+  active     boolean NOT NULL DEFAULT true,
+  notes      text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS loan_code_key
+  ON loan (lower(code)) WHERE code IS NOT NULL;
+CREATE INDEX IF NOT EXISTS loan_lender_idx ON loan (active DESC, lender);
+
+-- Every movement of money that is not a trade settlement, an expense or a
+-- salary: the owner putting money in and taking it out, a loan coming in and
+-- going back, and the balance the book opens on.
+--
+-- Modeled on expense, because it is the same kind of record: a dated voucher
+-- with an amount, a method and a reference. What differs is that it runs both
+-- ways, and the direction belongs to the category rather than to the row.
+-- FUND_CATEGORIES in src/lib/types.ts is the one place that mapping lives.
+--
+-- No screen offers the category as a choice. Each action on each screen posts
+-- one fixed category, which is why there is no dropdown of seven things to read
+-- before recording that money was drawn.
+CREATE TABLE IF NOT EXISTS fund_movement (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- Gapless voucher series, 'FM-26-0001'.
+  doc_no          text,
+  moved_on        date NOT NULL,
+  -- The category is the ERP account:
+  --   opening_cash        in   the balance the book opens on, which is why no
+  --                            settings table is needed to hold one
+  --   capital_introduced  in   3000 Owner Capital
+  --   owner_drawing       out  3100 Owner Drawings
+  --   loan_received       in   2400 Working Capital Loans
+  --   loan_repayment      out  2400, the principal only
+  category        text NOT NULL CONSTRAINT fund_movement_category_check
+                    CHECK (category IN ('opening_cash', 'capital_introduced',
+                      'owner_drawing', 'loan_received', 'loan_repayment')),
+  -- Which loan this is against. Capital, a drawing and the opening name none.
+  loan_id         uuid REFERENCES loan (id),
+  description     text NOT NULL,
+  -- The principal, the capital or the drawing. Interest is separate below and
+  -- is never part of this figure.
+  amount          numeric(14, 2) NOT NULL CHECK (amount > 0),
+  -- Interest and charges paid along with a repayment, the ERP's rule 17 and its
+  -- account 5500. This is a real operating cost and it reaches the profit
+  -- statement; the principal beside it never does, because repaying a loan
+  -- settles a liability and costs nothing. A book that counted the principal as
+  -- a cost would report a loss in every month a loan is being paid down.
+  --
+  -- The cash that actually left is amount + interest_amount, and nothing has to
+  -- remember that: the Cash Book emits the principal and the interest as two
+  -- separate rows.
+  --
+  -- Ordinary bank charges are not this. They stay an expense under the
+  -- 'bank_charges' category, which already exists and is overhead. Recording
+  -- them in both places is how a cost gets counted twice.
+  interest_amount numeric(14, 2) NOT NULL DEFAULT 0 CHECK (interest_amount >= 0),
+  -- How the money moved.
+  --
+  -- The Cash Book shows one combined Cash and Bank balance and no longer splits
+  -- the two, but this column stays and must not be removed along with the
+  -- split. The ERP's posting rules 13 to 17 all name the other leg as "1000
+  -- Cash or 1100 Bank", and this is the only thing in the book that says which.
+  -- It is also the difference between "Tk 2,50,000 by cheque, ref 445123" and
+  -- the same sum in notes, which is a difference a clerk needs to see.
+  mode            text NOT NULL CONSTRAINT fund_movement_mode_check CHECK (mode IN
+                    ('cash', 'mobile_banking', 'bank_transfer', 'cheque', 'rtgs',
+                     'lc', 'other')),
+  reference       text,
+  notes           text,
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  updated_at      timestamptz NOT NULL DEFAULT now(),
+
+  -- A loan movement names its loan, and nothing else does. This replaced a
+  -- composite foreign key against an account carrying a kind, and it is
+  -- stronger than what it replaced: a drawing booked against a lender is not
+  -- merely refused, it has no column to be expressed in.
+  CONSTRAINT fund_movement_loan_check CHECK (
+    (category IN ('loan_received', 'loan_repayment')) = (loan_id IS NOT NULL)),
+  -- Interest belongs to a repayment. Interest on a drawing is a keying error.
+  CONSTRAINT fund_movement_interest_check CHECK (
+    category = 'loan_repayment' OR interest_amount = 0)
+);
+
+CREATE INDEX IF NOT EXISTS fund_movement_date_idx ON fund_movement (moved_on);
+CREATE INDEX IF NOT EXISTS fund_movement_category_idx
+  ON fund_movement (category, moved_on);
+CREATE INDEX IF NOT EXISTS fund_movement_loan_idx
+  ON fund_movement (loan_id, moved_on) WHERE loan_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS fund_movement_doc_no_key
+  ON fund_movement (doc_no) WHERE doc_no IS NOT NULL;
+-- One opening balance, full stop. It used to be one per method, because the
+-- book had two sides to open. A second one quietly restates every closing
+-- balance after it and nothing else would catch it.
+CREATE UNIQUE INDEX IF NOT EXISTS fund_movement_opening_key
+  ON fund_movement (category) WHERE category = 'opening_cash';
+
 INSERT INTO counter (name, value)
-  VALUES ('expense', 0), ('advance', 0), ('payroll_run', 0), ('expense_claim', 0)
+  VALUES ('expense', 0), ('advance', 0), ('payroll_run', 0), ('expense_claim', 0),
+    ('loan', 0), ('fund_movement', 0)
   ON CONFLICT (name) DO NOTHING;
 
 -- Append-only record of every write: what changed, when, and who did it.
@@ -1238,3 +1424,16 @@ DROP INDEX IF EXISTS bill_awaiting_approval_idx;
 ALTER TABLE bill DROP COLUMN IF EXISTS approved_at;
 ALTER TABLE bill DROP COLUMN IF EXISTS approved_by;
 ALTER TABLE bill DROP COLUMN IF EXISTS approved_by_user_id;
+
+
+-- Search over the fund tables (2026-08-24).
+--
+-- These sit down here with the other trigram indexes rather than beside their
+-- tables, because pg_trgm is created in the block above and an index using its
+-- opclass cannot be declared before the extension exists.
+CREATE INDEX IF NOT EXISTS fund_movement_doc_no_lower_idx
+  ON fund_movement (lower(doc_no));
+CREATE INDEX IF NOT EXISTS loan_lender_trgm_idx
+  ON loan USING gin (lender public.gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS fund_movement_description_trgm_idx
+  ON fund_movement USING gin (description public.gin_trgm_ops);

@@ -3,7 +3,17 @@
 import { useActionState } from 'react';
 import type { SideCopy } from '@/lib/side';
 import { PAYMENT_MODES } from '@/lib/types';
-import { Button, CancelLink, Card, Field, FormActions, Notice, Select, Textarea, TextInput } from './ui';
+import {
+  Button,
+  CancelLink,
+  Card,
+  Field,
+  FormActions,
+  Notice,
+  Select,
+  Textarea,
+  TextInput,
+} from './ui';
 import { useKeptValues } from './use-kept-values';
 
 export type PaymentFormState = { error?: string };
@@ -46,7 +56,11 @@ export function PaymentForm({
   );
 
   // What was typed stays typed when a save comes back with an error.
-  const { values: field, set, register } = useKeptValues(
+  const {
+    values: field,
+    set,
+    register,
+  } = useKeptValues(
     {
       partyId: values.partyId,
       paidOn: values.paidOn,
@@ -142,10 +156,7 @@ export function PaymentForm({
             />
           </Field>
 
-          <Field
-            label="Narration"
-            hint="Shown on the ledger after the mode, as Payment Received / LC / UCB. Blank shows the mode alone."
-          >
+          <Field label="Narration" hint="Blank shows the mode alone.">
             <TextInput
               type="text"
               name="narration"

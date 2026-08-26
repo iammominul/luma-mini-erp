@@ -221,8 +221,7 @@ export function BillForm({
   );
 
   const systemBillNo = copy.billNoIsOurs
-    ? (docNo ??
-      (nextSerial ? previewDocNo(header.billDate, nextSerial) : null))
+    ? (docNo ?? (nextSerial ? previewDocNo(header.billDate, nextSerial) : null))
     : null;
 
   return (
@@ -463,7 +462,9 @@ export function BillForm({
                   <Td>
                     <TextInput
                       value={line.greyKg}
-                      onChange={(e) => update(index, { greyKg: e.target.value })}
+                      onChange={(e) =>
+                        update(index, { greyKg: e.target.value })
+                      }
                       inputMode="decimal"
                       className="text-right"
                       placeholder="0.000"
@@ -629,7 +630,9 @@ export function BillForm({
                   <Field label="G/Weight kg">
                     <TextInput
                       value={line.greyKg}
-                      onChange={(e) => update(index, { greyKg: e.target.value })}
+                      onChange={(e) =>
+                        update(index, { greyKg: e.target.value })
+                      }
                       inputMode="decimal"
                       className="text-right"
                       placeholder="0.000"
@@ -731,7 +734,7 @@ export function BillForm({
           <div className="mt-4">
             <Field
               label="Reason for the Edit"
-              hint="Recorded in the activity log. An edit also returns the bill for approval."
+              hint="Recorded in the activity log."
             >
               <Textarea
                 name="reason"
@@ -759,7 +762,7 @@ export function BillForm({
             <div className="mt-3">
               <Field
                 label="Ledger Narration"
-                hint="What the ledger shows for this bill. Blank uses the standard wording."
+                hint="Blank uses the standard wording."
               >
                 <TextInput
                   type="text"

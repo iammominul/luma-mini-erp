@@ -221,13 +221,8 @@ export function AppShell({
             height={26}
             className="h-[26px] w-[26px] shrink-0"
           />
-          <span className="min-w-0">
-            <span className="block truncate text-[13px] font-semibold leading-tight tracking-wide">
-              {companyName}
-            </span>
-            <span className="block text-[9.5px] uppercase leading-tight tracking-[0.12em] text-white/50">
-              Interim Billing
-            </span>
+          <span className="min-w-0 truncate text-[13px] font-semibold leading-tight tracking-wide">
+            {companyName}
           </span>
         </div>
 

@@ -36,7 +36,13 @@ function lazy(text: string, params: unknown[], run: Run): LazyQuery {
 export function createPgDriver(connectionString: string, schema: string) {
   const pool = new Pool({
     connectionString,
-    options: `-c search_path=${schema}`,
+    // The schema first, then public. The schema alone was not enough: pg_trgm
+    // is installed into public, so its `%` operator and its similarity()
+    // function are not resolvable without public on the path, and the search
+    // query is unrunnable in a test even though it works in production, where
+    // the path is the default and includes public. The tables all live in the
+    // named schema and it comes first, so nothing else is answered from public.
+    options: `-c search_path=${schema},public`,
     max: 4,
   });
 

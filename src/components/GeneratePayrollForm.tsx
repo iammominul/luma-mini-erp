@@ -54,10 +54,7 @@ export function GeneratePayrollForm({
           />
         </Field>
 
-        <Field
-          label="Per Day Basis"
-          hint="How a day of pay is worked out for an unpaid absence."
-        >
+        <Field label="Per Day Basis" hint="Per day basis for unpaid absence.">
           <Select
             ref={register('perDayBasis')}
             name="perDayBasis"

@@ -88,12 +88,15 @@ export function TradingSummary({
       </Table>
 
       <div className="border-t border-[var(--color-line)] px-4 py-3 text-xs text-[var(--color-muted)]">
-        Bills count in the month they are raised; expenses, salary and
-        reimbursed claims count when they are paid. A customer bill and the
-        subcontract bill behind it can fall in different months, so a single
-        month moves around while a longer period settles. Margin per customer is
-        not shown, because nothing links a customer bill to the subcontract bill
-        for the same goods. For margin per order, see Order Costing.
+        Bills count in the month they are raised; expenses, salary and loan
+        interest count when they are paid. A customer bill and
+        the subcontract bill behind it can fall in different months, so a single
+        month moves around while a longer period settles. Repaying a loan is not
+        a cost and is not counted here, only the interest on it: the principal
+        settles a liability. Capital and drawings are not here either. Margin
+        per customer is not shown, because nothing links a customer bill to the
+        subcontract bill for the same goods. For margin per order, see Order
+        Costing.
       </div>
     </Card>
   );

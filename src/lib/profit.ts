@@ -1,4 +1,8 @@
-import { type CostLine, profitStatement, type ProfitStatement } from './costing';
+import {
+  type CostLine,
+  profitStatement,
+  type ProfitStatement,
+} from './costing';
 import { profitFigures } from './queries';
 import {
   expenseCategoryLabel,
@@ -25,20 +29,31 @@ export async function statementFor(
     // split by nature of work so knitting reads apart from dyeing.
     ...figures.subcontract.map((row) => ({
       label: natureOfWorkLabel(row.natureOfWork),
+      note: 'Subcontractor bills',
       amount: row.amount,
       tier: 'direct' as const,
     })),
     ...figures.expenses.map((row) => ({
       label: expenseCategoryLabel(row.category),
+      note: 'Expense vouchers',
       amount: row.amount,
       tier: expenseCategoryTier(row.category),
     })),
-    { label: 'Salary', amount: figures.salary, tier: 'operating' as const },
-    // Reimbursing a claim is money leaving the business. Nothing counted it for
-    // a while, and the net result shown was too high by exactly that amount.
     {
-      label: 'Reimbursed Claims',
-      amount: figures.claims,
+      label: 'Salary',
+      note: 'Payroll marked paid',
+      amount: figures.salary,
+      tier: 'operating' as const,
+    },
+    // Interest and charges on a working capital loan: the ERP's posting rule 17
+    // and its account 5500. The principal beside it is deliberately never here.
+    // Repaying a loan settles a liability and costs nothing, and a statement
+    // that counted the principal would report a loss in every month a loan is
+    // being paid down.
+    {
+      label: 'Loan Interest',
+      note: 'Loan repayments',
+      amount: figures.interest,
       tier: 'operating' as const,
     },
   ].filter((line) => !line.amount.isZero());

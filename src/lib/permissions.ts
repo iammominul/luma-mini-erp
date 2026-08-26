@@ -25,6 +25,8 @@ export type Permission =
   | 'settlement:manage'
   | 'expense:read'
   | 'expense:manage'
+  | 'fund:read'
+  | 'fund:manage'
   | 'employee:read'
   | 'employee:manage'
   | 'payroll:read'
@@ -34,6 +36,10 @@ export type Permission =
   | 'activity:read'
   | 'user:manage';
 
+// 'fund:read' is deliberately not in here, and it is the only read that is not.
+// Capital, drawings and the loan book say what the owner has put in and taken
+// out, and the Cash Book built on them is the whole cash position. Neither is a
+// figure a read-only account gets by default.
 const READ_ONLY: readonly Permission[] = [
   'party:read',
   'bill:read',
@@ -51,6 +57,8 @@ const MATRIX: Record<Role, readonly Permission[]> = {
     'bill:manage',
     'settlement:manage',
     'expense:manage',
+    'fund:read',
+    'fund:manage',
     'employee:manage',
     'payroll:manage',
     'payroll:approve',
@@ -68,12 +76,22 @@ const MATRIX: Record<Role, readonly Permission[]> = {
   // stay here, so the month is still prepared by Accounts.
   //
   // 'user:manage' is the Owner's because it is the power to grant power.
+  //
+  // The fund pair is granted, and that is a deliberate call rather than an
+  // oversight. Capital, drawings and the loan book are the owner's own position
+  // and there is an argument for holding them back, but in an office this size
+  // Accounts is the person who writes the cash book, and a Cash Book with the
+  // drawings taken out of it produces a running balance that does not add up,
+  // which is worse than no cash book at all. Moving both to the Owner is one
+  // line here, and the Cash Book and the cash position move with it.
   accounts: [
     ...READ_ONLY,
     'party:manage',
     'bill:manage',
     'settlement:manage',
     'expense:manage',
+    'fund:read',
+    'fund:manage',
     'employee:manage',
     'payroll:manage',
     'activity:read',
@@ -114,8 +132,8 @@ export function roleDescription(role: Role): string {
     case 'owner':
       return 'Everything, including approving payroll and managing users.';
     case 'accounts':
-      return 'Bills, receipts, expenses and payroll entry. Cannot approve a payroll run or manage users.';
+      return 'Bills, receipts, expenses, funds and payroll entry. Cannot approve a payroll run or manage users.';
     case 'viewer':
-      return 'Read and print only.';
+      return 'Read and print only. Does not see capital, drawings, loans or the Cash Book.';
   }
 }

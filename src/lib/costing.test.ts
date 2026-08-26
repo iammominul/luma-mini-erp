@@ -9,7 +9,6 @@ import {
 } from './costing';
 import {
   EXPENSE_CATEGORIES,
-  EXPENSE_CLAIM_CATEGORIES,
   expenseCategoryTier,
 } from './types';
 
@@ -36,11 +35,6 @@ describe('every category carries a tier', () => {
     }
   });
 
-  it('has one on each claim category', () => {
-    for (const category of EXPENSE_CLAIM_CATEGORIES) {
-      expect(category.tier).toBe('operating');
-    }
-  });
 
   it('puts the costs of doing the work in the direct tier', () => {
     expect(expenseCategoryTier('freight_inward')).toBe('direct');
@@ -78,19 +72,20 @@ describe('the profit statement', () => {
   it('takes only the direct tier off for the gross margin', () => {
     expect(statement.directCost.toDecimalString()).toBe('62550.00');
     expect(statement.grossMargin.toDecimalString()).toBe('37450.00');
-    expect(statement.grossMarginPercent).toBe('37.4%');
+    // 37.45% of billing, rounded at the tenth rather than cut off there.
+    expect(statement.grossMarginPercent).toBe('37.5%');
   });
 
   it('keeps commission out of the gross margin and off its own line', () => {
     expect(statement.sellingCost.toDecimalString()).toBe('3400.00');
     expect(statement.contribution.toDecimalString()).toBe('34050.00');
-    expect(statement.contributionPercent).toBe('34.0%');
+    expect(statement.contributionPercent).toBe('34.1%');
   });
 
   it('takes overhead off last for the net result', () => {
     expect(statement.operatingCost.toDecimalString()).toBe('12200.00');
     expect(statement.netResult.toDecimalString()).toBe('21850.00');
-    expect(statement.netResultPercent).toBe('21.8%');
+    expect(statement.netResultPercent).toBe('21.9%');
   });
 
   it('keeps the lines of each tier for the statement to print', () => {
@@ -135,6 +130,21 @@ describe('the profit statement', () => {
 describe('a percentage of revenue', () => {
   it('stays off the floats, to one decimal', () => {
     expect(marginPercent(tk('100000'), tk('300000'))).toBe('33.3%');
+  });
+
+  // The book on 2026-08-23: 25,00,511.00 margin on 98,24,508.00 billed is
+  // 25.4516%, which read as 25.4% while the calculator on the desk said 25.5%.
+  it('rounds the last digit rather than cutting it off', () => {
+    expect(marginPercent(tk('2500511'), tk('9824508'))).toBe('25.5%');
+    expect(marginPercent(tk('37450'), tk('100000'))).toBe('37.5%');
+    expect(marginPercent(tk('37440'), tk('100000'))).toBe('37.4%');
+  });
+
+  // A loss rounds by size, not toward zero, so it is never reported smaller
+  // than it is.
+  it('rounds a loss the same way it rounds a profit', () => {
+    expect(marginPercent(tk('-37450'), tk('100000'))).toBe('-37.5%');
+    expect(marginPercent(tk('-12550'), tk('50000'))).toBe('-25.1%');
   });
 
   it('is null when there is no revenue to take a share of', () => {

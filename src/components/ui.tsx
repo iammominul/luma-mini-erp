@@ -125,7 +125,10 @@ export function LinkButton({
   children: ReactNode;
 }) {
   return (
-    <Link href={href} className={`${look({ variant, size, block })} ${className}`}>
+    <Link
+      href={href}
+      className={`${look({ variant, size, block })} ${className}`}
+    >
       {icon ? <ButtonIcon name={icon} /> : null}
       {children}
     </Link>
@@ -374,7 +377,9 @@ export function PageTitle({
       <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between lg:gap-4">
         <div className="min-w-0">
           <Crumb />
-          <h1 className="text-base font-semibold tracking-[-0.01em]">{title}</h1>
+          <h1 className="text-base font-semibold tracking-[-0.01em]">
+            {title}
+          </h1>
           {subtitle ? (
             <p className="mt-0.5 text-sm text-[var(--color-ink-3)] md:text-[12px]">
               {subtitle}
@@ -428,6 +433,55 @@ export function Band({
       ) : null}
       {children}
     </section>
+  );
+}
+
+/**
+ * A short list of label and figure, the way a statement reads.
+ *
+ * This is what a summary inside a Band wants: four or five figures in a column
+ * with the amounts aligned, not four more tiles. `strong` closes a section the
+ * way a total does, and `muted` is for a line that is context rather than a
+ * figure the reader is meant to act on.
+ */
+export function FigureRows({
+  rows,
+}: {
+  rows: {
+    label: string;
+    value: string;
+    note?: string;
+    strong?: boolean;
+    muted?: boolean;
+  }[];
+}) {
+  return (
+    <dl className="text-sm md:text-[12.5px]">
+      {rows.map((row) => (
+        <div
+          key={row.label}
+          className={`flex items-baseline justify-between gap-4 border-b border-[var(--color-rule-soft)] py-1.5 last:border-b-0 ${
+            row.strong ? 'font-semibold' : ''
+          }`}
+        >
+          <dt
+            className={
+              row.muted
+                ? 'text-[var(--color-ink-3)]'
+                : 'text-[var(--color-ink)]'
+            }
+          >
+            {row.label}
+            {row.note ? (
+              <span className="ml-2 text-[11px] text-[var(--color-ink-3)]">
+                {row.note}
+              </span>
+            ) : null}
+          </dt>
+          <dd className="figure shrink-0 tabular-nums">{row.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -547,14 +601,54 @@ export function Notice({
   );
 }
 
+/**
+ * How a figure moved against the period before it.
+ *
+ * `tone` is the tile's answer to "is up good here", and it has to be stated
+ * rather than read off the sign. A margin rising is worth the reserved green; a
+ * cost rising is not, and painting it green because the number went up is the
+ * mistake that makes a dashboard lie quietly.
+ *
+ * `text` arrives already worked out and formatted, as every figure that reaches
+ * a component does. Nothing here computes.
+ */
+export type StatDelta = {
+  text: string;
+  /** What the change is against, e.g. 'vs previous period'. */
+  label?: string;
+  tone: 'good-up' | 'neutral';
+};
+
+function DeltaChip({ delta }: { delta: StatDelta }) {
+  const negative = delta.text.startsWith('-');
+  const color =
+    delta.tone === 'neutral'
+      ? 'text-[var(--color-ink-3)]'
+      : negative
+        ? 'text-[var(--color-crit)]'
+        : 'text-[var(--color-good)]';
+  // The sign carries the direction. No arrow glyph and no emoji, per the house
+  // style; this is a ledger, not a trading terminal.
+  return (
+    <span className="text-xs">
+      <span className={`figure font-medium ${color}`}>{delta.text}</span>
+      {delta.label ? (
+        <span className="text-[var(--color-ink-3)]"> {delta.label}</span>
+      ) : null}
+    </span>
+  );
+}
+
 export function StatTile({
   label,
   value,
   note,
+  delta,
 }: {
   label: string;
   value: string;
   note?: string;
+  delta?: StatDelta;
 }) {
   return (
     <Card className="px-4 py-3">
@@ -563,10 +657,51 @@ export function StatTile({
       </div>
       {/* A tile is the one place a figure is read on its own rather than down a
           column, and it is still a figure, so it is set in the same face. */}
-      <div className="figure mt-1 text-xl font-medium">{value}</div>
+      <div className="mt-1 flex flex-wrap items-baseline gap-2">
+        <span className="figure text-xl font-medium">{value}</span>
+        {delta ? <DeltaChip delta={delta} /> : null}
+      </div>
       {note ? (
         <div className="mt-1 text-xs text-[var(--color-ink-3)]">{note}</div>
       ) : null}
+    </Card>
+  );
+}
+
+/**
+ * The figures that sit under the headline tiles, in one card divided into cells.
+ *
+ * A second row of tiles the same size as the first says the two rows matter
+ * equally, which is what the dashboard used to say with seven of them. One card
+ * with a rule between the cells and the figure set a step smaller reads as what
+ * it is: worth having on the screen, not what the screen opens with.
+ *
+ * Below `sm` the cells stack and the divider turns with them, because a phone
+ * has no room to put three figures side by side.
+ */
+export function StatStrip({
+  items,
+}: {
+  items: { label: string; value: string; note?: string; delta?: StatDelta }[];
+}) {
+  return (
+    <Card className="divide-y divide-[var(--color-rule-soft)] sm:flex sm:divide-x sm:divide-y-0">
+      {items.map((item) => (
+        <div key={item.label} className="flex-1 px-4 py-2.5">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-ink-2)]">
+            {item.label}
+          </div>
+          <div className="mt-0.5 flex flex-wrap items-baseline gap-2">
+            <span className="figure text-base font-medium">{item.value}</span>
+            {item.delta ? <DeltaChip delta={item.delta} /> : null}
+          </div>
+          {item.note ? (
+            <div className="mt-0.5 text-xs text-[var(--color-ink-3)]">
+              {item.note}
+            </div>
+          ) : null}
+        </div>
+      ))}
     </Card>
   );
 }

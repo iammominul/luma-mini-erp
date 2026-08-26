@@ -105,7 +105,6 @@ export function AppNav({
           <div className="truncate text-sm font-semibold tracking-wide">
             {companyName}
           </div>
-          <div className="mt-0.5 text-xs text-white/55">Interim Billing</div>
         </div>
         <button
           type="button"

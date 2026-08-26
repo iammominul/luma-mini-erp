@@ -30,7 +30,7 @@ export default async function NewBillPage({
     <>
       <PageTitle
         title={`New ${copy.billSingular}`}
-        subtitle="Enter it as the paper bill reads. Rate per kg on the grey weight, and the total is computed rather than typed."
+        subtitle="Enter it as the paper bill reads."
       />
 
       {parties.length === 0 ? (

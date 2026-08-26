@@ -17,7 +17,6 @@ export default async function AccountPage() {
     <>
       <PageTitle
         title="My Account"
-        subtitle="Your name, your sign-in email, and your password."
       />
       <AccountForms
         name={me.name}

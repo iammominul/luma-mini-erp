@@ -27,9 +27,9 @@
  * the bill amount itself.
  *
  * That placeholder is recorded as one, not hidden: the line description says the
- * weight and rate are not available, and fabric_type and color are left blank so
- * every one of these bills shows up under the Needs Detail filter on the bills
- * list, ready to be completed if the paper bills ever turn up.
+ * weight and rate are not available, and the color is left blank so every one of
+ * these bills shows up under the Needs Detail filter on the bills list, ready to
+ * be completed if the paper bills ever turn up.
  *
  * DATABASE_URL is read from the environment or from .env.local.
  */
@@ -467,28 +467,21 @@ for (const row of newBills) {
     // doc_no is null on a bill received: the subcontractor's paper number is its
     // identity, and the gapless customer series is not touched here.
     const { rows: inserted } = await client.query(
-      `INSERT INTO bill (party_id, direction, status, bill_no, book_no, doc_no,
-         bill_date, nature_of_work, reference, narration, notes, total)
-       VALUES ($1::uuid, 'received', 'posted', $2, NULL, NULL, $3::date,
-         'dyeing_finishing', $4, NULL, $5, $6::numeric)
+      `INSERT INTO bill (party_id, direction, status, bill_no, doc_no,
+         bill_date, nature_of_work, narration, notes, total)
+       VALUES ($1::uuid, 'received', 'posted', $2, NULL, $3::date,
+         'dyeing_finishing', NULL, $4, $5::numeric)
        RETURNING id`,
-      [
-        party.id,
-        row.billNo,
-        row.billDate,
-        period,
-        notes,
-        takaText(row.amountPoisha),
-      ],
+      [party.id, row.billNo, row.billDate, notes, takaText(row.amountPoisha)],
     );
     const billId = inserted[0].id;
 
-    // fabric_type and color stay null on purpose: that is what puts the bill in
-    // the Needs Detail queue on the bills list.
+    // The color stays null on purpose: that is what puts the bill in the Needs
+    // Detail queue on the bills list.
     await client.query(
-      `INSERT INTO bill_line (bill_id, line_no, description, fabric_type, color,
-         challan_no, order_no, grey_kg, finished_kg, rate, amount)
-       VALUES ($1::uuid, 1, $2, NULL, NULL, $3, NULL, $4::numeric, $5::numeric,
+      `INSERT INTO bill_line (bill_id, line_no, description, color,
+         challan_no, order_no, lot_no, grey_kg, finished_kg, rate, amount)
+       VALUES ($1::uuid, 1, $2, NULL, $3, NULL, NULL, $4::numeric, $5::numeric,
          $6::numeric, $7::numeric)`,
       [
         billId,

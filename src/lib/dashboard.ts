@@ -86,29 +86,70 @@ export function foldToTop(
 }
 
 /** The periods the dashboard filter offers. */
-export type DashboardRange = 'last12' | 'thisYear' | 'lastYear';
+export type DashboardRange = 'last12' | 'thisYear' | 'lastYear' | 'allDates';
 
 export const DASHBOARD_RANGES: { value: DashboardRange; label: string }[] = [
   { value: 'last12', label: 'Last 12 Months' },
   { value: 'thisYear', label: 'This Year' },
   { value: 'lastYear', label: 'Last Year' },
+  // What the book says since it was opened. The name is the one QuickBooks and
+  // Zoho Books put on this control, and it reads as a period beside the three
+  // above it. The party ledger keeps its own All Entries button, which clears a
+  // filter rather than choosing a period.
+  { value: 'allDates', label: 'All Dates' },
 ];
 
 export function isDashboardRange(value: string): value is DashboardRange {
   return DASHBOARD_RANGES.some((range) => range.value === value);
 }
 
+/** The first and last date anything in the book is dated. */
+export type BookSpan = { first: string; last: string };
+
+/**
+ * All Dates, as the two dates a period screen reads it over.
+ *
+ * It is a real range rather than an absent one, so every query, every chart and
+ * every printed document goes on taking two dates and none of them learns about
+ * a special case.
+ *
+ * The end is the later of the book's last entry and today. A bill dated ahead
+ * is inside All Dates rather than dropped by the one range named for holding
+ * everything. An empty book is today to today, which reads as zeroes rather
+ * than as an error.
+ *
+ * Both the dashboard and the reports come through here, so the two screens
+ * cannot come to different views of what All Dates means.
+ */
+export function allDatesRange(
+  span: BookSpan | null,
+  today: string,
+): { from: string; to: string } {
+  if (!span) return { from: today, to: today };
+  // 'YYYY-MM-DD' text sorts as dates do, which is the whole reason rule 4 holds
+  // dates as text end to end.
+  return { from: span.first, to: span.last > today ? span.last : today };
+}
+
 /**
  * The range as two 'YYYY-MM-DD' dates, worked out from a date already in Dhaka
  * terms rather than from a JS Date built at the server's midnight.
+ *
+ * The span is only read for All Dates, and only the caller can fetch it: this
+ * module is pure and stays that way.
  */
 export function rangeFor(
   range: DashboardRange,
   today: string,
+  span: BookSpan | null = null,
 ): { from: string; to: string; months: number } {
   const [year, month] = today.split('-').map(Number);
   if (!year || !month) return { from: today, to: today, months: 1 };
 
+  if (range === 'allDates') {
+    const { from, to } = allDatesRange(span, today);
+    return { from, to, months: monthsBetween(from, to).length };
+  }
   if (range === 'thisYear') {
     return { from: `${year}-01-01`, to: `${year}-12-31`, months: 12 };
   }
@@ -133,6 +174,46 @@ export function rangeFor(
 export function lastDayOf(year: number, month: number): string {
   const day = new Date(Date.UTC(year, month, 0)).getUTCDate();
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+const DAY = 86_400_000;
+
+/** A date moved by whole days, built in UTC so no timezone can shift it. */
+function shiftDays(iso: string, days: number): string {
+  const [year, month, day] = iso.split('-').map(Number);
+  if (!year || !month || !day) return iso;
+  const at = new Date(Date.UTC(year, month - 1, day + days));
+  return [
+    at.getUTCFullYear(),
+    String(at.getUTCMonth() + 1).padStart(2, '0'),
+    String(at.getUTCDate()).padStart(2, '0'),
+  ].join('-');
+}
+
+/**
+ * The period of the same length immediately before this one, which is what a
+ * figure on the dashboard is compared against.
+ *
+ * Counted in days rather than in months, so it answers for a preset and for two
+ * dates keyed by hand in the same way, and so the two periods touch without
+ * overlapping: the previous one ends the day before this one starts.
+ *
+ * The arithmetic is done in UTC and the dates stay 'YYYY-MM-DD' text, per rule
+ * 4. A JS Date built at the server's midnight would move a period end across a
+ * day boundary against Asia/Dhaka.
+ */
+export function previousRange(
+  from: string,
+  to: string,
+): { from: string; to: string } {
+  const start = Date.parse(`${from}T00:00:00Z`);
+  const end = Date.parse(`${to}T00:00:00Z`);
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) {
+    return { from, to };
+  }
+  const days = Math.round((end - start) / DAY) + 1;
+  const previousTo = shiftDays(from, -1);
+  return { from: shiftDays(previousTo, -(days - 1)), to: previousTo };
 }
 
 const MONTH_NAMES = [

@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { Money } from './money';
 import {
+  allDatesRange,
   datum,
   foldToTop,
+  isDashboardRange,
   lastDayOf,
   monthsBetween,
+  previousRange,
   rangeFor,
   shortMonth,
 } from './dashboard';
@@ -112,6 +115,99 @@ describe('the dashboard ranges', () => {
   it('ends February on the right day, leap year included', () => {
     expect(lastDayOf(2026, 2)).toBe('2026-02-28');
     expect(lastDayOf(2028, 2)).toBe('2028-02-29');
+  });
+});
+
+describe('the period before this one', () => {
+  it('is the same length, ending the day before this one starts', () => {
+    const range = rangeFor('last12', '2026-08-12');
+    const before = previousRange(range.from, range.to);
+    expect(before.to).toBe('2025-08-31');
+    expect(before.from).toBe('2024-09-01');
+  });
+
+  // Nothing may fall between the two periods or into both of them, or a figure
+  // compared against the one before it counts a day twice or not at all.
+  it('touches this period without overlapping it', () => {
+    const before = previousRange('2026-01-01', '2026-12-31');
+    expect(before).toEqual({ from: '2025-01-01', to: '2025-12-31' });
+  });
+
+  // 15 Jan to 14 Feb is 31 days, so the 31 days before it start on 15 Dec.
+  it('crosses a year end', () => {
+    expect(previousRange('2026-01-15', '2026-02-14')).toEqual({
+      from: '2025-12-15',
+      to: '2026-01-14',
+    });
+  });
+
+  // March has 31 days and February 2028 has 29, so the period before March
+  // reaches two days back into January. Counting months instead would land on
+  // the wrong day here every leap year.
+  it('counts the days of a leap February rather than assuming 28', () => {
+    expect(previousRange('2028-03-01', '2028-03-31')).toEqual({
+      from: '2028-01-30',
+      to: '2028-02-29',
+    });
+  });
+
+  it('takes one day back from one day', () => {
+    expect(previousRange('2026-08-23', '2026-08-23')).toEqual({
+      from: '2026-08-22',
+      to: '2026-08-22',
+    });
+  });
+});
+
+describe('all dates', () => {
+  const book = { first: '2026-04-06', last: '2026-08-19' };
+
+  it('runs from the first entry in the book to today', () => {
+    expect(allDatesRange(book, '2026-08-23')).toEqual({
+      from: '2026-04-06',
+      to: '2026-08-23',
+    });
+  });
+
+  // The one range named for holding everything must not be the one that drops
+  // a bill somebody dated ahead.
+  it('reaches past today for an entry dated ahead', () => {
+    expect(
+      allDatesRange({ ...book, last: '2026-09-30' }, '2026-08-23').to,
+    ).toBe('2026-09-30');
+  });
+
+  it('is today to today on a book with nothing in it', () => {
+    expect(allDatesRange(null, '2026-08-23')).toEqual({
+      from: '2026-08-23',
+      to: '2026-08-23',
+    });
+  });
+
+  it('is a range the dashboard filter offers', () => {
+    expect(isDashboardRange('allDates')).toBe(true);
+    expect(rangeFor('allDates', '2026-08-23', book)).toEqual({
+      from: '2026-04-06',
+      to: '2026-08-23',
+      months: 5,
+    });
+  });
+
+  // A preset that cannot be worked out from the calendar has to be handed the
+  // span. Without it the screen shows today alone rather than every month.
+  it('falls back to today when the span was not read', () => {
+    expect(rangeFor('allDates', '2026-08-23').from).toBe('2026-08-23');
+  });
+
+  it('draws a column for every month the book covers', () => {
+    const range = rangeFor('allDates', '2026-08-23', book);
+    expect(monthsBetween(range.from, range.to)).toEqual([
+      '2026-04',
+      '2026-05',
+      '2026-06',
+      '2026-07',
+      '2026-08',
+    ]);
   });
 });
 

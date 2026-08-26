@@ -86,7 +86,11 @@ export default async function ExpensesPage({
 }) {
   const { category, from, to } = await searchParams;
   const [expenses, byCategory] = await Promise.all([
-    listExpenses({ category: category ?? null, from: from ?? null, to: to ?? null }),
+    listExpenses({
+      category: category ?? null,
+      from: from ?? null,
+      to: to ?? null,
+    }),
     expenseTotalsByCategory({ from: from ?? null, to: to ?? null }),
   ]);
 
@@ -97,7 +101,6 @@ export default async function ExpensesPage({
     <>
       <PageTitle
         title="Expenses"
-        subtitle="Money paid out that is not a party settlement. Recorded when it moves."
         action={
           <LinkButton href="/expenses/new" icon="plus">
             New Expense

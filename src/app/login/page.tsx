@@ -8,8 +8,8 @@ import { LoginForm } from './LoginForm';
 
 export const dynamic = 'force-dynamic';
 
-// Every other screen is titled Interim Billing by the root layout. This one is
-// the door, so the tab says which door it is.
+// Every other screen is titled with the company name by the root layout. This
+// one is the door, so the tab says which door it is.
 export const metadata: Metadata = { title: 'Sign In' };
 
 export default async function LoginPage() {
@@ -23,7 +23,7 @@ export default async function LoginPage() {
   // not a redirect back to a page that would only return it here.
   if (readiness.ok && (await currentUser())) redirect('/');
 
-  const { name, address } = company();
+  const { name } = company();
 
   return (
     // One column, centered, at every width. This screen was two columns with
@@ -56,12 +56,6 @@ export default async function LoginPage() {
             )}
           </div>
         </Card>
-
-        {address ? (
-          <p className="mt-5 text-center text-xs leading-relaxed text-[var(--color-ink-3)]">
-            {address}
-          </p>
-        ) : null}
       </div>
     </main>
   );
@@ -94,9 +88,6 @@ function BrandBlock({ name }: { name: string }) {
       <h1 className="mt-3 max-w-full truncate text-base font-semibold tracking-wide">
         {name}
       </h1>
-      <p className="text-[9.5px] uppercase leading-tight tracking-[0.12em] text-[var(--color-ink-3)]">
-        Interim Billing
-      </p>
     </div>
   );
 }

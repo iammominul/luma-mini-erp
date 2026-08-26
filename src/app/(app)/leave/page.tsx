@@ -1,11 +1,7 @@
 import Link from 'next/link';
 import type { Column } from '@/components/DataTable';
 import { DataTable } from '@/components/DataTable';
-import {
-  FILTER_CONTROL,
-  FilterBar,
-  FilterField,
-} from '@/components/FilterBar';
+import { FILTER_CONTROL, FilterBar, FilterField } from '@/components/FilterBar';
 import { Card, LinkButton, PageTitle } from '@/components/ui';
 import { formatDate, todayInDhaka } from '@/lib/dates';
 import { leaveTypeLabel } from '@/lib/payroll';
@@ -80,7 +76,6 @@ export default async function LeavePage({
     <>
       <PageTitle
         title="Leave"
-        subtitle="Casual, sick and earned leave, recorded for the register. Paid leave never reduces a salary."
         action={
           <LinkButton href="/leave/new" icon="plus">
             Record Leave

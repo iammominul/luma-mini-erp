@@ -10,15 +10,9 @@ import {
 import { marginPercent } from '@/lib/costing';
 import { formatTaka } from '@/lib/format';
 import { Money } from '@/lib/money';
-import { profitFigures } from '@/lib/queries';
-import {
-  COST_TIERS,
-  type CostTier,
-  expenseCategoryLabel,
-  expenseCategoryTier,
-  natureOfWorkLabel,
-} from '@/lib/types';
-import { RangePicker, rangeLabel, readRange } from '../range';
+import { statementFor } from '@/lib/profit';
+import { COST_TIERS } from '@/lib/types';
+import { RangePicker, rangeLabel, resolveRange } from '../range';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,46 +26,26 @@ export const dynamic = 'force-dynamic';
 export default async function ExpenseRegisterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; range?: string }>;
 }) {
-  const range = readRange(await searchParams);
-  const figures = await profitFigures(range.from, range.to);
+  const range = await resolveRange(await searchParams);
+  // The same list the Profit Statement is built from, read through the one
+  // place that assembles it. This page used to build its own and tier it again,
+  // which meant every cost added to the book had to be added here too or the
+  // register quietly stopped agreeing with the statement it registers.
+  const statement = await statementFor(range.from, range.to);
 
   const rows = [
-    ...figures.subcontract.map((row) => ({
-      label: natureOfWorkLabel(row.natureOfWork),
-      note: 'Subcontractor bills',
-      amount: row.amount,
-      tier: 'direct' as CostTier,
-    })),
-    ...figures.expenses.map((row) => ({
-      label: expenseCategoryLabel(row.category),
-      note: 'Expense vouchers',
-      amount: row.amount,
-      tier: expenseCategoryTier(row.category),
-    })),
-    {
-      label: 'Salary',
-      note: 'Payroll marked paid',
-      amount: figures.salary,
-      tier: 'operating' as CostTier,
-    },
-    {
-      label: 'Reimbursed Claims',
-      note: 'Staff claims paid back',
-      amount: figures.claims,
-      tier: 'operating' as CostTier,
-    },
-  ].filter((row) => !row.amount.isZero());
+    ...statement.directLines,
+    ...statement.sellingLines,
+    ...statement.operatingLines,
+  ];
 
   const total = rows.reduce((sum, row) => sum.add(row.amount), Money.ZERO);
 
   return (
     <>
-      <PageTitle
-        title="Expense Register"
-        subtitle="Every cost in the range, under the tier of the profit statement it falls in."
-      />
+      <PageTitle title="Expense Register" />
 
       <RangePicker basePath="/reports/expenses" range={range} />
 
@@ -112,7 +86,9 @@ export default async function ExpenseRegisterPage({
                     inTier.map((row) => (
                       <tr key={`${row.tier}-${row.label}`}>
                         <Td>{row.label}</Td>
-                        <Td className="text-[var(--color-muted)]">{row.note}</Td>
+                        <Td className="text-[var(--color-muted)]">
+                          {row.note}
+                        </Td>
                         <Td numeric>{formatTaka(row.amount)}</Td>
                       </tr>
                     ))

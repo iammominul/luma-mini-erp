@@ -2,7 +2,17 @@
 
 import { useActionState } from 'react';
 import { COST_TIERS, EXPENSE_CATEGORIES, PAYMENT_MODES } from '@/lib/types';
-import { Button, CancelLink, Card, Field, FormActions, Notice, Select, Textarea, TextInput } from './ui';
+import {
+  Button,
+  CancelLink,
+  Card,
+  Field,
+  FormActions,
+  Notice,
+  Select,
+  Textarea,
+  TextInput,
+} from './ui';
 import { useKeptValues } from './use-kept-values';
 
 export type ExpenseFormState = { error?: string };
@@ -79,10 +89,7 @@ export function ExpenseForm({
             />
           </Field>
 
-          <Field
-            label="Category"
-            hint="Kept close to the full ERP's expense accounts, so a voucher maps across without reclassifying."
-          >
+          <Field label="Category">
             <Select
               ref={register('category')}
               name="category"
@@ -132,10 +139,7 @@ export function ExpenseForm({
             </Select>
           </Field>
 
-          <Field
-            label="Paid To"
-            hint="Who received the money. Free text: most of these are not a party on the ledger."
-          >
+          <Field label="Paid To">
             <TextInput
               type="text"
               name="payee"
@@ -148,7 +152,7 @@ export function ExpenseForm({
 
           <Field
             label="Order Reference"
-            hint="The order this cost belongs to, written the same way it is on the bill. Leave blank when it is not for one particular order."
+            hint="As written on the bill. Blank if not for one order."
           >
             <TextInput
               type="text"
@@ -160,7 +164,7 @@ export function ExpenseForm({
             />
           </Field>
 
-          <Field label="Reference" hint="Voucher serial, cheque number, or bank reference.">
+          <Field label="Reference" hint="Cheque or bank reference.">
             <TextInput
               type="text"
               name="reference"

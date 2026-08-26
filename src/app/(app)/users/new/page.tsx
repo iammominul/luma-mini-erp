@@ -9,7 +9,7 @@ export default async function NewUserPage() {
     <>
       <PageTitle
         title="New User"
-        subtitle="Set the password here and give it to the person directly. There is no email from this app."
+        subtitle="No email is sent. Give the password to the person directly."
       />
       <UserForm />
     </>

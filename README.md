@@ -13,12 +13,22 @@ full ERP is being built. It does two things, one for each side of the business:
 Everything else the ERP will do (double-entry ledger, fabric custody and loss,
 rate cards, costed orders) is deliberately **not** here.
 
-Two things have since been added on top of that, each for a stated reason.
+Three things have since been added on top of that, each for a stated reason.
 **Expenses and payroll** are recorded here because the money going out could not
-wait for the ERP, on a cash basis only. And there is a **profit statement**:
-LUMA subcontracts the knitting and dyeing it bills for, so a subcontractor's
-bill is its cost of sales, and what is left after that and the overhead is a
-real result computed from figures already in the book.
+wait for the ERP, on a cash basis only. **Loans and the owner's account** record
+how the business is funded: money the owner puts in, money the owner takes out,
+and a loan borrowed from a bank or a person and paid back. The ERP's own decision
+D23 says these are the difference between a profit figure and a solvency figure,
+and they were unrecordable anywhere. And there is a **profit statement**: LUMA
+subcontracts the knitting and dyeing it bills for, so a subcontractor's bill is
+its cost of sales, and what is left after that and the overhead is a real result
+computed from figures already in the book.
+
+Repaying a loan is not on that statement, and that is the point of it: the
+principal settles a liability and costs nothing, so only the interest paid with
+it is counted. **Cash Flow** groups every movement of money into Trading and
+Funding on one page, and the **Cash Book** behind it is the same movements in
+order, with a running balance.
 
 It reads in three tiers, because the order the costs come off in is what makes
 them mean anything:
@@ -325,7 +335,7 @@ were busy debugging is not a restore point.
 | Money     | Exact integer poisha (`Money`), `NUMERIC(14,2)` in the database                                              |
 | Styling   | Tailwind v4, the same navy office look as the ERP prototype                                                      |
 | Charts    | Recharts on the dashboard, four validated hues, every chart has a table view                                     |
-| Reports   | Profit statement, expense register and order costing over any date range, statement downloadable as A4           |
+| Reports   | Profit statement, cash flow, expense register and order costing over any date range, statement downloadable as A4 |
 | Auth      | Better Auth, named accounts with Owner/Accounts/Viewer roles, the same library and session model as the full ERP |
 | Tests     | Vitest: unit, plus integration against a real Postgres                                                           |
 
@@ -450,6 +460,17 @@ copy that actually survives.
 ## Handing over to the ERP
 
 When the full ERP is ready, the JSON backup is the migration input: parties,
-bills with their lines, receipts and payments, and the activity log, all with
-exact amounts. Nobody re-types a year of bills. Once the cutover is done, this
-app is switched off rather than kept running in parallel.
+bills with their lines, receipts and payments, employees, expenses, advances,
+payroll runs, leave, loans and fund movements, and the activity log, all with
+exact amounts. Nobody re-types a year of bills.
+
+The fund movements carry the ERP's own account on them, so they load into its
+posting rules 13 to 17 without anybody reclassifying a voucher: capital
+introduced is 3000, a drawing is 3100, a loan received and its repayment are
+2400, the interest on the repayment is 5500, and the method on each row decides
+whether the other leg is 1000 Cash or 1100 Bank. There is one owner, so capital
+and drawings carry no member of their own and the proprietor's name travels once
+at the root of the bundle, from `COMPANY_OWNER_NAME`.
+
+Once the cutover is done, this app is switched off rather than kept running in
+parallel.

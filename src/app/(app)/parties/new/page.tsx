@@ -13,10 +13,7 @@ import { createPartyAction } from '../actions';
 export default function NewPartyPage() {
   return (
     <>
-      <PageTitle
-        title="Add Party"
-        subtitle="Customers send grey fabric and owe us. Subcontractors dye it and we owe them. A party can be both."
-      />
+      <PageTitle title="Add Party" />
 
       <Card className="p-4">
         <PartyForm

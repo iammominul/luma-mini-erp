@@ -39,7 +39,13 @@ const session = vi.hoisted(() => ({
     email: 'owner@example.com',
     role: 'owner',
     status: 'active',
-  } as { id: string; name: string; email: string; role: string; status: string },
+  } as {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    status: string;
+  },
 }));
 
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
@@ -370,7 +376,8 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
   it('refuses an approval to Accounts but allows the entry it prepares', async () => {
     const { generatePayrollRunAction, approvePayrollRunAction } =
       await import('../app/(app)/payroll/actions');
-    const { createEmployeeAction } = await import('../app/(app)/employees/actions');
+    const { createEmployeeAction } =
+      await import('../app/(app)/employees/actions');
     const { findPayrollRun } = await import('./queries');
 
     // Accounts prepares the month, which is its job.
@@ -417,5 +424,105 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
     const approved = (await findPayrollRun('2026-07'))!;
     expect(approved.status).toBe('approved');
     expect(approved.approvedBy).toBe('Test Owner');
+  }, 60_000);
+
+  it('takes a loan, a repayment and a drawing through the forms', async () => {
+    const { createLoanAction, recordRepaymentAction } = await import(
+      '../app/(app)/loans/actions'
+    );
+    const { recordCapitalAction, recordDrawingAction } = await import(
+      '../app/(app)/owner/actions'
+    );
+    const { findLoan, listLoans, ownerTotals } = await import('./queries');
+
+    // Seven fields, one save, and the money arrives with the loan. This used to
+    // be two screens and two saves, which is what the owner asked to be rid of.
+    await expectRedirect(() =>
+      createLoanAction(
+        {},
+        form({
+          lender: 'City Bank',
+          amount: '1000000.00',
+          takenOn: '2026-03-01',
+          mode: 'bank_transfer',
+          terms: '9 percent',
+          reference: 'OD/2026/9',
+        }),
+      ),
+    );
+    const loan = (await findLoan('LOAN-0001'))!;
+    expect(loan.lender).toBe('City Bank');
+    expect((await listLoans())[0]!.outstanding.toDecimalString()).toBe(
+      '1000000.00',
+    );
+
+    await expectRedirect(() =>
+      recordRepaymentAction(
+        {},
+        form({
+          loanId: loan.id,
+          code: 'LOAN-0001',
+          movedOn: '2026-04-05',
+          amount: '250000.00',
+          interestAmount: '12500.00',
+          mode: 'bank_transfer',
+        }),
+      ),
+    );
+    const after = (await listLoans())[0]!;
+    // The principal comes off what is owed. The interest does not.
+    expect(after.outstanding.toDecimalString()).toBe('750000.00');
+    expect(after.interestPaid.toDecimalString()).toBe('12500.00');
+
+    // Four fields, and no account to pick anywhere on the screen.
+    await expectRedirect(() =>
+      recordCapitalAction(
+        {},
+        form({
+          movedOn: '2026-02-01',
+          amount: '500000.00',
+          mode: 'bank_transfer',
+          notes: 'Opening capital',
+        }),
+      ),
+    );
+    await expectRedirect(() =>
+      recordDrawingAction(
+        {},
+        form({
+          movedOn: '2026-07-10',
+          amount: '150000.00',
+          mode: 'cash',
+          notes: 'Household',
+        }),
+      ),
+    );
+    expect((await ownerTotals()).standing.toDecimalString()).toBe('350000.00');
+
+    // Hiding a menu entry proves nothing: the action is the endpoint and it
+    // checks the permission for itself.
+    for (const role of ['viewer', 'store']) {
+      const refusedLoan = await as(role, () =>
+        createLoanAction(
+          {},
+          form({
+            lender: 'Should never be written',
+            amount: '1000.00',
+            takenOn: '2026-04-07',
+            mode: 'cash',
+          }),
+        ),
+      );
+      expect(refusedLoan.error, role).toMatch(/role does not allow/i);
+
+      const refusedDrawing = await as(role, () =>
+        recordDrawingAction(
+          {},
+          form({ movedOn: '2026-04-07', amount: '1000.00', mode: 'cash' }),
+        ),
+      );
+      expect(refusedDrawing.error, role).toMatch(/role does not allow/i);
+    }
+    expect(await listLoans()).toHaveLength(1);
   }, 60_000);
 });

@@ -3,7 +3,17 @@
 import { useActionState } from 'react';
 import { RECOVERY_MODES } from '@/lib/payroll';
 import { PAYMENT_MODES } from '@/lib/types';
-import { Button, CancelLink, Card, Field, FormActions, Notice, Select, Textarea, TextInput } from './ui';
+import {
+  Button,
+  CancelLink,
+  Card,
+  Field,
+  FormActions,
+  Notice,
+  Select,
+  Textarea,
+  TextInput,
+} from './ui';
 import { useKeptValues } from './use-kept-values';
 
 export type AdvanceFormState = { error?: string };
@@ -102,7 +112,6 @@ export function AdvanceForm({
 
           <Field
             label="Amount (Tk)"
-            hint="Recovered from a later salary. What is still outstanding is worked out on the Employees page."
           >
             <TextInput
               name="amount"
@@ -133,7 +142,7 @@ export function AdvanceForm({
 
           <Field
             label="Recovery"
-            hint="How this comes back out of a salary. Whatever is chosen, the figure on a payroll line can still be changed or zeroed for a month."
+            hint="A payroll line can still be changed or zeroed."
           >
             <Select
               ref={register('recoveryMode')}
@@ -151,10 +160,7 @@ export function AdvanceForm({
           </Field>
 
           {field.recoveryMode === 'installment' ? (
-            <Field
-              label="Installment (Tk)"
-              hint="Taken each month until the advance is cleared. The last one is whatever is left."
-            >
+            <Field label="Installment (Tk)" hint="Each month until cleared.">
               <TextInput
                 name="installmentAmount"
                 value={field.installmentAmount}
@@ -169,7 +175,7 @@ export function AdvanceForm({
           {field.recoveryMode === 'manual' ? null : (
             <Field
               label="Recover From"
-              hint="The first month it may be taken from. Leave blank to start with the next payroll."
+              hint="Blank starts with the next payroll."
             >
               <TextInput
                 type="month"
