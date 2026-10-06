@@ -27,6 +27,14 @@ function columnsFor(
 ): Column<Payment>[] {
   return [
     {
+      // MR on a receipt, PV on a payment: the number printed on the voucher.
+      key: 'docNo',
+      head: copy.paymentDirection === 'in' ? 'MR No' : 'PV No',
+      cellClassName: 'whitespace-nowrap font-medium',
+      phone: 'meta',
+      cell: (payment) => payment.docNo ?? '',
+    },
+    {
       key: 'date',
       head: 'Date',
       cellClassName: 'whitespace-nowrap',
@@ -46,7 +54,7 @@ function columnsFor(
     },
     {
       key: 'reference',
-      head: 'Reference',
+      head: 'Paper Ref / Cheque',
       cellClassName: 'text-[var(--color-muted)]',
       cell: (payment) => payment.reference ?? '',
     },
@@ -63,14 +71,14 @@ function columnsFor(
       cell: (payment) => (
         <div className="flex items-center gap-1.5">
           <LinkButton
-            href={`/${side}/settlements/${payment.id}`}
+            href={`/${side}/settlements/${payment.docNo ?? payment.id}`}
             variant="secondary"
           >
             Open
           </LinkButton>
           <DownloadIcon
-            href={`/${side}/settlements/${payment.id}/pdf`}
-            label={`Download ${copy.settlementSingular} ${formatDate(payment.paidOn)}`}
+            href={`/${side}/settlements/${payment.docNo ?? payment.id}/pdf`}
+            label={`Download ${copy.settlementSingular} ${payment.docNo ?? formatDate(payment.paidOn)}`}
           />
         </div>
       ),
@@ -94,6 +102,7 @@ export default async function SettlementsPage({
     listParties({ role: copy.role, includeInactive: true }),
     listPayments({
       direction: copy.paymentDirection,
+      role: copy.role,
       partyId: filters.party || null,
       from: filters.from || null,
       to: filters.to || null,
@@ -106,11 +115,6 @@ export default async function SettlementsPage({
     <>
       <PageTitle
         title={copy.settlementTitle}
-        subtitle={
-          copy.role === 'customer'
-            ? 'Money received from customers against their bills.'
-            : 'Money paid to subcontractors against their bills.'
-        }
         action={
           <LinkButton href={`/${side}/settlements/new`} icon="plus" block>
             New {copy.settlementSingular}

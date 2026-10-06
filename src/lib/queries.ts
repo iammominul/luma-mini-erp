@@ -4,6 +4,7 @@ import type { BookSpan } from './dashboard';
 import { db } from './db';
 import { isDocNo, isUuid } from './ids';
 import { can } from './permissions';
+import { sideForRole } from './side';
 import type {
   LeaveType,
   PerDayBasis,
@@ -47,6 +48,7 @@ import {
   fundDirection,
   natureOfWorkLabel,
   paymentModeLabel,
+  roleOfDirection,
 } from './types';
 import type { CashMovement, CashSource } from './cashbook';
 
@@ -67,6 +69,17 @@ const maybe = (value: unknown): string | null =>
 const money = (value: unknown): Money =>
   Money.fromDecimal(String(value ?? '0'));
 const count = (value: unknown): number => Number(value ?? 0);
+
+/**
+ * The role a document was raised under. A row written by code older than the
+ * party_role column has none until the next schema apply backfills it, and
+ * until then it reads as its direction implies: before suppliers existed, a
+ * received bill could only have been a subcontractor's.
+ */
+const roleOf = (role: unknown, direction: unknown): PartyRole =>
+  role === 'customer' || role === 'subcontractor' || role === 'supplier'
+    ? role
+    : roleOfDirection(text(direction) as BillDirection);
 
 function toParty(row: Row): Party {
   return {
@@ -227,8 +240,9 @@ function toBillSummary(row: Row): BillSummary {
     direction: text(row.direction) as BillDirection,
     natureOfWork: text(row.nature_of_work) as NatureOfWork,
     narration: maybe(row.narration),
-    billNo: text(row.bill_no),
+    billNo: maybe(row.bill_no),
     docNo: maybe(row.doc_no),
+    partyRole: roleOf(row.party_role, row.direction),
     billDate: text(row.bill_date),
     notes: maybe(row.notes),
     total: money(row.total),
@@ -265,6 +279,12 @@ export function isBillSort(value: string): value is BillSort {
 
 export async function listBills(options: {
   direction: BillDirection;
+  /**
+   * The lens. A screen always passes it: a supplier's bill and a
+   * subcontractor's bill run the same direction, and only this tells them
+   * apart. Omitted, every bill of the direction comes back.
+   */
+  role?: PartyRole | null;
   partyId?: string | null;
   natureOfWork?: string | null;
   /** 'draft', 'posted', or 'needs_detail' for posted bills still lacking detail. */
@@ -280,6 +300,7 @@ export async function listBills(options: {
   offset?: number;
 }): Promise<BillPage> {
   const sql = db();
+  const role = options.role ?? null;
   const partyId = options.partyId ?? null;
   const natureOfWork = options.natureOfWork ?? null;
   const status = options.status ?? null;
@@ -304,7 +325,7 @@ export async function listBills(options: {
     sql`
       SELECT * FROM (
         SELECT bill.id, bill.bill_no, bill.doc_no, bill.narration,
-          bill.nature_of_work, bill.direction,
+          bill.nature_of_work, bill.direction, bill.party_role,
           to_char(bill.bill_date, 'YYYY-MM-DD') AS bill_date,
           bill.notes, bill.total,
           (SELECT SUM(l.grey_kg) FROM bill_line l WHERE l.bill_id = bill.id)
@@ -315,11 +336,19 @@ export async function listBills(options: {
           EXISTS (SELECT 1 FROM bill_line l WHERE l.bill_id = bill.id
             AND l.color IS NULL) AS needs_detail,
           bill.party_id, party.name AS party_name,
+          -- Bill No is the system number (2026-10-06), so ordering by it is
+          -- ordering by its serial. A customer draft has none yet and falls
+          -- back to the digits of its paper number, then sorts last.
           CASE WHEN ${sort}::text = 'billNo'
-            THEN NULLIF(regexp_replace(bill.bill_no, '[^0-9]', '', 'g'), '')::numeric
+            THEN COALESCE(
+              CASE WHEN bill.doc_no ~ '^[A-Z]+-[0-9]+-[0-9]+$'
+                THEN split_part(bill.doc_no, '-', 3)::numeric END,
+              NULLIF(regexp_replace(COALESCE(bill.bill_no, ''), '[^0-9]', '', 'g'),
+                '')::numeric)
             ELSE (bill.bill_date - DATE '2000-01-01')::numeric
           END AS sort_num,
-          CASE WHEN ${sort}::text = 'billNo' THEN bill.bill_no ELSE '' END
+          CASE WHEN ${sort}::text = 'billNo'
+            THEN COALESCE(bill.doc_no, bill.bill_no, '') ELSE '' END
             AS sort_text,
           -- The serial out of the system's own number, 'CB-26-0120' -> 120.
           -- Null on a bill received, which has no system number, and on
@@ -329,6 +358,9 @@ export async function listBills(options: {
           bill.created_at AS sort_created
         FROM bill JOIN party ON party.id = bill.party_id
         WHERE bill.direction = ${options.direction}::text
+          AND (${role}::text IS NULL OR COALESCE(bill.party_role,
+            CASE WHEN bill.direction = 'issued' THEN 'customer'
+              ELSE 'subcontractor' END) = ${role}::text)
           AND (${partyId}::uuid IS NULL OR bill.party_id = ${partyId}::uuid)
           AND (${natureOfWork}::text IS NULL
             OR bill.nature_of_work = ${natureOfWork}::text)
@@ -371,6 +403,9 @@ export async function listBills(options: {
         SELECT bill.id, bill.total
         FROM bill JOIN party ON party.id = bill.party_id
         WHERE bill.direction = ${options.direction}::text
+          AND (${role}::text IS NULL OR COALESCE(bill.party_role,
+            CASE WHEN bill.direction = 'issued' THEN 'customer'
+              ELSE 'subcontractor' END) = ${role}::text)
           AND (${partyId}::uuid IS NULL OR bill.party_id = ${partyId}::uuid)
           AND (${natureOfWork}::text IS NULL
             OR bill.nature_of_work = ${natureOfWork}::text)
@@ -410,14 +445,14 @@ export async function listBills(options: {
 /**
  * A bill by whichever handle a URL carries.
  *
- * A customer bill is addressed by its system number, `CB-26-0113`: that series
- * is gapless and unique across the whole book, so it names one bill and reads as
- * a bill number to the person looking at it. A bill received has no such number.
- * Its identity is the subcontractor's own paper number, which is only unique
- * within that subcontractor, so it cannot name a bill on its own and the id
- * stays the address on that side.
+ * Every bill is addressed by its system number: `CB-26-0113` for a customer
+ * bill, `BR-26-0031` for a bill received (2026-10-06). Each series is gapless
+ * and unique across the whole book, so it names one bill. The party's own paper
+ * number on a bill received is only unique within that party, which is why it
+ * never became the address.
  *
- * The id is always accepted, whichever side it is, so no existing link breaks.
+ * The id is always accepted, so no existing link breaks. A customer draft has
+ * no number yet and is addressed by its id until it is posted.
  */
 export async function findBill(handle: string): Promise<Bill | null> {
   if (isUuid(handle)) return getBill(handle);
@@ -437,7 +472,7 @@ export async function getBill(id: string): Promise<Bill | null> {
   const [billRows, lineRows] = (await Promise.all([
     sql`
       SELECT bill.id, bill.bill_no, bill.doc_no, bill.narration,
-        bill.nature_of_work, bill.direction, bill.status,
+        bill.nature_of_work, bill.direction, bill.party_role, bill.status,
         to_char(bill.bill_date, 'YYYY-MM-DD') AS bill_date,
         bill.notes, bill.total,
         (SELECT SUM(l.grey_kg) FROM bill_line l WHERE l.bill_id = bill.id)
@@ -541,9 +576,11 @@ export async function billNoExists(options: {
 function toPayment(row: Row): Payment {
   return {
     id: text(row.id),
+    docNo: maybe(row.doc_no),
     narration: maybe(row.narration),
     partyId: text(row.party_id),
     partyName: text(row.party_name),
+    partyRole: roleOf(row.party_role, row.direction),
     direction: text(row.direction) as PaymentDirection,
     paidOn: text(row.paid_on),
     amount: money(row.amount),
@@ -555,22 +592,29 @@ function toPayment(row: Row): Payment {
 
 export async function listPayments(options: {
   direction: PaymentDirection;
+  /** The lens, as on listBills: money out to a supplier and to a subcontractor share a direction. */
+  role?: PartyRole | null;
   partyId?: string | null;
   from?: string | null;
   to?: string | null;
   limit?: number;
 }): Promise<Payment[]> {
   const sql = db();
+  const role = options.role ?? null;
   const partyId = options.partyId ?? null;
   const from = options.from ?? null;
   const to = options.to ?? null;
   const rows = (await sql`
-    SELECT payment.id, payment.party_id, party.name AS party_name,
+    SELECT payment.id, payment.doc_no, payment.party_id,
+      party.name AS party_name, payment.party_role,
       payment.direction, to_char(payment.paid_on, 'YYYY-MM-DD') AS paid_on,
       payment.amount, payment.mode, payment.reference, payment.narration,
       payment.notes
     FROM payment JOIN party ON party.id = payment.party_id
     WHERE payment.direction = ${options.direction}::text
+      AND (${role}::text IS NULL OR COALESCE(payment.party_role,
+        CASE WHEN payment.direction = 'in' THEN 'customer'
+          ELSE 'subcontractor' END) = ${role}::text)
       AND (${partyId}::uuid IS NULL OR payment.party_id = ${partyId}::uuid)
       AND (${from}::date IS NULL OR payment.paid_on >= ${from}::date)
       AND (${to}::date IS NULL OR payment.paid_on <= ${to}::date)
@@ -580,11 +624,29 @@ export async function listPayments(options: {
   return rows.map(toPayment);
 }
 
+/**
+ * A receipt or payment by whichever handle a URL carries: its voucher number,
+ * `MR-26-0042` or `PV-26-0018`, or its id. The id redirects to the number, as a
+ * bill's does.
+ */
+export async function findPayment(handle: string): Promise<Payment | null> {
+  if (isUuid(handle)) return getPayment(handle);
+  if (!isDocNo(handle)) return null;
+
+  const sql = db();
+  const rows = (await sql`
+    SELECT id::text AS id FROM payment WHERE upper(doc_no) = upper(${handle}::text)
+  `) as Row[];
+  const row = rows[0];
+  return row ? getPayment(text(row.id)) : null;
+}
+
 export async function getPayment(id: string): Promise<Payment | null> {
   if (!isUuid(id)) return null;
   const sql = db();
   const rows = (await sql`
-    SELECT payment.id, payment.party_id, party.name AS party_name,
+    SELECT payment.id, payment.doc_no, payment.party_id,
+      party.name AS party_name, payment.party_role,
       payment.direction, to_char(payment.paid_on, 'YYYY-MM-DD') AS paid_on,
       payment.amount, payment.mode, payment.reference, payment.narration,
       payment.notes
@@ -608,8 +670,11 @@ export async function getPayment(id: string): Promise<Payment | null> {
  *
  * Particulars and Reference are composed here rather than in the page, so the
  * screen and the PDF quote a party the same wording. Reference is the document
- * the row points at, which is the hand-written bill number on a bill and the
- * money receipt or transfer reference on a settlement.
+ * the row points at, by the number the party was given for it (2026-10-06):
+ * a customer bill's CB number with its Paper Ref beside it, a bill received by
+ * the party's own number (its BR number is the book's, never printed to them),
+ * and a receipt or payment by its MR or PV number with the paper serial or
+ * cheque reference beside it.
  */
 export async function listMovements(partyId: string): Promise<Movement[]> {
   if (!isUuid(partyId)) return [];
@@ -618,7 +683,8 @@ export async function listMovements(partyId: string): Promise<Movement[]> {
     SELECT b.id::text AS id, 'bill' AS kind,
       CASE WHEN b.direction = 'issued' THEN 'debit' ELSE 'credit' END AS side,
       to_char(b.bill_date, 'YYYY-MM-DD') AS date,
-      b.bill_no, b.total AS amount, NULL AS mode, NULL AS note, b.narration,
+      b.doc_no, b.bill_no AS paper_ref,
+      b.total AS amount, NULL AS mode, NULL AS note, b.narration,
       b.nature_of_work, b.direction,
       -- What orders two documents on one date. See compare() in statement.ts.
       CASE WHEN b.doc_no ~ '^[A-Z]+-[0-9]+-[0-9]+$'
@@ -634,7 +700,8 @@ export async function listMovements(partyId: string): Promise<Movement[]> {
     SELECT pay.id::text AS id, 'payment' AS kind,
       CASE WHEN pay.direction = 'out' THEN 'debit' ELSE 'credit' END AS side,
       to_char(pay.paid_on, 'YYYY-MM-DD') AS date,
-      pay.reference AS bill_no, pay.amount, pay.mode, pay.notes AS note,
+      pay.doc_no, pay.reference AS paper_ref,
+      pay.amount, pay.mode, pay.notes AS note,
       pay.narration, NULL AS nature_of_work, pay.direction,
       -- A settlement has never carried a system number of its own.
       NULL AS seq,
@@ -663,13 +730,36 @@ export async function listMovements(partyId: string): Promise<Movement[]> {
               text(row.mode),
               maybe(row.narration) ?? maybe(row.note),
             ),
-      reference:
-        kind === 'bill' ? `Bill No. ${text(row.bill_no)}` : maybe(row.bill_no),
+      reference: movementReference(
+        kind,
+        text(row.direction),
+        maybe(row.doc_no),
+        maybe(row.paper_ref),
+      ),
       seq: row.seq === null || row.seq === undefined ? null : Number(row.seq),
       recordedAt: text(row.recorded_at),
       amount: money(row.amount),
     };
   });
+}
+
+/**
+ * The Reference column of a ledger row. See listMovements for the rules. A
+ * paper number that repeats the system number (bills keyed before the system
+ * numbered them carry it in both) is not printed twice.
+ */
+function movementReference(
+  kind: 'bill' | 'payment',
+  direction: string,
+  docNo: string | null,
+  paperRef: string | null,
+): string | null {
+  if (kind === 'bill' && direction === 'received') {
+    return paperRef ? `Bill No. ${paperRef}` : null;
+  }
+  const extra = paperRef && paperRef !== docNo ? paperRef : null;
+  if (docNo && extra) return `${docNo} / ${extra}`;
+  return docNo ?? extra;
 }
 
 /**
@@ -679,6 +769,8 @@ export async function listMovements(partyId: string): Promise<Movement[]> {
  */
 function billParticulars(direction: string, natureOfWork: string): string {
   const work = natureOfWorkLabel(natureOfWork);
+  // A supplier's yarn bill is a purchase, not subcontracted work.
+  if (natureOfWork === 'yarn') return 'Yarn Purchase Bill';
   return direction === 'issued' ? `${work} Bill` : `Subcontract ${work} Bill`;
 }
 
@@ -2217,6 +2309,8 @@ function cashHref(source: CashSource, link: string | null): string | null {
       return link ? `/customers/settlements/${link}` : null;
     case 'payment':
       return link ? `/subcontractors/settlements/${link}` : null;
+    case 'supplier_payment':
+      return link ? `/suppliers/settlements/${link}` : null;
     case 'expense':
       return link ? `/expenses/${link}/edit` : null;
     case 'salary':
@@ -2263,16 +2357,19 @@ export async function cashMovements(): Promise<CashMovement[]> {
   const sql = db();
   const rows = (await sql`
     SELECT pay.id::text AS id,
-      CASE WHEN pay.direction = 'in' THEN 'receipt' ELSE 'payment' END AS source,
+      CASE WHEN pay.direction = 'in' THEN 'receipt'
+        WHEN pay.party_role = 'supplier' THEN 'supplier_payment'
+        ELSE 'payment' END AS source,
       NULL::text AS category,
       NULL::text AS leg,
       to_char(pay.paid_on, 'YYYY-MM-DD') AS date,
       pay.amount AS amount,
       pay.mode AS mode,
-      pay.reference AS reference,
+      -- The voucher number, with the paper serial or cheque beside it.
+      concat_ws(' / ', pay.doc_no, pay.reference) AS reference,
       CASE WHEN pay.direction = 'in' THEN 'Received from ' ELSE 'Paid to ' END
         || pt.name AS particulars,
-      pay.id::text AS link,
+      COALESCE(pay.doc_no, pay.id::text) AS link,
       NULL::bigint AS seq,
       to_char(pay.created_at AT TIME ZONE 'Asia/Dhaka',
         'YYYY-MM-DD"T"HH24:MI:SS.US') AS recorded_at
@@ -2549,16 +2646,16 @@ export async function searchRecords(
   const results = (await Promise.all([
     sql`
         SELECT bill.id, bill.bill_no, bill.doc_no, bill.direction,
-          bill.total, party.name AS party_name
+          bill.party_role, bill.total, party.name AS party_name
         FROM bill JOIN party ON party.id = bill.party_id
         WHERE bill.bill_no ILIKE ${like}
           OR bill.doc_no ILIKE ${like}
           OR bill.notes ILIKE ${like}
           OR party.name % ${trimmed}
         ORDER BY
-          (lower(bill.bill_no) = ${lower}
+          (lower(coalesce(bill.bill_no, '')) = ${lower}
             OR lower(coalesce(bill.doc_no, '')) = ${lower}) DESC,
-          (bill.bill_no ILIKE ${prefix}) DESC,
+          (bill.doc_no ILIKE ${prefix} OR bill.bill_no ILIKE ${prefix}) DESC,
           bill.bill_date DESC
         LIMIT ${limit}::int
       `,
@@ -2589,11 +2686,15 @@ export async function searchRecords(
         LIMIT ${limit}::int
       `,
     sql`
-        SELECT payment.id, payment.reference, payment.direction, payment.amount,
+        SELECT payment.id, payment.doc_no, payment.reference,
+          payment.direction, payment.party_role, payment.amount,
           party.name AS party_name
         FROM payment JOIN party ON party.id = payment.party_id
-        WHERE payment.reference ILIKE ${like} OR party.name % ${trimmed}
-        ORDER BY (lower(coalesce(payment.reference, '')) = ${lower}) DESC,
+        WHERE payment.doc_no ILIKE ${like}
+          OR payment.reference ILIKE ${like}
+          OR party.name % ${trimmed}
+        ORDER BY (lower(coalesce(payment.doc_no, '')) = ${lower}
+            OR lower(coalesce(payment.reference, '')) = ${lower}) DESC,
           payment.paid_on DESC
         LIMIT ${limit}::int
       `,
@@ -2669,15 +2770,16 @@ export async function searchRecords(
   const hits: SearchHit[] = [];
 
   for (const row of bills) {
-    const side =
-      text(row.direction) === 'issued' ? 'customers' : 'subcontractors';
+    // The lens follows the role, so a yarn bill opens under Suppliers.
+    const side = sideForRole(roleOf(row.party_role, row.direction));
     hits.push({
       kind: 'bill',
-      code: text(row.bill_no),
+      // Known by its system number; the paper number rides in the label.
+      code: maybe(row.doc_no) ?? maybe(row.bill_no) ?? 'Draft',
       label: [
         text(row.party_name),
         formatTaka(money(row.total)),
-        maybe(row.doc_no),
+        maybe(row.bill_no),
       ]
         .filter(Boolean)
         .join(', '),
@@ -2744,14 +2846,20 @@ export async function searchRecords(
   }
 
   for (const row of payments) {
-    const side = text(row.direction) === 'in' ? 'customers' : 'subcontractors';
+    const side = sideForRole(roleOf(row.party_role, row.direction));
     hits.push({
       kind: 'payment',
-      code: maybe(row.reference) ?? 'Receipt',
-      label: `${text(row.party_name)}, ${formatTaka(money(row.amount))}`,
-      href: `/${side}/settlements/${text(row.id)}`,
-      exact: isExact(maybe(row.reference)),
-      indirect: isIndirect(maybe(row.reference)),
+      code: maybe(row.doc_no) ?? maybe(row.reference) ?? 'Receipt',
+      label: [
+        text(row.party_name),
+        formatTaka(money(row.amount)),
+        maybe(row.reference),
+      ]
+        .filter(Boolean)
+        .join(', '),
+      href: `/${side}/settlements/${maybe(row.doc_no) ?? text(row.id)}`,
+      exact: isExact(maybe(row.doc_no), maybe(row.reference)),
+      indirect: isIndirect(maybe(row.doc_no), maybe(row.reference)),
     });
   }
 

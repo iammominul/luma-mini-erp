@@ -75,6 +75,13 @@ const LAYOUT: {
 }[] = [
   { source: 'receipt', group: 'trading', label: 'Received from Customers' },
   { source: 'payment', group: 'trading', label: 'Paid to Subcontractors' },
+  // Yarn, kept apart from processing so what was spent on material reads on
+  // its own line (2026-10-06).
+  {
+    source: 'supplier_payment',
+    group: 'trading',
+    label: 'Paid to Suppliers',
+  },
   { source: 'expense', group: 'trading', label: 'Expenses Paid' },
   { source: 'salary', group: 'trading', label: 'Salaries Paid' },
   { source: 'advance', group: 'trading', label: 'Salary Advances' },

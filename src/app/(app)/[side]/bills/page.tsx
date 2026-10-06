@@ -13,7 +13,7 @@ import {
   type SortDirection,
 } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
-import { natureOfWorkLabel } from '@/lib/types';
+import { billHandle, natureOfWorkLabel } from '@/lib/types';
 import { BillFilters } from '@/components/BillFilters';
 
 type Search = {
@@ -57,6 +57,7 @@ export default async function BillsPage({
     listParties({ role: copy.role, includeInactive: true }),
     listBills({
       direction: copy.billDirection,
+      role: copy.role,
       partyId: filters.party || null,
       natureOfWork: filters.work || null,
       search: filters.q || null,
@@ -125,14 +126,17 @@ export default async function BillsPage({
 
   type Bill = (typeof bills)[number];
 
-  // SL, Date, System Bill No, Party, Bill No, Status, Nature of Work, the two
-  // weights, Amount and the actions. The system's own number is customer side
-  // only, because a bill received does not have one.
+  // SL, Date, Bill No, Party, the paper number, Status, Nature of Work, the two
+  // weights, Amount and the actions.
   //
-  // The system number leads the two identifiers and the hand-written number
-  // follows the party, because that is the order somebody reads them in: the
-  // register's own serial, then who the bill is against, then the number
-  // written on the paper they are holding.
+  // Bill No is the system's number on every lens (2026-10-06): CB on a customer
+  // bill, where it is also the printed number, and BR on a bill received. It
+  // leads, and the number written on paper follows the party, because that is
+  // the order somebody reads them in: the register's own serial, then who the
+  // bill is against, then the paper they are holding. On a customer bill that
+  // paper is LUMA's bill book (Paper Ref); on a bill received it is the
+  // party's own bill (Their Bill No).
+  const paperHead = copy.billNoIsOurs ? 'Paper Ref' : 'Their Bill No';
   const columns: Column<Bill>[] = [
     {
       key: 'sl',
@@ -153,18 +157,20 @@ export default async function BillsPage({
       phone: 'meta',
       cell: (bill) => formatDate(bill.billDate),
     },
-    ...(copy.billNoIsOurs
-      ? ([
-          {
-            key: 'docNo',
-            head: 'System Bill No',
-            headClassName: 'w-28',
-            cellClassName: 'text-[var(--color-muted)]',
-            phone: 'meta',
-            cell: (bill) => bill.docNo ?? '',
-          },
-        ] as Column<Bill>[])
-      : []),
+    {
+      key: 'docNo',
+      head: 'Bill No',
+      headClassName: 'w-28',
+      cellClassName: 'whitespace-nowrap font-medium',
+      sortHref: sortHref('billNo'),
+      sorted: sortedAs('billNo'),
+      // The party names the bill on the title line; the number identifies it
+      // on the line under, beside the date it was written.
+      phone: 'meta',
+      phoneClassName: 'font-medium text-[var(--color-ink)]',
+      // A customer draft has no number until it is posted.
+      cell: (bill) => bill.docNo ?? '',
+    },
     {
       key: 'party',
       head: copy.partyWord,
@@ -173,16 +179,11 @@ export default async function BillsPage({
     },
     {
       key: 'billNo',
-      head: 'Bill No',
+      head: paperHead,
       headClassName: 'w-24',
-      cellClassName: 'font-medium',
-      sortHref: sortHref('billNo'),
-      sorted: sortedAs('billNo'),
-      // The party names the bill on the title line; the number identifies it
-      // on the line under, beside the date it was written.
+      cellClassName: 'text-[var(--color-muted)]',
       phone: 'meta',
-      phoneClassName: 'font-medium text-[var(--color-ink)]',
-      cell: (bill) => bill.billNo,
+      cell: (bill) => bill.billNo ?? '',
     },
     {
       key: 'status',
@@ -251,7 +252,7 @@ export default async function BillsPage({
           </LinkButton>
           <DownloadIcon
             href={`/${side}/bills/${bill.docNo ?? bill.id}/pdf`}
-            label={`Download ${copy.billSingular} ${bill.billNo}`}
+            label={`Download ${copy.billSingular} ${billHandle(bill)}`}
           />
         </div>
       ),
@@ -262,11 +263,6 @@ export default async function BillsPage({
     <>
       <PageTitle
         title={copy.billTitle}
-        subtitle={
-          copy.billNoIsOurs
-            ? 'Bills raised on customers, under the number written in the bill book.'
-            : 'Bills received from subcontractors, recorded under their own number.'
-        }
         action={
           <LinkButton href={`/${side}/bills/new`} icon="plus">
             New {copy.billSingular}
@@ -298,7 +294,7 @@ export default async function BillsPage({
           rowAction={(bill) => (
             <DownloadIcon
               href={`/${side}/bills/${bill.docNo ?? bill.id}/pdf`}
-              label={`Download ${copy.billSingular} ${bill.billNo}`}
+              label={`Download ${copy.billSingular} ${billHandle(bill)}`}
             />
           )}
           empty="No bills recorded for this filter"

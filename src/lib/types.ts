@@ -69,8 +69,14 @@ export type NatureOfWork =
   | 'knitting'
   | 'knitting_dyeing_finishing'
   | 'full_package'
+  | 'yarn'
   | 'other';
 
+/**
+ * The choices a customer or subcontractor bill offers. Yarn is not among them:
+ * it is what a supplier's bill is, set by the action on the supplier side and
+ * never picked, so there is no way to file a dyeing bill as yarn by mistake.
+ */
 export const NATURE_OF_WORK: { value: NatureOfWork; label: string }[] = [
   { value: 'dyeing_finishing', label: 'Dyeing & Finishing' },
   { value: 'knitting', label: 'Knitting' },
@@ -80,6 +86,7 @@ export const NATURE_OF_WORK: { value: NatureOfWork; label: string }[] = [
 ];
 
 export function natureOfWorkLabel(value: string): string {
+  if (value === 'yarn') return 'Yarn';
   return (
     NATURE_OF_WORK.find((s) => s.value === value)?.label ?? 'Dyeing & Finishing'
   );
@@ -142,10 +149,19 @@ export type BillSummary = {
   natureOfWork: NatureOfWork;
   /** Overrides the Particulars the ledger would compose. */
   narration: string | null;
-  /** The hand-written number, from LUMA's bill book or the subcontractor's bill. */
-  billNo: string;
-  /** The system's own gapless number, 'CB-26-0001'. Null on a bill received. */
+  /**
+   * The number written on the paper. On a bill received it is the party's own
+   * number, always present. On a customer bill it is the Paper Ref from LUMA's
+   * bill book, and may be blank: the printed number is docNo.
+   */
+  billNo: string | null;
+  /**
+   * The system's own gapless number: 'CB-26-0001' on a customer bill, null
+   * until it is posted; 'BR-26-0001' on a bill received.
+   */
   docNo: string | null;
+  /** Which role the party was acting in when this bill was raised. */
+  partyRole: PartyRole;
   /** 'YYYY-MM-DD' */
   billDate: string;
   /** Free text about the bill. Prints on the document under Remarks. */
@@ -164,10 +180,18 @@ export type Bill = BillSummary & {
 
 export type Payment = {
   id: string;
+  /**
+   * The voucher number printed on the document: 'MR-26-0001' for money in,
+   * 'PV-26-0001' for money out. Null only on a row written by code older than
+   * the numbering, until the next schema apply numbers it.
+   */
+  docNo: string | null;
   /** Overrides the Particulars the ledger would compose. */
   narration: string | null;
   partyId: string;
   partyName: string;
+  /** Which role the party was paid or received from in. */
+  partyRole: PartyRole;
   /** Which way this payment runs: money in, or money out. */
   direction: PaymentDirection;
   /** 'YYYY-MM-DD' */
@@ -244,6 +268,28 @@ export function billLabel(direction: BillDirection): string {
 
 export function settlementLabel(direction: PaymentDirection): string {
   return direction === 'in' ? 'Receipt' : 'Payment';
+}
+
+/**
+ * The number a bill is known by in the book: its system number when it has
+ * one, which every bill does except a customer draft. A draft falls back to its
+ * paper number, then to the word Draft. Never blank, so a heading, a log line
+ * or a search result always has something to name the bill by.
+ */
+export function billHandle(bill: {
+  docNo: string | null;
+  billNo: string | null;
+}): string {
+  return bill.docNo ?? bill.billNo ?? 'Draft';
+}
+
+/** The role a document belongs to when an older row did not record one. */
+export function roleOfDirection(
+  direction: BillDirection | PaymentDirection,
+): PartyRole {
+  return direction === 'issued' || direction === 'in'
+    ? 'customer'
+    : 'subcontractor';
 }
 
 // Expenses and payroll ---------------------------------------------------------

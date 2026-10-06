@@ -4,6 +4,7 @@ import { PageTitle } from '@/components/ui';
 import { formatRate } from '@/lib/amount';
 import { findBill, listParties } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
+import { billHandle } from '@/lib/types';
 import { checkBillNoAction, updateBillAction } from '../../actions';
 import { requirePermission } from '@/lib/session';
 
@@ -21,11 +22,11 @@ export default async function EditBillPage({
     findBill(id),
     listParties({ role: copy.role, includeInactive: true }),
   ]);
-  if (!bill || bill.direction !== copy.billDirection) notFound();
+  if (!bill || bill.partyRole !== copy.role) notFound();
 
   return (
     <>
-      <PageTitle title={`Edit ${copy.billSingular} ${bill.billNo}`} />
+      <PageTitle title={`Edit ${copy.billSingular} ${billHandle(bill)}`} />
       <BillForm
         copy={copy}
         parties={parties.map((p) => ({ id: p.id, name: p.name }))}
@@ -41,7 +42,7 @@ export default async function EditBillPage({
           status: bill.status,
           natureOfWork: bill.natureOfWork,
           narration: bill.narration ?? '',
-          billNo: bill.billNo,
+          billNo: bill.billNo ?? '',
           billDate: bill.billDate,
           notes: bill.notes ?? '',
           lines: bill.lines.map((line) => ({

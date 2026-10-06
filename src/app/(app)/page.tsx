@@ -289,6 +289,7 @@ export default async function DashboardPage({
   const [
     customers,
     subcontractors,
+    suppliers,
     movement,
     ageing,
     result,
@@ -297,6 +298,7 @@ export default async function DashboardPage({
   ] = await Promise.all([
     listPartyBalances('customer'),
     listPartyBalances('subcontractor'),
+    listPartyBalances('supplier'),
     monthlyMovement('customer', from, to),
     receivableAgeing(today),
     // The statement is assembled in profit.ts and nowhere else, so this screen,
@@ -329,7 +331,15 @@ export default async function DashboardPage({
   ];
 
   const receivable = total(customers);
-  const payable = total(subcontractors);
+  // Everyone LUMA pays, once each. A balance is the party's whole ledger
+  // whatever roles it holds, so a dye house that also sells yarn appears in
+  // both lists and adding the two would count it twice.
+  const payees = [
+    ...new Map(
+      [...subcontractors, ...suppliers].map((row) => [row.party.id, row]),
+    ).values(),
+  ];
+  const payable = total(payees);
 
   /**
    * The oldest of the receivable, as the composition line on that tile.
@@ -432,7 +442,7 @@ export default async function DashboardPage({
         <StatTile
           label="Payable"
           value={formatTaka(payable)}
-          note={`${outstanding(subcontractors).length} subcontractors`}
+          note={`${outstanding(payees).length} ${outstanding(payees).length === 1 ? 'party' : 'parties'}`}
         />
         {mayReadFunds ? (
           <StatTile
@@ -566,6 +576,9 @@ export default async function DashboardPage({
           <div className="grid gap-4 lg:grid-cols-2">
             <OutstandingCard side="customers" balances={customers} />
             <OutstandingCard side="subcontractors" balances={subcontractors} />
+            {suppliers.length > 0 ? (
+              <OutstandingCard side="suppliers" balances={suppliers} />
+            ) : null}
           </div>
         </Band>
       </div>

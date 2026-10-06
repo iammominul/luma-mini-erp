@@ -8,7 +8,7 @@ import type { Company } from '../env';
 import type { ProfitStatement } from '../costing';
 import { formatTaka } from '../format';
 import { buildDocument, ledgerLayout, rule } from './document';
-import { documentFileName } from './file-name';
+import { describedFileName } from './file-name';
 
 /**
  * The Profit Statement for a period, on the company letterhead.
@@ -142,15 +142,6 @@ export function buildProfitStatementDocument({
   });
 }
 
-export function profitStatementFileName(
-  company: string,
-  from: string,
-  to: string,
-): string {
-  return documentFileName({
-    company,
-    documentType: 'Profit Statement',
-    party: company,
-    identifiers: [from, to],
-  });
+export function profitStatementFileName(from: string, to: string): string {
+  return describedFileName(['Profit Statement', from, 'to', to]);
 }

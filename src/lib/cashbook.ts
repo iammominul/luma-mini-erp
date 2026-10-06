@@ -34,6 +34,7 @@ export type CashSource =
   | 'opening'
   | 'receipt'
   | 'payment'
+  | 'supplier_payment'
   | 'expense'
   | 'salary'
   | 'advance'
@@ -50,6 +51,7 @@ export const CASH_SOURCES: Record<
   opening: { label: 'Opening Balance', direction: 'in' },
   receipt: { label: 'Money Receipt', direction: 'in' },
   payment: { label: 'Payment Made', direction: 'out' },
+  supplier_payment: { label: 'Supplier Payment', direction: 'out' },
   expense: { label: 'Expense Voucher', direction: 'out' },
   salary: { label: 'Salary Paid', direction: 'out' },
   advance: { label: 'Salary Advance', direction: 'out' },

@@ -220,9 +220,19 @@ export function BillForm({
     lines.map((line) => safeGrams(line.finishedKg)),
   );
 
-  const systemBillNo = copy.billNoIsOurs
-    ? (docNo ?? (nextSerial ? previewDocNo(header.billDate, nextSerial) : null))
-    : null;
+  // The number the bill is printed under (CB), or, on a bill received, the
+  // book's own handle for it (BR). A new bill received is numbered on save and
+  // has no preview, because nothing is printed under it.
+  const systemBillNo =
+    docNo ??
+    (copy.billNoIsOurs && nextSerial
+      ? previewDocNo(header.billDate, nextSerial)
+      : null);
+
+  // A yarn bill from a supplier has no color and no finished weight, and the
+  // weight it is billed on is yarn, not grey fabric.
+  const isYarn = copy.role === 'supplier';
+  const weightLabel = isYarn ? 'Yarn kg' : 'G/Weight kg';
 
   return (
     <form action={submit} className="space-y-4">
@@ -274,14 +284,26 @@ export function BillForm({
             Bill Number
           </h3>
           <div className="space-y-3">
-            <Field
-              label="Bill No"
-              hint={
-                copy.billNoIsOurs
-                  ? 'As written on the paper bill sent to the customer.'
-                  : 'As written on the bill they sent.'
-              }
-            >
+            {/* The system number leads on a customer bill, because it is the
+                one printed (2026-10-06). The paper book's number is a
+                reference beside it. A bill received leads with the party's
+                own number, which is how they know the bill. */}
+            {copy.billNoIsOurs && systemBillNo ? (
+              <Field
+                label="Bill No"
+                hint={
+                  docNo
+                    ? 'Issued, never changes'
+                    : 'Issued on save; the next free number if another is saved first'
+                }
+              >
+                <div className="figure rounded border border-[var(--color-line)] bg-[var(--color-canvas)] px-3 py-2 text-sm text-[var(--color-muted)]">
+                  {systemBillNo}
+                </div>
+              </Field>
+            ) : null}
+
+            <Field label={copy.billNoIsOurs ? 'Paper Ref' : 'Their Bill No'}>
               <TextInput
                 type="text"
                 name="billNo"
@@ -290,7 +312,7 @@ export function BillForm({
                   touched.current = true;
                   setField({ billNo: e.target.value });
                 }}
-                required
+                required={!copy.billNoIsOurs}
                 maxLength={40}
                 autoComplete="off"
                 aria-invalid={duplicate ? true : undefined}
@@ -304,15 +326,8 @@ export function BillForm({
               ) : null}
             </Field>
 
-            {copy.billNoIsOurs && systemBillNo ? (
-              <Field
-                label="System Bill No"
-                hint={
-                  docNo
-                    ? 'Issued when this bill was posted. It never changes.'
-                    : 'Issued when this bill is saved. If somebody else saves first, this bill takes the next one.'
-                }
-              >
+            {!copy.billNoIsOurs && systemBillNo ? (
+              <Field label="Bill No">
                 <div className="figure rounded border border-[var(--color-line)] bg-[var(--color-canvas)] px-3 py-2 text-sm text-[var(--color-muted)]">
                   {systemBillNo}
                 </div>
@@ -325,20 +340,29 @@ export function BillForm({
           <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">
             Work
           </h3>
-          <Field label="Nature of Work" hint="What this bill is for.">
-            <Select
-              ref={register('natureOfWork')}
-              name="natureOfWork"
-              value={header.natureOfWork}
-              onChange={(e) => setField({ natureOfWork: e.target.value })}
-            >
-              {NATURE_OF_WORK.map((service) => (
-                <option key={service.value} value={service.value}>
-                  {service.label}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          {/* A supplier's bill is yarn, set on the server and never chosen. */}
+          {isYarn ? (
+            <Field label="Nature of Work">
+              <div className="rounded border border-[var(--color-line)] bg-[var(--color-canvas)] px-3 py-2 text-sm text-[var(--color-muted)]">
+                Yarn
+              </div>
+            </Field>
+          ) : (
+            <Field label="Nature of Work">
+              <Select
+                ref={register('natureOfWork')}
+                name="natureOfWork"
+                value={header.natureOfWork}
+                onChange={(e) => setField({ natureOfWork: e.target.value })}
+              >
+                {NATURE_OF_WORK.map((service) => (
+                  <option key={service.value} value={service.value}>
+                    {service.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
         </Card>
       </div>
 
@@ -370,15 +394,17 @@ export function BillForm({
                 <Th className="w-24">Order No</Th>
                 <Th className="w-24">Challan No</Th>
                 <Th className="w-24">LOT No</Th>
-                <Th className="w-24">Color</Th>
+                {isYarn ? null : <Th className="w-24">Color</Th>}
                 {/* The finished weight is recorded, not billed on. The grey
                     weight sits next to the rate next to the amount, so the
                     arithmetic the bill is built on reads left to right. */}
+                {isYarn ? null : (
+                  <Th numeric className="w-24">
+                    F/Weight kg
+                  </Th>
+                )}
                 <Th numeric className="w-24">
-                  F/Weight kg
-                </Th>
-                <Th numeric className="w-24">
-                  G/Weight kg
+                  {weightLabel}
                 </Th>
                 <Th numeric className="w-24">
                   Unit Rate
@@ -439,26 +465,32 @@ export function BillForm({
                       autoComplete="off"
                     />
                   </Td>
-                  <Td>
-                    <TextInput
-                      type="text"
-                      value={line.color}
-                      onChange={(e) => update(index, { color: e.target.value })}
-                      maxLength={60}
-                      autoComplete="off"
-                    />
-                  </Td>
-                  <Td>
-                    <TextInput
-                      value={line.finishedKg}
-                      onChange={(e) =>
-                        update(index, { finishedKg: e.target.value })
-                      }
-                      inputMode="decimal"
-                      className="text-right"
-                      placeholder="0.000"
-                    />
-                  </Td>
+                  {isYarn ? null : (
+                    <Td>
+                      <TextInput
+                        type="text"
+                        value={line.color}
+                        onChange={(e) =>
+                          update(index, { color: e.target.value })
+                        }
+                        maxLength={60}
+                        autoComplete="off"
+                      />
+                    </Td>
+                  )}
+                  {isYarn ? null : (
+                    <Td>
+                      <TextInput
+                        value={line.finishedKg}
+                        onChange={(e) =>
+                          update(index, { finishedKg: e.target.value })
+                        }
+                        inputMode="decimal"
+                        className="text-right"
+                        placeholder="0.000"
+                      />
+                    </Td>
+                  )}
                   <Td>
                     <TextInput
                       value={line.greyKg}
@@ -500,10 +532,12 @@ export function BillForm({
             </tbody>
             <tfoot>
               <tr className="bg-[var(--color-canvas)] font-semibold">
-                <Td colSpan={6}>Total</Td>
-                <Td numeric>
-                  {totalFinished > 0n ? formatQtyKg(totalFinished) : ''}
-                </Td>
+                <Td colSpan={isYarn ? 5 : 6}>Total</Td>
+                {isYarn ? null : (
+                  <Td numeric>
+                    {totalFinished > 0n ? formatQtyKg(totalFinished) : ''}
+                  </Td>
+                )}
                 <Td numeric>{formatQtyKg(totalGrey)}</Td>
                 <Td />
                 <Td numeric>{formatTaka(total)}</Td>
@@ -607,27 +641,33 @@ export function BillForm({
                       autoComplete="off"
                     />
                   </Field>
-                  <Field label="Color">
-                    <TextInput
-                      type="text"
-                      value={line.color}
-                      onChange={(e) => update(index, { color: e.target.value })}
-                      maxLength={60}
-                      autoComplete="off"
-                    />
-                  </Field>
-                  <Field label="F/Weight kg">
-                    <TextInput
-                      value={line.finishedKg}
-                      onChange={(e) =>
-                        update(index, { finishedKg: e.target.value })
-                      }
-                      inputMode="decimal"
-                      className="text-right"
-                      placeholder="0.000"
-                    />
-                  </Field>
-                  <Field label="G/Weight kg">
+                  {isYarn ? null : (
+                    <Field label="Color">
+                      <TextInput
+                        type="text"
+                        value={line.color}
+                        onChange={(e) =>
+                          update(index, { color: e.target.value })
+                        }
+                        maxLength={60}
+                        autoComplete="off"
+                      />
+                    </Field>
+                  )}
+                  {isYarn ? null : (
+                    <Field label="F/Weight kg">
+                      <TextInput
+                        value={line.finishedKg}
+                        onChange={(e) =>
+                          update(index, { finishedKg: e.target.value })
+                        }
+                        inputMode="decimal"
+                        className="text-right"
+                        placeholder="0.000"
+                      />
+                    </Field>
+                  )}
+                  <Field label={weightLabel}>
                     <TextInput
                       value={line.greyKg}
                       onChange={(e) =>
@@ -675,9 +715,9 @@ export function BillForm({
         </div>
 
         <p className="border-t border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-muted)]">
-          The amount is the rate per kg on the grey weight, the same basis the
-          full ERP bills on. Finished weight is recorded, not billed on, and can
-          be left blank until it is known.
+          {isYarn
+            ? 'Amount is rate per kg of yarn.'
+            : 'Amount is rate per kg on the grey weight. Finished weight is recorded, not billed on.'}
         </p>
       </Card>
 
@@ -690,20 +730,22 @@ export function BillForm({
           <dl className="grid gap-3 sm:grid-cols-3">
             <div>
               <dt className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
-                Grey Weight
+                {isYarn ? 'Yarn Weight' : 'Grey Weight'}
               </dt>
               <dd className="figure mt-0.5 text-sm">
                 {formatQtyKg(totalGrey)} kg
               </dd>
             </div>
-            <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
-                Finished Weight
-              </dt>
-              <dd className="figure mt-0.5 text-sm">
-                {totalFinished > 0n ? `${formatQtyKg(totalFinished)} kg` : ''}
-              </dd>
-            </div>
+            {isYarn ? null : (
+              <div>
+                <dt className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
+                  Finished Weight
+                </dt>
+                <dd className="figure mt-0.5 text-sm">
+                  {totalFinished > 0n ? `${formatQtyKg(totalFinished)} kg` : ''}
+                </dd>
+              </div>
+            )}
             <div>
               <dt className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
                 Bill Amount

@@ -49,7 +49,7 @@ export async function GET(
   return new Response(new Uint8Array(pdf), {
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${payslipFileName(line, employee, company())}"`,
+      'Content-Disposition': `attachment; filename="${payslipFileName(line, employee)}"`,
       'Content-Length': String(pdf.byteLength),
       'Cache-Control': 'no-store',
     },

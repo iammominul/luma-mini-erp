@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { DeleteBox } from '@/components/DeleteBox';
 import {
   Card,
@@ -11,7 +11,8 @@ import {
 } from '@/components/ui';
 import { formatDate } from '@/lib/dates';
 import { amountInWords, formatTaka } from '@/lib/format';
-import { getParty, getPayment } from '@/lib/queries';
+import { isUuid } from '@/lib/ids';
+import { findPayment, getParty } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
 import { paymentModeLabel } from '@/lib/types';
 import { deletePaymentAction } from '../actions';
@@ -33,8 +34,16 @@ export default async function SettlementPage({
   if (!isSide(side)) notFound();
   const copy = copyFor(side);
 
-  const payment = await getPayment(id);
-  if (!payment || payment.direction !== copy.paymentDirection) notFound();
+  const payment = await findPayment(id);
+  // The role, not the direction: a payment to a supplier and one to a
+  // subcontractor both go out, and each belongs under its own lens only.
+  if (!payment || payment.partyRole !== copy.role) notFound();
+
+  // One voucher, one address: its MR or PV number.
+  if (isUuid(id) && payment.docNo) {
+    permanentRedirect(`/${side}/settlements/${payment.docNo}`);
+  }
+  const handle = payment.docNo ?? payment.id;
 
   const party = await getParty(payment.partyId);
   if (!party) notFound();
@@ -43,7 +52,7 @@ export default async function SettlementPage({
     { label: copy.partyWord, value: party.name },
     { label: 'Date', value: formatDate(payment.paidOn) },
     { label: 'Mode', value: paymentModeLabel(payment.mode) },
-    { label: 'Reference', value: payment.reference ?? '' },
+    { label: 'Paper Ref / Cheque', value: payment.reference ?? '' },
     { label: 'Narration', value: payment.narration ?? '' },
     { label: 'Notes', value: payment.notes ?? '' },
   ].filter((row) => row.value !== '');
@@ -65,19 +74,19 @@ export default async function SettlementPage({
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold">
-            {copy.settlementSingular} {formatTaka(payment.amount)}
+            {copy.settlementSingular} {payment.docNo ?? ''}
           </h1>
           <p className="mt-0.5 text-sm text-[var(--color-muted)]">
             {party.name} | {formatDate(payment.paidOn)} |{' '}
-            {paymentModeLabel(payment.mode)}
+            {paymentModeLabel(payment.mode)} | {formatTaka(payment.amount)}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <DownloadButton href={`/${side}/settlements/${payment.id}/pdf`}>
+          <DownloadButton href={`/${side}/settlements/${handle}/pdf`}>
             Download PDF
           </DownloadButton>
           <LinkButton
-            href={`/${side}/settlements/${payment.id}/edit`}
+            href={`/${side}/settlements/${handle}/edit`}
             variant="secondary"
             icon="edit"
           >

@@ -1,7 +1,7 @@
 import { notFound, permanentRedirect } from 'next/navigation';
 import { amountInWords, formatTaka } from '@/lib/format';
 import { DeleteBox } from '@/components/DeleteBox';
-import { DataTable } from '@/components/DataTable';
+import { type Column, DataTable } from '@/components/DataTable';
 import {
   Card,
   CardHeader,
@@ -14,6 +14,7 @@ import { formatDate } from '@/lib/dates';
 import { isUuid } from '@/lib/ids';
 import { findBill } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
+import { type BillLine, billHandle } from '@/lib/types';
 import { PostBillBox } from '@/components/PostBillBox';
 import { deleteBillAction, postBillAction } from '../actions';
 
@@ -26,16 +27,19 @@ export default async function BillPage({
   if (!isSide(side)) notFound();
   const copy = copyFor(side);
   const bill = await findBill(id);
-  if (!bill || bill.direction !== copy.billDirection) notFound();
+  // The role, not the direction: a supplier's bill and a subcontractor's bill
+  // run the same way, and each belongs under its own lens only.
+  if (!bill || bill.partyRole !== copy.role) notFound();
 
-  // One bill, one address, where the bill has a number of its own to be known
-  // by. A bill received keeps its id, because the subcontractor's paper number
-  // is unique only to that subcontractor and cannot name a bill on its own.
+  // One bill, one address: its system number. Only a customer draft, which
+  // has no number until it is posted, keeps its id.
   if (isUuid(id) && bill.docNo) {
     permanentRedirect(`/${side}/bills/${bill.docNo}`);
   }
 
   const handle = bill.docNo ?? bill.id;
+  // A yarn bill has no color and no finished weight, and its weight is yarn.
+  const isYarn = copy.role === 'supplier';
 
   const totalGrey = sumGrams(bill.lines.map((l) => parseQtyKg(l.greyKg)));
   const totalFinished = sumGrams(
@@ -46,7 +50,9 @@ export default async function BillPage({
   const meta = [
     bill.party.name,
     formatDate(bill.billDate),
-    ...(bill.docNo ? [`System Bill No ${bill.docNo}`] : []),
+    ...(bill.billNo
+      ? [`${copy.billNoIsOurs ? 'Paper Ref' : 'Their Bill No'} ${bill.billNo}`]
+      : []),
   ];
 
   return (
@@ -66,7 +72,7 @@ export default async function BillPage({
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold">
-            {copy.billSingular} {bill.billNo}
+            {copy.billSingular} {billHandle(bill)}
           </h1>
           <p className="mt-0.5 text-sm text-[var(--color-muted)]">
             {meta.join('  |  ')}
@@ -106,7 +112,8 @@ export default async function BillPage({
       <Card className={isDraft ? 'mt-4' : ''}>
         <CardHeader title="Items" />
         <DataTable
-          columns={[
+          columns={(
+            [
             {
               key: 'sl',
               head: 'SL',
@@ -169,7 +176,7 @@ export default async function BillPage({
             },
             {
               key: 'greyKg',
-              head: 'G/Weight kg',
+              head: isYarn ? 'Yarn kg' : 'G/Weight kg',
               numeric: true,
               headClassName: 'w-28',
               only: 'table',
@@ -221,7 +228,12 @@ export default async function BillPage({
               phone: 'amount',
               cell: (line) => formatTaka(line.amount),
             },
-          ]}
+            ] as Column<BillLine>[]
+          ).filter(
+            (column) =>
+              !isYarn ||
+              (column.key !== 'color' && column.key !== 'finishedKg'),
+          )}
           rows={bill.lines}
           rowKey={(line) => line.id}
           empty="This bill has no lines"

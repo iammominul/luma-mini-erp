@@ -28,6 +28,7 @@ function readPayment(formData: FormData) {
   return paymentFormSchema.safeParse({
     partyId: text(formData, 'partyId'),
     direction: copyFor(sideOf(formData)).paymentDirection,
+    partyRole: copyFor(sideOf(formData)).role,
     paidOn: text(formData, 'paidOn'),
     amount: text(formData, 'amount'),
     mode: text(formData, 'mode'),

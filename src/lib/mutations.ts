@@ -53,8 +53,9 @@ import type {
   PayrollRunFormInput,
   UserFormInput,
 } from './schemas';
-import type { Actor, BillDirection, FundCategory } from './types';
+import type { Actor, BillDirection, FundCategory, PartyRole } from './types';
 import {
+  billHandle,
   billLabel,
   expenseCategoryLabel,
   fundCategoryLabel,
@@ -126,11 +127,17 @@ export async function createParty(
   // otherwise the counter for that side issues the next, inside this same
   // transaction so two people adding parties at once cannot collide.
   // The code is issued from the counter for the party's primary role, which is
-  // the first one it holds. A party that is a customer first stays CUS even if
-  // it later starts supplying us: a code that changes is not a key.
-  const isCustomer = input.roles.includes('customer');
-  const counterName = isCustomer ? 'party_customer' : 'party_subcontractor';
-  const prefix = isCustomer ? 'CUS-' : 'SUB-';
+  // the first one it holds, in the order customer, subcontractor, supplier. A
+  // party that is a customer first stays CUS even if it later starts supplying
+  // us: a code that changes is not a key.
+  const primary = input.roles.includes('customer')
+    ? 'customer'
+    : input.roles.includes('subcontractor')
+      ? 'subcontractor'
+      : 'supplier';
+  const counterName = `party_${primary}`;
+  const prefix =
+    primary === 'customer' ? 'CUS-' : primary === 'subcontractor' ? 'SUB-' : 'SUP-';
 
   await sql.transaction([
     sql`
@@ -279,6 +286,8 @@ async function assertBillNoFree(
   direction: BillDirection,
   excludeId?: string,
 ): Promise<void> {
+  // A customer bill with no Paper Ref has nothing to collide with.
+  if (!input.billNo) return;
   const { taken, partyName } = await billNoExists({
     partyId: party.id,
     direction,
@@ -289,7 +298,7 @@ async function assertBillNoFree(
 
   if (direction === 'issued') {
     throw new InputError(
-      `Bill ${input.billNo} is already recorded against ${partyName}.`,
+      `Paper Ref ${input.billNo} is already recorded on a bill for ${partyName}.`,
     );
   }
   throw new InputError(
@@ -297,36 +306,73 @@ async function assertBillNoFree(
   );
 }
 
-export async function createBill(
+/**
+ * The checks every bill write shares, made before anything is written.
+ *
+ * The lens decides the role and the direction together, so the two can only
+ * disagree if a request was forged. It is refused all the same, because a
+ * server action is a public endpoint. The party must actually hold the role it
+ * is being billed in, and a supplier's bill is always yarn, whatever was posted.
+ */
+function checkBill(
   input: BillFormInput,
+  party: { name: string; roles: Record<PartyRole, boolean> },
+): BillFormInput {
+  const expected = input.partyRole === 'customer' ? 'issued' : 'received';
+  if (input.direction !== expected) {
+    throw new InputError('This bill does not match the screen it came from.');
+  }
+  if (!party.roles[input.partyRole]) {
+    throw new InputError(
+      `${party.name} is not set up as a ${input.partyRole}. Add the role on the party first.`,
+    );
+  }
+  if (input.direction === 'received' && !input.billNo) {
+    throw new InputError(
+      `Enter the bill number written on the bill from ${party.name}.`,
+    );
+  }
+  return input.partyRole === 'supplier'
+    ? { ...input, natureOfWork: 'yarn' as BillFormInput['natureOfWork'] }
+    : input;
+}
+
+export async function createBill(
+  posted: BillFormInput,
   actor: Actor,
 ): Promise<string> {
-  const party = await getParty(input.partyId);
+  const party = await getParty(posted.partyId);
   if (!party) throw new InputError('Select a party for this bill.');
-
-  // Only a posted customer bill takes a number. A draft that is abandoned must
-  // not leave a hole in the series, so the counter is not touched until posting.
-  const isCustomer = input.direction === 'issued' && input.status === 'posted';
+  const input = checkBill(posted, party);
   await assertBillNoFree(input, party, input.direction);
 
   const { lines, total } = prepare(input);
   const id = randomUUID();
   const sql = db();
 
-  // The hand-written number is what the party is shown. Alongside it a customer
-  // bill takes the system's own number, from the counter bumped inside this same
-  // transaction, so that series cannot skip a number or issue one twice.
-  const insertBill = isCustomer
+  // The system number is the printed number (2026-10-06), issued from the
+  // counter bumped inside this same transaction so a series cannot skip or
+  // repeat. A customer draft takes none: an abandoned draft must not leave a
+  // hole, so its CB number is issued when it is posted. A bill received takes
+  // its BR number on save. Either way bill_no keeps the number on the paper.
+  const series =
+    input.direction === 'received'
+      ? { counter: 'bill_received', prefix: 'BR-' }
+      : input.status === 'posted'
+        ? { counter: 'customer_bill', prefix: 'CB-' }
+        : null;
+
+  const insertBill = series
     ? sql`
         WITH bumped AS (
-          UPDATE counter SET value = value + 1 WHERE name = 'customer_bill'
+          UPDATE counter SET value = value + 1 WHERE name = ${series.counter}::text
           RETURNING value
         )
-        INSERT INTO bill (id, party_id, direction, status, bill_no,
+        INSERT INTO bill (id, party_id, direction, party_role, status, bill_no,
           doc_no, bill_date, nature_of_work, narration, notes, total)
-        SELECT ${id}::uuid, ${party.id}::uuid, 'issued'::text, 'posted'::text,
-          ${input.billNo}::text,
-          'CB-' || to_char(${input.billDate}::date, 'YY') || '-' ||
+        SELECT ${id}::uuid, ${party.id}::uuid, ${input.direction}::text,
+          ${input.partyRole}::text, ${input.status}::text, ${input.billNo},
+          ${series.prefix}::text || to_char(${input.billDate}::date, 'YY') || '-' ||
             lpad(bumped.value::text,
               GREATEST(4, length(bumped.value::text)), '0'),
           ${input.billDate}::date, ${input.natureOfWork}::text,
@@ -334,10 +380,10 @@ export async function createBill(
         FROM bumped
       `
     : sql`
-        INSERT INTO bill (id, party_id, direction, status, bill_no,
+        INSERT INTO bill (id, party_id, direction, party_role, status, bill_no,
           doc_no, bill_date, nature_of_work, narration, notes, total)
         VALUES (${id}::uuid, ${party.id}::uuid, ${input.direction}::text,
-          ${input.status}::text, ${input.billNo}::text,
+          ${input.partyRole}::text, ${input.status}::text, ${input.billNo},
           NULL, ${input.billDate}::date,
           ${input.natureOfWork}::text,
           ${input.narration}, ${input.notes}, ${total}::numeric)
@@ -360,7 +406,8 @@ export async function createBill(
     sql`
       INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason, after_json)
       SELECT ${actor.id}::text, ${actor.name}::text, 'create', 'bill', b.id::text,
-        ${`${input.status === 'draft' ? 'Draft ' : ''}${billLabel(input.direction)} `}::text || b.bill_no ||
+        ${`${input.status === 'draft' ? 'Draft ' : ''}${billLabel(input.direction)} `}::text ||
+          COALESCE(b.doc_no, b.bill_no, 'without a number') ||
           ${` for ${party.name}, Tk ${tk(total)} dated ${formatDate(input.billDate)}`}::text,
         ${input.reason},
         to_jsonb(b) || jsonb_build_object('lines', (
@@ -375,16 +422,20 @@ export async function createBill(
 
 export async function updateBill(
   id: string,
-  input: BillFormInput,
+  posted: BillFormInput,
   actor: Actor,
 ): Promise<void> {
   const existing = await getBill(id);
   if (!existing) throw new InputError('That bill no longer exists.');
-  if (existing.partyId !== input.partyId) {
+  if (existing.partyId !== posted.partyId) {
     throw new InputError(
       'A bill cannot be moved to another party. Remove it and enter a new one.',
     );
   }
+  if (existing.partyRole !== posted.partyRole) {
+    throw new InputError('This bill does not match the screen it came from.');
+  }
+  const input = checkBill(posted, existing.party);
 
   await assertBillNoFree(
     input,
@@ -397,12 +448,12 @@ export async function updateBill(
   const { lines, total } = prepare(input);
   const sql = db();
 
-  // doc_no is never rewritten: the system's series stays as issued, even when the
-  // hand-written number on the paper bill is corrected.
+  // doc_no is never rewritten: the system's series stays as issued, even when
+  // the number on the paper bill is corrected.
   await sql.transaction([
     sql`
       UPDATE bill SET
-        bill_no = ${input.billNo}::text,
+        bill_no = ${input.billNo},
         bill_date = ${input.billDate}::date,
         nature_of_work = ${input.natureOfWork}::text,
         narration = ${input.narration},
@@ -427,7 +478,8 @@ export async function updateBill(
       INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason,
         before_json, after_json)
       SELECT ${actor.id}::text, ${actor.name}::text, 'update', 'bill', b.id::text,
-        ${`Edited ${billLabel(existing.direction)} `}::text || b.bill_no ||
+        ${`Edited ${billLabel(existing.direction)} `}::text ||
+          COALESCE(b.doc_no, b.bill_no, 'without a number') ||
           ${` for ${existing.partyName}, now Tk ${tk(total)}`}::text,
         ${input.reason}, ${asJson(snapshot)}::jsonb,
         to_jsonb(b) || jsonb_build_object('lines', (
@@ -448,7 +500,7 @@ export async function postBill(id: string, actor: Actor): Promise<void> {
   const existing = await getBill(id);
   if (!existing) throw new InputError('That bill no longer exists.');
   if (existing.status !== 'draft') {
-    throw new InputError(`Bill ${existing.billNo} is already posted.`);
+    throw new InputError(`Bill ${billHandle(existing)} is already posted.`);
   }
 
   const snapshot = await billSnapshot(id);
@@ -476,7 +528,8 @@ export async function postBill(id: string, actor: Actor): Promise<void> {
       INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary,
         before_json, after_json)
       SELECT ${actor.id}::text, ${actor.name}::text, 'update', 'bill', b.id::text,
-        ${`Posted ${billLabel(existing.direction)} `}::text || b.bill_no ||
+        ${`Posted ${billLabel(existing.direction)} `}::text ||
+          COALESCE(b.doc_no, b.bill_no, 'without a number') ||
           ${` for ${existing.partyName}, Tk ${formatTaka(existing.total)}`}::text,
         ${asJson(snapshot)}::jsonb,
         to_jsonb(b) || jsonb_build_object('lines', (
@@ -501,7 +554,7 @@ export async function deleteBill(
     sql`
       INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason, before_json)
       VALUES (${actor.id}::text, ${actor.name}::text, 'delete', 'bill', ${id}::text,
-        ${`Removed ${billLabel(existing.direction)} ${existing.billNo} for ${existing.partyName}, Tk ${formatTaka(existing.total)}`}::text,
+        ${`Removed ${billLabel(existing.direction)} ${billHandle(existing)} for ${existing.partyName}, Tk ${formatTaka(existing.total)}`}::text,
         ${reason}::text, ${asJson(snapshot)}::jsonb)
     `,
     sql`DELETE FROM bill WHERE id = ${id}::uuid`,
@@ -510,33 +563,67 @@ export async function deleteBill(
 
 // Receipts and payments -------------------------------------------------------
 
+/** As checkBill: the lens's role and direction agree, and the party holds the role. */
+function checkPayment(
+  input: PaymentFormInput,
+  party: { name: string; roles: Record<PartyRole, boolean> },
+): void {
+  const expected = input.partyRole === 'customer' ? 'in' : 'out';
+  if (input.direction !== expected) {
+    throw new InputError('This entry does not match the screen it came from.');
+  }
+  if (!party.roles[input.partyRole]) {
+    throw new InputError(
+      `${party.name} is not set up as a ${input.partyRole}. Add the role on the party first.`,
+    );
+  }
+}
+
 export async function createPayment(
   input: PaymentFormInput,
   actor: Actor,
 ): Promise<string> {
   const party = await getParty(input.partyId);
   if (!party) throw new InputError('Select a party for this entry.');
+  checkPayment(input, party);
 
   const sql = db();
   const id = randomUUID();
   const towards = input.direction === 'in' ? 'from' : 'to';
   const summary =
-    `${settlementLabel(input.direction)} of Tk ${tk(input.amount)} ${towards} ` +
+    ` of Tk ${tk(input.amount)} ${towards} ` +
     `${party.name} by ${paymentModeLabel(input.mode)} on ${formatDate(input.paidOn)}`;
+
+  // The voucher number is the printed number, from its own counter bumped in
+  // this same transaction: MR for money in, PV for money out. reference keeps
+  // the paper receipt serial, cheque number or bank reference beside it.
+  const series =
+    input.direction === 'in'
+      ? { counter: 'money_receipt', prefix: 'MR-' }
+      : { counter: 'payment_voucher', prefix: 'PV-' };
 
   await sql.transaction([
     sql`
-      INSERT INTO payment (id, party_id, direction, paid_on, amount, mode,
-        reference, narration, notes)
-      VALUES (${id}::uuid, ${party.id}::uuid, ${input.direction}::text,
+      WITH bumped AS (
+        UPDATE counter SET value = value + 1 WHERE name = ${series.counter}::text
+        RETURNING value
+      )
+      INSERT INTO payment (id, party_id, direction, party_role, doc_no, paid_on,
+        amount, mode, reference, narration, notes)
+      SELECT ${id}::uuid, ${party.id}::uuid, ${input.direction}::text,
+        ${input.partyRole}::text,
+        ${series.prefix}::text || to_char(${input.paidOn}::date, 'YY') || '-' ||
+          lpad(bumped.value::text, GREATEST(4, length(bumped.value::text)), '0'),
         ${input.paidOn}::date,
         ${input.amount}::numeric, ${input.mode}::text, ${input.reference},
-        ${input.narration}, ${input.notes})
+        ${input.narration}, ${input.notes}
+      FROM bumped
     `,
     sql`
       INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason, after_json)
-      SELECT ${actor.id}::text, ${actor.name}::text, 'create', 'payment', p.id::text, ${summary}::text, ${input.reason},
-        to_jsonb(p)
+      SELECT ${actor.id}::text, ${actor.name}::text, 'create', 'payment', p.id::text,
+        ${settlementLabel(input.direction)}::text || ' ' || p.doc_no || ${summary}::text,
+        ${input.reason}, to_jsonb(p)
       FROM payment p WHERE p.id = ${id}::uuid
     `,
   ]);
@@ -555,9 +642,14 @@ export async function updatePayment(
       'An entry cannot be moved to another party. Remove it and enter a new one.',
     );
   }
+  if (existing.partyRole !== input.partyRole) {
+    throw new InputError('This entry does not match the screen it came from.');
+  }
 
   const snapshot = await paymentSnapshot(id);
-  const word = settlementLabel(existing.direction).toLowerCase();
+  const word = [settlementLabel(existing.direction).toLowerCase(), existing.docNo]
+    .filter(Boolean)
+    .join(' ');
   const sql = db();
 
   await sql.transaction([
@@ -586,7 +678,9 @@ export async function deletePayment(
 ): Promise<void> {
   const existing = await getPayment(id);
   if (!existing) throw new InputError('That entry no longer exists.');
-  const word = settlementLabel(existing.direction).toLowerCase();
+  const word = [settlementLabel(existing.direction).toLowerCase(), existing.docNo]
+    .filter(Boolean)
+    .join(' ');
 
   const sql = db();
   await sql.transaction([

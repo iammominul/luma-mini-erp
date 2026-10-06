@@ -63,6 +63,7 @@ const bill: Bill = {
   narration: null,
   billNo: '889',
   docNo: 'CB-26-0042',
+  partyRole: 'customer',
   billDate: '2026-07-28',
   notes: 'Shade approved against lab dip 214.',
   total: Money.fromDecimal('302180.00'),
@@ -139,8 +140,12 @@ describe('customer bill document', () => {
     expect(text).toContain('BILL');
   });
 
-  it('states the hand-written bill number, the order, and the date', () => {
+  // The system number is the printed number since 2026-10-06, and the paper
+  // book's number rides beside it as Paper Ref.
+  it('states the system bill number, the paper ref, the order, and the date', () => {
     expect(text).toContain('Bill No');
+    expect(text).toContain('CB-26-0042');
+    expect(text).toContain('Paper Ref');
     expect(text).toContain('889');
     expect(text).toContain('Order No');
     expect(text).toContain('75-T');
@@ -148,11 +153,14 @@ describe('customer bill document', () => {
     expect(text).toContain('28/07/2026');
   });
 
-  // Both are recorded, and both stay off the paper until billing moves fully
-  // into the ERP and the bill book retires.
-  it('keeps the book number and our own reference off the document', () => {
+  // The system number used to stay off the paper while the bill book was the
+  // identity. The owner reversed that on 2026-10-06: the CB number is printed
+  // and the paper number rides beside it. What stays off is the book's own
+  // key for the party, which means nothing to the party reading it.
+  it('prints the system number and never the party code', () => {
+    expect(text).toContain('CB-26-0042');
     expect(text).not.toContain('Book No');
-    expect(text).not.toContain('CB-26-0042');
+    expect(text).not.toContain('CUS-0004');
   });
 
   it('carries the columns a dyeing bill is read by', () => {
@@ -207,10 +215,17 @@ describe('customer bill document', () => {
     expect(text).toContain('Dyeing & Finishing');
   });
 
-  it('names the file so a folder of them sorts usefully', () => {
-    expect(billFileName(bill, company)).toBe(
-      'LUMA-TEXTILE_Bill_CUS-0004_889_2026-07-28.pdf',
+  // Short and concise (owner, 2026-10-06): the number printed on it.
+  it('names the file by its number alone', () => {
+    expect(billFileName(bill)).toBe('CB-26-0042.pdf');
+  });
+
+  it('prints DRAFT where a draft has no number yet, and names it so', () => {
+    const draft = { ...bill, status: 'draft' as const, docNo: null };
+    expect(flattenDocumentText(buildBillDocument(draft, company))).toContain(
+      'DRAFT',
     );
+    expect(billFileName(draft)).toBe('CB-DRAFT-2026-07-28.pdf');
   });
 
   it('renders to A4 with the bundled fonts', async () => {
@@ -273,11 +288,11 @@ describe('statement of account document', () => {
   });
 
   // A statement is identified by the party and the period, the way a ledger
-  // always has been. The party code is what tells two similar names apart and
-  // what a customer's accounts department reconciles against.
-  it('identifies the party by code, not the statement by number', () => {
-    expect(text).toContain('Party Code');
-    expect(text).toContain('CUS-0004');
+  // always has been. The party code is the book's internal key and is never
+  // printed: the party knows itself by name (owner, 2026-10-06).
+  it('identifies the party by name, never by its internal code', () => {
+    expect(text).not.toContain('Party Code');
+    expect(text).not.toContain('CUS-0004');
     expect(text).not.toContain('Statement No');
   });
 
@@ -389,21 +404,23 @@ describe('statement of account document', () => {
     expect(bytes.byteLength).toBeGreaterThan(2000);
   });
 
-  it('names the file with the party and the period', () => {
-    expect(
-      statementFileName(customer, company, '2026-07-01', '2026-07-31'),
-    ).toBe(
-      'LUMA-TEXTILE_Statement-of-Account_CUS-0004_2026-07-01_to_2026-07-31.pdf',
+  // A statement has no number, so it is named for the party, by name and
+  // never by its code, and the period.
+  it('names the file with the party name and the period', () => {
+    expect(statementFileName(customer, '2026-07-01', '2026-07-31')).toBe(
+      'Statement-Bangla-Japan-Trading-Ltd-2026-07-01-to-2026-07-31.pdf',
     );
   });
 });
 
 const receipt: Payment = {
   id: '33333333-3333-4333-8333-333333333333',
-  reference: 'MR-114',
+  docNo: 'MR-26-0114',
+  reference: 'Book 2210',
   narration: null,
   partyId: customer.id,
   partyName: customer.name,
+  partyRole: 'customer',
   direction: 'in',
   paidOn: '2026-07-30',
   amount: Money.fromDecimal('250000.00'),
@@ -425,7 +442,7 @@ describe('money receipt document', () => {
   it('states the date, the mode and the reference', () => {
     expect(text).toContain('30/07/2026');
     expect(text).toContain('Cheque');
-    expect(text).toContain('MR-114');
+    expect(text).toContain('Book 2210');
   });
 
   it('carries the amount as figures and as words', () => {
@@ -460,10 +477,18 @@ describe('money receipt document', () => {
     expect(bytes.byteLength).toBeGreaterThan(2000);
   });
 
-  it('names the file with the party and the reference', () => {
-    expect(moneyReceiptFileName(receipt, customer, company)).toBe(
-      'LUMA-TEXTILE_Money-Receipt_CUS-0004_MR-114_2026-07-30.pdf',
+  it('prints its MR number and the paper serial beside it', () => {
+    const text = flattenDocumentText(
+      buildMoneyReceiptDocument({ payment: receipt, party: customer, company }),
     );
+    expect(text).toContain('Receipt No');
+    expect(text).toContain('MR-26-0114');
+    expect(text).toContain('Book 2210');
+    expect(text).not.toContain('CUS-0004');
+  });
+
+  it('names the file by its voucher number alone', () => {
+    expect(moneyReceiptFileName(receipt, customer)).toBe('MR-26-0114.pdf');
   });
 });
 
@@ -637,9 +662,11 @@ describe('payslip document', () => {
     expect(bytes.byteLength).toBeGreaterThan(2000);
   });
 
-  it('names the file with the employee and the month', () => {
-    expect(payslipFileName(line, employee, company)).toBe(
-      'LUMA-TEXTILE_Payslip_EMP-0002_2026-08_PR-26-0007.pdf',
+  // The PR number is the whole run's, so a payslip is named for the month and
+  // the person, by name and never by employee code.
+  it('names the file with the month and the employee', () => {
+    expect(payslipFileName(line, employee)).toBe(
+      'Payslip-2026-08-Md-Jahangir-Alam.pdf',
     );
   });
 });

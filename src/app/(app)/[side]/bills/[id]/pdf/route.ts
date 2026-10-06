@@ -15,7 +15,7 @@ export async function GET(
   if (!isSide(side)) return new Response('Not found', { status: 404 });
 
   const bill = await findBill(id);
-  if (!bill || bill.direction !== copyFor(side).billDirection) {
+  if (!bill || bill.partyRole !== copyFor(side).role) {
     return new Response('Not found', { status: 404 });
   }
 
@@ -24,7 +24,7 @@ export async function GET(
   return new Response(new Uint8Array(pdf), {
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${billFileName(bill, company())}"`,
+      'Content-Disposition': `attachment; filename="${billFileName(bill)}"`,
       'Content-Length': String(pdf.byteLength),
       'Cache-Control': 'no-store',
     },

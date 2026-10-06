@@ -311,7 +311,7 @@ export default async function StatementPage({
             This closing balance is an advance held{' '}
             {copy.role === 'customer'
               ? 'from the customer'
-              : 'with the subcontractor'}
+              : `with the ${copy.partyWord.toLowerCase()}`}
             .
           </p>
         ) : null}

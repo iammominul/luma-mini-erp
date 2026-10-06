@@ -65,6 +65,12 @@ export async function exportEverything(): Promise<ExportBundle> {
           'billDate', to_char(b.bill_date, 'YYYY-MM-DD'),
           'partyId', b.party_id, 'partyName', pt.name,
           'direction', b.direction,
+          -- Which role the party was billed in (2026-10-06). The direction
+          -- cannot say it: a supplier's bill and a subcontractor's are both
+          -- received. A row old code wrote reads as its direction implies.
+          'partyRole', COALESCE(b.party_role,
+            CASE WHEN b.direction = 'issued' THEN 'customer'
+              ELSE 'subcontractor' END),
           -- Both of these were missing, and this export is the migration input
           -- the full ERP reads. Without status a draft imports as posted and
           -- moves a balance that was never in the book; without the nature of
@@ -89,8 +95,12 @@ export async function exportEverything(): Promise<ExportBundle> {
         FROM bill b JOIN party pt ON pt.id = b.party_id),
       'payments', (
         SELECT COALESCE(jsonb_agg(jsonb_build_object(
-          'id', pay.id, 'partyId', pay.party_id, 'partyName', pt.name,
+          'id', pay.id, 'docNo', pay.doc_no,
+          'partyId', pay.party_id, 'partyName', pt.name,
           'direction', pay.direction,
+          'partyRole', COALESCE(pay.party_role,
+            CASE WHEN pay.direction = 'in' THEN 'customer'
+              ELSE 'subcontractor' END),
           'paidOn', to_char(pay.paid_on, 'YYYY-MM-DD'),
           'amount', pay.amount::text, 'mode', pay.mode,
           'reference', pay.reference, 'narration', pay.narration,

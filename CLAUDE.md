@@ -14,6 +14,10 @@ dyeing trader, until the full ERP reaches its billing stage. It does two things:
 1. **Customer side.** Bill a customer, record money received, print a statement.
 2. **Subcontractor side.** Record a bill received, record money paid, print the
    same statement in the other direction.
+3. **Supplier side** (2026-10-06). The same as the subcontractor side, for the
+   spinners LUMA buys yarn from. LUMA now also sells finished fabric it has
+   knitted and dyed by subcontractors from yarn it bought against the order, as
+   well as dyeing customers' own fabric. See section 7.
 
 It answers "who owes what", nothing else. It is temporary by design: when the ERP
 takes over, the JSON export is imported there and this repository is archived.
@@ -61,17 +65,32 @@ users. Do not build for more.
    Edits and removals require a stated reason. The log is append only: nothing
    updates or deletes a row in it.
 6. **Validate at the boundary.** Zod in `src/lib/schemas.ts` for every input.
-7. **A bill carries two numbers, and both are load-bearing.** LUMA still writes
-   every bill by hand and sends that paper out, so `bill.bill_no` is the
-   hand-written number: it is what the party recognizes, what a statement quotes,
-   and what the PDF prints as the document number. Alongside it, `bill.doc_no` is
-   the system's own **gapless** series from the `counter` row bumped inside the
-   bill's own transaction. Do not switch that to a sequence, which leaves holes
-   when an insert fails, and never re-issue a `doc_no` on an edit. A
-   subcontractor bill has no `doc_no`: their paper number is its identity.
-   Uniqueness differs by side. A customer number is checked against every
-   customer bill, full stop; a subcontractor number is scoped to that
-   subcontractor.
+7. **The system number is the printed number** (2026-10-06, reversing the rule
+   that stood before it). Every document LUMA issues takes a number from a
+   `counter` row bumped inside its own transaction, `TYPE-YY-SERIAL`, and that
+   number is what the PDF prints, what a statement quotes and what the URL
+   carries: `CB` customer bill, `MR` money receipt, `PV` payment voucher, `BR`
+   bill received, `EXP`, `ADV`, `PR`, `FM`; `SO`, `PO` and `WO` arrive with
+   sales orders, and `DC`, `GP` and `PI` are reserved. A series is **gapless**
+   and **never resets**: `YY` is the document date's year, for reading only.
+   Do not switch a counter to a sequence, which leaves holes when an insert
+   fails, never re-issue a `doc_no` on an edit, and never put company initials
+   in a number, because the letterhead already names the company.
+   LUMA still writes a paper bill book and a receipt book. Their serial is kept
+   beside the system number as **Paper Ref**: `bill.bill_no` on a customer bill,
+   optional and unique across customer bills when present, and
+   `payment.reference` on a receipt. A bill received is the party's document,
+   so its `bill_no` is the party's own number, required and unique within that
+   party, and its `BR` number is the book's handle for it, never printed to
+   them. A customer draft takes its `CB` number when it is posted, so an
+   abandoned draft leaves no hole.
+   **A document records the role its party acted in** (`party_role`), because
+   `direction` cannot: a supplier's yarn bill and a knitter's bill are both
+   received. Read it with a fallback to the direction until the column is made
+   `NOT NULL` in a later release (rule 15).
+   **A party code is never printed** on a document or in a file name. It is the
+   book's key for telling two similar names apart and means nothing to the
+   party reading it.
    **There was a third number, `book_no`, and it is gone** (2026-08-15). LUMA
    ran several bill books at once, so a customer number used to be unique only
    within its book. It turned out to carry nothing: of 131 customer bills exactly
@@ -113,14 +132,15 @@ users. Do not build for more.
 11. **A URL names a record the way a person does.** A row's UUID is what foreign
     keys point at; it is not an address. What goes in the URL is the business
     key, because a URL gets read aloud, pasted into an email, and recognized on
-    a screen: `/parties/CUS-0001`, `/customers/bills/CB-26-0113`. A bill received
-    keeps its id, because the subcontractor's paper number is unique only within
-    that subcontractor and so cannot name a bill on its own.
+    a screen: `/parties/CUS-0001`, `/customers/bills/CB-26-0113`,
+    `/suppliers/bills/BR-26-0031`, `/customers/settlements/MR-26-0042`. Only a
+    customer draft, which has no number until it is posted, is addressed by its
+    id.
     The UUID still resolves, always, so nothing already sent out breaks. It
     answers with a permanent redirect to the business key rather than serving the
     page, because one record has one address.
     Collections are plural and consistent: `/parties`, `/customers/bills`,
-    `/subcontractors/settlements`. The lens in a URL is plural; the party role it
+    `/subcontractors/settlements`, `/suppliers/bills`. The lens in a URL is plural; the party role it
     looks at stays singular. Old singular URLs redirect in `src/proxy.ts`.
 12. **A form never loses what was typed.** Every field on a form that posts to a
     server action is controlled from `useKeptValues`, never `defaultValue`. A
@@ -339,6 +359,13 @@ formatters. Do not "improve" them here. If one has a bug, fix it in both.
   strong one closes a heading or a total and the soft one separates two ordinary
   rows, and `good` / `warn` / `crit` are reserved for state and are never a
   series color on a chart.
+- **A downloaded file is named by its number** (2026-10-06): `CB-26-0113.pdf`,
+  `MR-26-0042.pdf`. The number already says what the document is, and the
+  document names the company and the party. A document with no number of its
+  own takes a short hyphenated description with the party's or person's name:
+  `Statement-Rongdhonu-Dyeing-2026-07-01-to-2026-09-30.pdf`,
+  `Payslip-2026-09-Abdul-Karim.pdf`. Never a code or an id. `pdf/file-name.ts`
+  is the one place this is built.
 - **Documents are downloaded PDFs, never a printed screen.** A screen printed by
   the browser carries its headers, its margins and its own page breaks, which is
   not something to hand a customer. `src/lib/pdf/` renders A4 server-side with

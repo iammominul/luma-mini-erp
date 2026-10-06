@@ -36,7 +36,7 @@ export async function GET(request: Request) {
   return new Response(new Uint8Array(pdf), {
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${profitStatementFileName(company().name, from, to)}"`,
+      'Content-Disposition': `attachment; filename="${profitStatementFileName(from, to)}"`,
       'Content-Length': String(pdf.byteLength),
       'Cache-Control': 'no-store',
     },

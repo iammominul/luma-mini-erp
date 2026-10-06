@@ -157,18 +157,18 @@ export const billFormSchema = z.object({
   partyId: z.string().uuid('Select a party'),
   /** Which way this bill runs, set by the lens it was raised under. */
   direction: z.enum(['issued', 'received']),
+  /** Which role the party is billed in, set by the lens. */
+  partyRole: partyRoleSchema,
   /** Saved as a draft, or posted into the book. */
   status: z.enum(['draft', 'posted']).default('posted'),
   /**
-   * The hand-written number, required on both sides: LUMA's own bill book on
-   * the customer side, the subcontractor's paper bill on the other. The system
-   * number is issued separately and is never posted by the browser.
+   * The number written on the paper. On a bill received it is the party's own
+   * number and is required, which the mutation enforces because the rule turns
+   * on the direction. On a customer bill it is the Paper Ref from LUMA's bill
+   * book and is optional: the printed number is the system's, issued by the
+   * server and never posted by the browser.
    */
-  billNo: z
-    .string()
-    .trim()
-    .min(1, 'Enter the bill number written on the paper bill')
-    .max(40),
+  billNo: optionalText(40),
   /** What was billed: dyeing and finishing unless stated otherwise. */
   natureOfWork: z
     .enum([
@@ -193,6 +193,8 @@ export const paymentFormSchema = z.object({
   partyId: z.string().uuid('Select a party'),
   /** Money in against a receivable, or money out against a payable. */
   direction: z.enum(['in', 'out']),
+  /** Which role the party is paid or received from in, set by the lens. */
+  partyRole: partyRoleSchema,
   paidOn: isoDateSchema,
   amount: positiveMoney,
   mode: z.enum([

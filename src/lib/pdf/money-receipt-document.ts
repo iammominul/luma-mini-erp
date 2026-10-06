@@ -14,7 +14,7 @@ import {
   type MetaPair,
   tableLayout,
 } from './document';
-import { documentFileName } from './file-name';
+import { describedFileName, numberedFileName } from './file-name';
 
 /**
  * The document that acknowledges a settlement.
@@ -69,7 +69,12 @@ export function buildMoneyReceiptDocument({
     layout: tableLayout,
   };
 
+  // The voucher number leads: MR on a receipt, PV on a payment (2026-10-06).
+  // The paper receipt book's serial, or the cheque or bank reference, follows.
   const meta: MetaPair[] = [
+    ...(payment.docNo
+      ? [{ label: isReceipt ? 'Receipt No' : 'Voucher No', value: payment.docNo }]
+      : []),
     { label: 'Date', value: formatDate(payment.paidOn) },
     { label: 'Mode', value: mode },
   ];
@@ -124,16 +129,16 @@ export function buildMoneyReceiptDocument({
   });
 }
 
-/** The download filename, which is what the person filing it will see. */
-export function moneyReceiptFileName(
-  payment: Payment,
-  party: Party,
-  company: Company,
-): string {
-  return documentFileName({
-    company: company.name,
-    documentType: payment.direction === 'in' ? 'Money-Receipt' : 'Payment-Voucher',
-    party: party.code ?? party.name,
-    identifiers: [payment.reference ?? '', payment.paidOn].filter(Boolean),
-  });
+/**
+ * The download filename: the voucher number printed on it. A row older than
+ * the numbering has none until the next schema apply, and is named for what it
+ * is, who it was with and the day.
+ */
+export function moneyReceiptFileName(payment: Payment, party: Party): string {
+  if (payment.docNo) return numberedFileName(payment.docNo);
+  return describedFileName([
+    payment.direction === 'in' ? 'Money Receipt' : 'Payment Voucher',
+    party.name,
+    payment.paidOn,
+  ]);
 }

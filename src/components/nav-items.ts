@@ -105,11 +105,25 @@ export const GROUPS: NavGroup[] = [
     key: 'payables',
     label: 'Payables',
     icon: 'payable',
+    // Two parties are paid out of this side since 2026-10-06: the knitters and
+    // dye houses who work the fabric, and the suppliers who sell the yarn. Each
+    // item names whose it is, because "Bills Received" stopped saying that the
+    // moment there were two kinds. Each lens keeps its own run of four, in the
+    // same order as Receivables, so the eye finds the same item in the same
+    // place in either run.
     items: [
-      { href: '/subcontractors/bills', label: 'Bills Received' },
-      { href: '/subcontractors/settlements', label: 'Payments Made' },
+      { href: '/subcontractors/bills', label: 'Subcontractor Bills' },
+      { href: '/subcontractors/settlements', label: 'Subcontractor Payments' },
       { href: '/subcontractors/statement', label: 'Subcontractor Ledger' },
-      { href: '/subcontractors', label: 'Outstanding', exact: true },
+      {
+        href: '/subcontractors',
+        label: 'Subcontractor Outstanding',
+        exact: true,
+      },
+      { href: '/suppliers/bills', label: 'Supplier Bills' },
+      { href: '/suppliers/settlements', label: 'Supplier Payments' },
+      { href: '/suppliers/statement', label: 'Supplier Ledger' },
+      { href: '/suppliers', label: 'Supplier Outstanding', exact: true },
     ],
   },
   // The two sides above took their ledgers with them, so what is left is the

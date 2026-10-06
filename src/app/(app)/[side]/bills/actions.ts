@@ -39,6 +39,7 @@ function readBill(formData: FormData) {
   return billFormSchema.safeParse({
     partyId: text(formData, 'partyId'),
     direction: copyFor(sideOf(formData)).billDirection,
+    partyRole: copyFor(sideOf(formData)).role,
     status: text(formData, 'status') === 'draft' ? 'draft' : 'posted',
     billNo: text(formData, 'billNo'),
     natureOfWork: text(formData, 'natureOfWork') || 'dyeing_finishing',

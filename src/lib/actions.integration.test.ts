@@ -164,6 +164,7 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
           side: 'customer',
           partyId: customer!.party.id,
           direction: 'issued',
+          partyRole: 'customer',
           status: 'posted' as const,
           billNo: '1105',
           billDate: '2026-07-08',
@@ -222,6 +223,7 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
         id: bill!.id,
         partyId: customer!.party.id,
         direction: 'issued',
+        partyRole: 'customer',
         status: 'posted' as const,
         billNo: '1105',
         billDate: '2026-07-08',
@@ -241,32 +243,10 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
     );
     expect(refused.error).toBe('State why this bill is being edited.');
 
-    // A bill with no hand-written number is refused: it is the number the
-    // customer holds on paper, so it cannot be left off.
-    const noBillNo = await createBillAction(
-      {},
-      form({
-        side: 'customer',
-        partyId: customer!.party.id,
-        direction: 'issued',
-        status: 'posted' as const,
-        billNo: '',
-        billDate: '2026-07-09',
-        linesJson: JSON.stringify([
-          {
-            description: 'Black, Lot 40',
-            color: '',
-            challanNo: '',
-            orderNo: '',
-            lotNo: '',
-            greyKg: '100',
-            finishedKg: '',
-            rate: '40',
-          },
-        ]),
-      }),
-    );
-    expect(noBillNo.error).toMatch(/bill number/i);
+    // A customer bill no longer needs a paper number: the printed number is
+    // the system's (2026-10-06), and the paper book's is an optional Paper Ref.
+    // The number is still required on a bill received, which is the party's
+    // own; database.integration.test.ts holds that at the mutation.
 
     // The receipt form posts these names.
     await expectRedirect(() =>
@@ -276,6 +256,7 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
           side: 'customer',
           partyId: customer!.party.id,
           direction: 'issued',
+          partyRole: 'customer',
           status: 'posted' as const,
           paidOn: '2026-07-25',
           amount: '30000.00',
@@ -321,6 +302,7 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
         side: 'customer',
         partyId: customer!.party.id,
         direction: 'issued',
+        partyRole: 'customer',
         status: 'posted' as const,
         paidOn: '2026-07-25',
         amount: '0',
@@ -335,6 +317,7 @@ describe.skipIf(!CONNECTION)('the server actions', () => {
         side: 'customer',
         partyId: customer!.party.id,
         direction: 'issued',
+        partyRole: 'customer',
         status: 'posted' as const,
         paidOn: '2026-13-40',
         amount: '100.00',

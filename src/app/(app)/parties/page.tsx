@@ -83,7 +83,7 @@ const columns: Column<Party>[] = [
           Edit
         </Link>
         <Link
-          href={`/${party.roles.customer ? 'customer' : 'subcontractor'}/statement/${party.code ?? party.id}`}
+          href={`/${party.roles.customer ? 'customers' : party.roles.subcontractor ? 'subcontractors' : 'suppliers'}/statement/${party.code ?? party.id}`}
           className="text-sm text-[var(--color-navy)] hover:underline"
         >
           Statement
