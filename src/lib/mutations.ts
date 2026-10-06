@@ -28,6 +28,14 @@ import {
   getParty,
   getPayment,
   getUser,
+  getOrderLineOption,
+  getPurchaseOrder,
+  getSalesOrder,
+  getSourceLine,
+  getWorkOrder,
+  referencedOrderLines,
+  referencedSourceLines,
+  salesOrderInUse,
   listEmployees,
   listPayrollLines,
   otherActiveOwners,
@@ -51,12 +59,24 @@ import type {
   PaymentFormInput,
   PayrollLineFormInput,
   PayrollRunFormInput,
+  PurchaseOrderFormInput,
+  SalesOrderFormInput,
   UserFormInput,
+  WorkOrderFormInput,
 } from './schemas';
-import type { Actor, BillDirection, FundCategory, PartyRole } from './types';
+import type {
+  Actor,
+  BillDirection,
+  FundCategory,
+  OrderCategory,
+  OrderStatus,
+  PartyRole,
+} from './types';
 import {
   billHandle,
   billLabel,
+  orderCategoryLabel,
+  workProcessLabel,
   expenseCategoryLabel,
   fundCategoryLabel,
   paymentModeLabel,
@@ -247,6 +267,9 @@ type PreparedLine = {
   color: string | null;
   challanNo: string | null;
   orderNo: string | null;
+  orderLineId: string | null;
+  poLineId: string | null;
+  woLineId: string | null;
   lotNo: string | null;
   greyKg: string;
   finishedKg: string | null;
@@ -259,7 +282,10 @@ type PreparedLine = {
  * posted. The amount is rate times the grey weight, the basis the full ERP bills
  * on, and the total is never taken from the browser.
  */
-function prepare(input: BillFormInput): {
+function prepare(
+  input: BillFormInput,
+  links: ResolvedLink[],
+): {
   lines: PreparedLine[];
   total: string;
 } {
@@ -269,7 +295,10 @@ function prepare(input: BillFormInput): {
     description: line.description,
     color: line.color,
     challanNo: line.challanNo,
-    orderNo: line.orderNo,
+    orderNo: links[index]!.orderNo,
+    orderLineId: links[index]!.orderLineId,
+    poLineId: links[index]!.poLineId,
+    woLineId: links[index]!.woLineId,
     lotNo: line.lotNo,
     greyKg: line.greyKg,
     finishedKg: line.finishedKg,
@@ -345,8 +374,12 @@ export async function createBill(
   if (!party) throw new InputError('Select a party for this bill.');
   const input = checkBill(posted, party);
   await assertBillNoFree(input, party, input.direction);
+  const links = await resolveBillLinks(input, party, {
+    orderLineIds: new Set(),
+    sourceLineIds: new Set(),
+  });
 
-  const { lines, total } = prepare(input);
+  const { lines, total } = prepare(input, links);
   const id = randomUUID();
   const sql = db();
 
@@ -395,12 +428,14 @@ export async function createBill(
       (line) => sql`
         INSERT INTO bill_line (bill_id, line_no, description,
           color, challan_no, order_no, lot_no, grey_kg, finished_kg, rate,
-          amount)
+          amount, order_line_id, po_line_id, wo_line_id)
         VALUES (${id}::uuid, ${line.lineNo}::int, ${line.description}::text,
           ${line.color}, ${line.challanNo}, ${line.orderNo},
           ${line.lotNo},
           ${line.greyKg}::numeric, ${line.finishedKg}::numeric,
-          ${line.rate}::numeric, ${line.amount}::numeric)
+          ${line.rate}::numeric, ${line.amount}::numeric,
+          ${line.orderLineId}::uuid, ${line.poLineId}::uuid,
+          ${line.woLineId}::uuid)
       `,
     ),
     sql`
@@ -445,7 +480,19 @@ export async function updateBill(
   );
 
   const snapshot = await billSnapshot(id);
-  const { lines, total } = prepare(input);
+  const links = await resolveBillLinks(
+    input,
+    { id: existing.partyId, name: existing.partyName },
+    {
+      orderLineIds: new Set(
+        existing.lines.map((l) => l.orderLineId).filter((v): v is string => Boolean(v)),
+      ),
+      sourceLineIds: new Set(
+        existing.lines.map((l) => l.sourceLineId).filter((v): v is string => Boolean(v)),
+      ),
+    },
+  );
+  const { lines, total } = prepare(input, links);
   const sql = db();
 
   // doc_no is never rewritten: the system's series stays as issued, even when
@@ -466,12 +513,14 @@ export async function updateBill(
       (line) => sql`
         INSERT INTO bill_line (bill_id, line_no, description,
           color, challan_no, order_no, lot_no, grey_kg, finished_kg, rate,
-          amount)
+          amount, order_line_id, po_line_id, wo_line_id)
         VALUES (${id}::uuid, ${line.lineNo}::int, ${line.description}::text,
           ${line.color}, ${line.challanNo}, ${line.orderNo},
           ${line.lotNo},
           ${line.greyKg}::numeric, ${line.finishedKg}::numeric,
-          ${line.rate}::numeric, ${line.amount}::numeric)
+          ${line.rate}::numeric, ${line.amount}::numeric,
+          ${line.orderLineId}::uuid, ${line.poLineId}::uuid,
+          ${line.woLineId}::uuid)
       `,
     ),
     sql`
@@ -876,6 +925,7 @@ export async function createExpense(
   input: ExpenseFormInput,
   actor: Actor,
 ): Promise<string> {
+  const order = await resolveExpenseOrder(input);
   const sql = db();
   const id = randomUUID();
 
@@ -886,13 +936,14 @@ export async function createExpense(
         RETURNING value
       )
       INSERT INTO expense (id, doc_no, spent_on, category, payee, description,
-        amount, mode, reference, order_no, notes)
+        amount, mode, reference, order_no, sales_order_id, order_line_id, notes)
       SELECT ${id}::uuid,
         'EXP-' || to_char(${input.spentOn}::date, 'YY') || '-' ||
           lpad(bumped.value::text, GREATEST(4, length(bumped.value::text)), '0'),
         ${input.spentOn}::date, ${input.category}::text, ${input.payee},
         ${input.description}::text, ${input.amount}::numeric,
-        ${input.mode}::text, ${input.reference}, ${input.orderNo}, ${input.notes}
+        ${input.mode}::text, ${input.reference}, ${order.orderNo},
+        ${order.salesOrderId}::uuid, ${order.orderLineId}::uuid, ${input.notes}
       FROM bumped
     `,
     sql`
@@ -914,6 +965,10 @@ export async function updateExpense(
 ): Promise<void> {
   const before = await getExpense(id);
   if (!before) throw new InputError('That expense no longer exists.');
+  const order = await resolveExpenseOrder(input, {
+    salesOrderId: before.salesOrderId,
+    orderLineId: before.orderLineId,
+  });
 
   const sql = db();
   const snapshot = await expenseSnapshot(id);
@@ -924,7 +979,9 @@ export async function updateExpense(
         category = ${input.category}::text, payee = ${input.payee},
         description = ${input.description}::text,
         amount = ${input.amount}::numeric, mode = ${input.mode}::text,
-        reference = ${input.reference}, order_no = ${input.orderNo},
+        reference = ${input.reference}, order_no = ${order.orderNo},
+        sales_order_id = ${order.salesOrderId}::uuid,
+        order_line_id = ${order.orderLineId}::uuid,
         notes = ${input.notes},
         updated_at = now()
       WHERE id = ${id}::uuid
@@ -2313,4 +2370,653 @@ export async function signOutOtherSessions(
     `,
   ])) as unknown[][];
   return (results[0] ?? []).length;
+}
+
+// Orders (2026-10-06) ----------------------------------------------------------
+//
+// The same rules as every write above: one transaction with its activity_log
+// row, numbers from a counter bumped inside it, and no figure taken from the
+// browser. An order line that a bill, a PO, a WO or an expense points at can be
+// edited and never removed, because removing it would orphan the cost.
+//
+// Editing lines without breaking those links means updating rows in place
+// rather than deleting and reinserting them. The line numbers are first moved
+// out of the way (negated) so renumbering inside one batch cannot trip the
+// unique (order, line_no) index halfway through.
+
+type LineRef = { id: string };
+
+/**
+ * The plan for replacing a document's lines: which posted lines update an
+ * existing row, which are new, and which existing rows go. Refuses to remove a
+ * line something points at, and refuses an id that is not this document's.
+ */
+function planLines<T extends { id: string | null }>(
+  posted: T[],
+  existing: LineRef[],
+  referenced: Set<string>,
+  what: string,
+): { keep: (T & { id: string; lineNo: number })[]; add: (T & { id: string; lineNo: number })[]; drop: string[] } {
+  const known = new Set(existing.map((line) => line.id));
+  const keep: (T & { id: string; lineNo: number })[] = [];
+  const add: (T & { id: string; lineNo: number })[] = [];
+  posted.forEach((line, index) => {
+    if (line.id && !known.has(line.id)) {
+      throw new InputError(`A line on this ${what} no longer exists. Reload and try again.`);
+    }
+    const placed = { ...line, id: line.id ?? randomUUID(), lineNo: index + 1 };
+    (line.id ? keep : add).push(placed);
+  });
+  const postedIds = new Set(keep.map((line) => line.id));
+  const drop = existing.map((line) => line.id).filter((id) => !postedIds.has(id));
+  const blocked = drop.filter((id) => referenced.has(id));
+  if (blocked.length > 0) {
+    throw new InputError(
+      `A line on this ${what} has documents filed against it and cannot be removed. Edit it instead.`,
+    );
+  }
+  return { keep, add, drop };
+}
+
+/**
+ * A Sales Order line's unit. Both categories there are today are sold by grey
+ * kg, so it is fixed here rather than offered; a category sold by the piece
+ * would add its unit to this function and to the form.
+ */
+function unitFor(_category: string): string {
+  return 'kg';
+}
+
+async function salesOrderSnapshot(id: string): Promise<unknown> {
+  const sql = db();
+  const rows = (await sql`
+    SELECT to_jsonb(o) || jsonb_build_object('lines', (
+      SELECT COALESCE(jsonb_agg(to_jsonb(l) ORDER BY l.line_no), '[]'::jsonb)
+      FROM sales_order_line l WHERE l.order_id = o.id)) AS snapshot
+    FROM sales_order o WHERE o.id = ${id}::uuid
+  `) as { snapshot: unknown }[];
+  return rows[0]?.snapshot ?? null;
+}
+
+export async function createSalesOrder(
+  input: SalesOrderFormInput,
+  actor: Actor,
+): Promise<string> {
+  const party = await getParty(input.partyId);
+  if (!party) throw new InputError('Select a customer for this order.');
+  if (!party.roles.customer) {
+    throw new InputError(`${party.name} is not set up as a customer. Add the role on the party first.`);
+  }
+
+  const sql = db();
+  const id = randomUUID();
+  await sql.transaction([
+    sql`
+      WITH bumped AS (
+        UPDATE counter SET value = value + 1 WHERE name = 'sales_order'
+        RETURNING value
+      )
+      INSERT INTO sales_order (id, doc_no, party_id, order_date, customer_ref, notes)
+      SELECT ${id}::uuid,
+        'SO-' || to_char(${input.orderDate}::date, 'YY') || '-' ||
+          lpad(bumped.value::text, GREATEST(4, length(bumped.value::text)), '0'),
+        ${party.id}::uuid, ${input.orderDate}::date, ${input.customerRef},
+        ${input.notes}
+      FROM bumped
+    `,
+    ...input.lines.map(
+      (line, index) => sql`
+        INSERT INTO sales_order_line (order_id, line_no, category, description,
+          color, unit, quantity, rate)
+        VALUES (${id}::uuid, ${index + 1}::int, ${line.category}::text,
+          ${line.description}::text, ${line.color}, ${unitFor(line.category)}::text,
+          ${line.quantity}::numeric, ${line.rate}::numeric)
+      `,
+    ),
+    sql`
+      INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason, after_json)
+      SELECT ${actor.id}::text, ${actor.name}::text, 'create', 'sales_order', o.id::text,
+        'Sales Order ' || o.doc_no || ${` for ${party.name} dated ${formatDate(input.orderDate)}`}::text,
+        ${input.reason}, to_jsonb(o)
+      FROM sales_order o WHERE o.id = ${id}::uuid
+    `,
+  ]);
+  return id;
+}
+
+export async function updateSalesOrder(
+  id: string,
+  input: SalesOrderFormInput,
+  actor: Actor,
+): Promise<void> {
+  const before = await getSalesOrder(id);
+  if (!before) throw new InputError('That order no longer exists.');
+  if (before.status !== 'open') {
+    throw new InputError(`Sales Order ${before.docNo} is ${before.status}. Reopen it to edit.`);
+  }
+  if (before.partyId !== input.partyId && (await salesOrderInUse(id))) {
+    throw new InputError(
+      `Sales Order ${before.docNo} has documents filed against it, so its customer cannot change.`,
+    );
+  }
+  const party = await getParty(input.partyId);
+  if (!party?.roles.customer) throw new InputError('Select a customer for this order.');
+
+  const plan = planLines(
+    input.lines,
+    before.lines,
+    await referencedOrderLines(id),
+    'order',
+  );
+  const snapshot = await salesOrderSnapshot(id);
+  const sql = db();
+  await sql.transaction([
+    sql`UPDATE sales_order_line SET line_no = -line_no WHERE order_id = ${id}::uuid`,
+    ...plan.drop.map((lineId) => sql`DELETE FROM sales_order_line WHERE id = ${lineId}::uuid`),
+    ...plan.keep.map(
+      (line) => sql`
+        UPDATE sales_order_line SET line_no = ${line.lineNo}::int,
+          category = ${line.category}::text, description = ${line.description}::text,
+          color = ${line.color}, unit = ${unitFor(line.category)}::text,
+          quantity = ${line.quantity}::numeric, rate = ${line.rate}::numeric
+        WHERE id = ${line.id}::uuid AND order_id = ${id}::uuid
+      `,
+    ),
+    ...plan.add.map(
+      (line) => sql`
+        INSERT INTO sales_order_line (id, order_id, line_no, category, description,
+          color, unit, quantity, rate)
+        VALUES (${line.id}::uuid, ${id}::uuid, ${line.lineNo}::int, ${line.category}::text,
+          ${line.description}::text, ${line.color}, ${unitFor(line.category)}::text,
+          ${line.quantity}::numeric, ${line.rate}::numeric)
+      `,
+    ),
+    sql`
+      UPDATE sales_order SET party_id = ${party.id}::uuid,
+        order_date = ${input.orderDate}::date, customer_ref = ${input.customerRef},
+        notes = ${input.notes}, updated_at = now()
+      WHERE id = ${id}::uuid
+    `,
+    sql`
+      INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason,
+        before_json, after_json)
+      SELECT ${actor.id}::text, ${actor.name}::text, 'update', 'sales_order', o.id::text,
+        'Edited Sales Order ' || o.doc_no, ${input.reason},
+        ${asJson(snapshot)}::jsonb, to_jsonb(o)
+      FROM sales_order o WHERE o.id = ${id}::uuid
+    `,
+  ]);
+}
+
+/**
+ * Close, cancel or reopen an order, always with a reason. Cancelling is
+ * refused once anything is filed against the order: a cancelled order with a
+ * bill on it would hide that bill's cost.
+ */
+export async function setSalesOrderStatus(
+  id: string,
+  status: OrderStatus,
+  reason: string,
+  actor: Actor,
+): Promise<void> {
+  const before = await getSalesOrder(id);
+  if (!before) throw new InputError('That order no longer exists.');
+  if (before.status === status) return;
+  if (status === 'cancelled' && (await salesOrderInUse(id))) {
+    throw new InputError(
+      `Sales Order ${before.docNo} has documents filed against it and cannot be cancelled. Close it instead.`,
+    );
+  }
+  const word = status === 'open' ? 'Reopened' : status === 'closed' ? 'Closed' : 'Cancelled';
+  const sql = db();
+  await sql.transaction([
+    sql`UPDATE sales_order SET status = ${status}::text, updated_at = now() WHERE id = ${id}::uuid`,
+    sql`
+      INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason)
+      VALUES (${actor.id}::text, ${actor.name}::text, 'update', 'sales_order', ${id}::text,
+        ${`${word} Sales Order ${before.docNo}`}::text, ${reason}::text)
+    `,
+  ]);
+}
+
+/**
+ * The order lines a PO or WO may point at: lines of open orders, or the line
+ * it already pointed at. A PO is yarn, so its lines must be finished fabric;
+ * knitting likewise. Dyeing serves both fabric and a dyeing service.
+ */
+async function checkOrderLines(
+  lineIds: string[],
+  allowed: (category: OrderCategory) => boolean,
+  already: Set<string>,
+  what: string,
+): Promise<void> {
+  for (const lineId of new Set(lineIds)) {
+    const line = await getOrderLineOption(lineId);
+    if (!line) throw new InputError('An order line on this document no longer exists.');
+    if (line.orderStatus !== 'open' && !already.has(lineId)) {
+      throw new InputError(`Sales Order ${line.orderDocNo} is ${line.orderStatus} and takes no new ${what}.`);
+    }
+    if (!allowed(line.category)) {
+      throw new InputError(
+        `${line.orderDocNo} line ${line.lineNo} is a ${orderCategoryLabel(line.category).toLowerCase()} line and cannot take a ${what}.`,
+      );
+    }
+  }
+}
+
+async function orderDocSnapshot(kind: 'po' | 'wo', id: string): Promise<unknown> {
+  const sql = db();
+  const rows = (kind === 'po'
+    ? await sql`
+        SELECT to_jsonb(d) || jsonb_build_object('lines', (
+          SELECT COALESCE(jsonb_agg(to_jsonb(l) ORDER BY l.line_no), '[]'::jsonb)
+          FROM purchase_order_line l WHERE l.po_id = d.id)) AS snapshot
+        FROM purchase_order d WHERE d.id = ${id}::uuid`
+    : await sql`
+        SELECT to_jsonb(d) || jsonb_build_object('lines', (
+          SELECT COALESCE(jsonb_agg(to_jsonb(l) ORDER BY l.line_no), '[]'::jsonb)
+          FROM work_order_line l WHERE l.wo_id = d.id)) AS snapshot
+        FROM work_order d WHERE d.id = ${id}::uuid`) as { snapshot: unknown }[];
+  return rows[0]?.snapshot ?? null;
+}
+
+async function checkDeliverTo(id: string | null): Promise<void> {
+  if (id && !(await getParty(id))) {
+    throw new InputError('The party to deliver to no longer exists.');
+  }
+}
+
+export async function createPurchaseOrder(
+  input: PurchaseOrderFormInput,
+  actor: Actor,
+): Promise<string> {
+  const party = await getParty(input.partyId);
+  if (!party?.roles.supplier) {
+    throw new InputError('Select a supplier for this purchase order.');
+  }
+  await checkDeliverTo(input.deliverToId);
+  await checkOrderLines(
+    input.lines.map((line) => line.orderLineId),
+    (category) => category === 'fabric',
+    new Set(),
+    'yarn purchase',
+  );
+  const total = sumMoney(input.lines.map((line) => lineAmount(line.quantityKg, line.rate)));
+
+  const sql = db();
+  const id = randomUUID();
+  await sql.transaction([
+    sql`
+      WITH bumped AS (
+        UPDATE counter SET value = value + 1 WHERE name = 'purchase_order'
+        RETURNING value
+      )
+      INSERT INTO purchase_order (id, doc_no, party_id, order_date, deliver_to_id,
+        delivery_by, terms, notes)
+      SELECT ${id}::uuid,
+        'PO-' || to_char(${input.orderDate}::date, 'YY') || '-' ||
+          lpad(bumped.value::text, GREATEST(4, length(bumped.value::text)), '0'),
+        ${party.id}::uuid, ${input.orderDate}::date, ${input.deliverToId}::uuid,
+        ${input.deliveryBy}::date, ${input.terms}, ${input.notes}
+      FROM bumped
+    `,
+    ...input.lines.map(
+      (line, index) => sql`
+        INSERT INTO purchase_order_line (po_id, line_no, order_line_id, description,
+          quantity_kg, rate)
+        VALUES (${id}::uuid, ${index + 1}::int, ${line.orderLineId}::uuid,
+          ${line.description}::text, ${line.quantityKg}::numeric, ${line.rate}::numeric)
+      `,
+    ),
+    sql`
+      INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason, after_json)
+      SELECT ${actor.id}::text, ${actor.name}::text, 'create', 'purchase_order', d.id::text,
+        'Purchase Order ' || d.doc_no || ${` to ${party.name}, Tk ${formatTaka(total)}`}::text,
+        ${input.reason}, to_jsonb(d)
+      FROM purchase_order d WHERE d.id = ${id}::uuid
+    `,
+  ]);
+  return id;
+}
+
+export async function updatePurchaseOrder(
+  id: string,
+  input: PurchaseOrderFormInput,
+  actor: Actor,
+): Promise<void> {
+  const before = await getPurchaseOrder(id);
+  if (!before) throw new InputError('That purchase order no longer exists.');
+  if (before.status !== 'open') {
+    throw new InputError(`Purchase Order ${before.docNo} is ${before.status}. Reopen it to edit.`);
+  }
+  const referenced = await referencedSourceLines('po', id);
+  if (before.partyId !== input.partyId && referenced.size > 0) {
+    throw new InputError(
+      `Purchase Order ${before.docNo} has been billed against, so its supplier cannot change.`,
+    );
+  }
+  const party = await getParty(input.partyId);
+  if (!party?.roles.supplier) throw new InputError('Select a supplier for this purchase order.');
+  await checkDeliverTo(input.deliverToId);
+  await checkOrderLines(
+    input.lines.map((line) => line.orderLineId),
+    (category) => category === 'fabric',
+    new Set(before.lines.map((line) => line.orderLineId)),
+    'yarn purchase',
+  );
+  const plan = planLines(input.lines, before.lines, referenced, 'purchase order');
+  const snapshot = await orderDocSnapshot('po', id);
+  const sql = db();
+  await sql.transaction([
+    sql`UPDATE purchase_order_line SET line_no = -line_no WHERE po_id = ${id}::uuid`,
+    ...plan.drop.map((lineId) => sql`DELETE FROM purchase_order_line WHERE id = ${lineId}::uuid`),
+    ...plan.keep.map(
+      (line) => sql`
+        UPDATE purchase_order_line SET line_no = ${line.lineNo}::int,
+          order_line_id = ${line.orderLineId}::uuid, description = ${line.description}::text,
+          quantity_kg = ${line.quantityKg}::numeric, rate = ${line.rate}::numeric
+        WHERE id = ${line.id}::uuid AND po_id = ${id}::uuid
+      `,
+    ),
+    ...plan.add.map(
+      (line) => sql`
+        INSERT INTO purchase_order_line (id, po_id, line_no, order_line_id, description,
+          quantity_kg, rate)
+        VALUES (${line.id}::uuid, ${id}::uuid, ${line.lineNo}::int, ${line.orderLineId}::uuid,
+          ${line.description}::text, ${line.quantityKg}::numeric, ${line.rate}::numeric)
+      `,
+    ),
+    sql`
+      UPDATE purchase_order SET party_id = ${party.id}::uuid,
+        order_date = ${input.orderDate}::date, deliver_to_id = ${input.deliverToId}::uuid,
+        delivery_by = ${input.deliveryBy}::date, terms = ${input.terms},
+        notes = ${input.notes}, updated_at = now()
+      WHERE id = ${id}::uuid
+    `,
+    sql`
+      INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason,
+        before_json, after_json)
+      SELECT ${actor.id}::text, ${actor.name}::text, 'update', 'purchase_order', d.id::text,
+        'Edited Purchase Order ' || d.doc_no, ${input.reason},
+        ${asJson(snapshot)}::jsonb, to_jsonb(d)
+      FROM purchase_order d WHERE d.id = ${id}::uuid
+    `,
+  ]);
+}
+
+export async function createWorkOrder(
+  input: WorkOrderFormInput,
+  actor: Actor,
+): Promise<string> {
+  const party = await getParty(input.partyId);
+  if (!party?.roles.subcontractor) {
+    throw new InputError('Select a subcontractor for this work order.');
+  }
+  await checkDeliverTo(input.deliverToId);
+  await checkOrderLines(
+    input.lines.map((line) => line.orderLineId),
+    (category) => input.process === 'dyeing_finishing' || category === 'fabric',
+    new Set(),
+    `${workProcessLabel(input.process).toLowerCase()} work order`,
+  );
+  const total = sumMoney(input.lines.map((line) => lineAmount(line.quantityKg, line.rate)));
+
+  const sql = db();
+  const id = randomUUID();
+  await sql.transaction([
+    sql`
+      WITH bumped AS (
+        UPDATE counter SET value = value + 1 WHERE name = 'work_order'
+        RETURNING value
+      )
+      INSERT INTO work_order (id, doc_no, party_id, process, order_date,
+        deliver_to_id, delivery_by, terms, notes)
+      SELECT ${id}::uuid,
+        'WO-' || to_char(${input.orderDate}::date, 'YY') || '-' ||
+          lpad(bumped.value::text, GREATEST(4, length(bumped.value::text)), '0'),
+        ${party.id}::uuid, ${input.process}::text, ${input.orderDate}::date,
+        ${input.deliverToId}::uuid, ${input.deliveryBy}::date, ${input.terms},
+        ${input.notes}
+      FROM bumped
+    `,
+    ...input.lines.map(
+      (line, index) => sql`
+        INSERT INTO work_order_line (wo_id, line_no, order_line_id, description,
+          color, gsm, dia, quantity_kg, rate)
+        VALUES (${id}::uuid, ${index + 1}::int, ${line.orderLineId}::uuid,
+          ${line.description}::text, ${line.color}, ${line.gsm}, ${line.dia},
+          ${line.quantityKg}::numeric, ${line.rate}::numeric)
+      `,
+    ),
+    sql`
+      INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason, after_json)
+      SELECT ${actor.id}::text, ${actor.name}::text, 'create', 'work_order', d.id::text,
+        'Work Order ' || d.doc_no ||
+          ${`, ${workProcessLabel(input.process)} to ${party.name}, Tk ${formatTaka(total)}`}::text,
+        ${input.reason}, to_jsonb(d)
+      FROM work_order d WHERE d.id = ${id}::uuid
+    `,
+  ]);
+  return id;
+}
+
+export async function updateWorkOrder(
+  id: string,
+  input: WorkOrderFormInput,
+  actor: Actor,
+): Promise<void> {
+  const before = await getWorkOrder(id);
+  if (!before) throw new InputError('That work order no longer exists.');
+  if (before.status !== 'open') {
+    throw new InputError(`Work Order ${before.docNo} is ${before.status}. Reopen it to edit.`);
+  }
+  const referenced = await referencedSourceLines('wo', id);
+  if ((before.partyId !== input.partyId || before.process !== input.process) && referenced.size > 0) {
+    throw new InputError(
+      `Work Order ${before.docNo} has been billed against, so its subcontractor and process cannot change.`,
+    );
+  }
+  const party = await getParty(input.partyId);
+  if (!party?.roles.subcontractor) throw new InputError('Select a subcontractor for this work order.');
+  await checkDeliverTo(input.deliverToId);
+  await checkOrderLines(
+    input.lines.map((line) => line.orderLineId),
+    (category) => input.process === 'dyeing_finishing' || category === 'fabric',
+    new Set(before.lines.map((line) => line.orderLineId)),
+    `${workProcessLabel(input.process).toLowerCase()} work order`,
+  );
+  const plan = planLines(input.lines, before.lines, referenced, 'work order');
+  const snapshot = await orderDocSnapshot('wo', id);
+  const sql = db();
+  await sql.transaction([
+    sql`UPDATE work_order_line SET line_no = -line_no WHERE wo_id = ${id}::uuid`,
+    ...plan.drop.map((lineId) => sql`DELETE FROM work_order_line WHERE id = ${lineId}::uuid`),
+    ...plan.keep.map(
+      (line) => sql`
+        UPDATE work_order_line SET line_no = ${line.lineNo}::int,
+          order_line_id = ${line.orderLineId}::uuid, description = ${line.description}::text,
+          color = ${line.color}, gsm = ${line.gsm}, dia = ${line.dia},
+          quantity_kg = ${line.quantityKg}::numeric, rate = ${line.rate}::numeric
+        WHERE id = ${line.id}::uuid AND wo_id = ${id}::uuid
+      `,
+    ),
+    ...plan.add.map(
+      (line) => sql`
+        INSERT INTO work_order_line (id, wo_id, line_no, order_line_id, description,
+          color, gsm, dia, quantity_kg, rate)
+        VALUES (${line.id}::uuid, ${id}::uuid, ${line.lineNo}::int, ${line.orderLineId}::uuid,
+          ${line.description}::text, ${line.color}, ${line.gsm}, ${line.dia},
+          ${line.quantityKg}::numeric, ${line.rate}::numeric)
+      `,
+    ),
+    sql`
+      UPDATE work_order SET party_id = ${party.id}::uuid, process = ${input.process}::text,
+        order_date = ${input.orderDate}::date, deliver_to_id = ${input.deliverToId}::uuid,
+        delivery_by = ${input.deliveryBy}::date, terms = ${input.terms},
+        notes = ${input.notes}, updated_at = now()
+      WHERE id = ${id}::uuid
+    `,
+    sql`
+      INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason,
+        before_json, after_json)
+      SELECT ${actor.id}::text, ${actor.name}::text, 'update', 'work_order', d.id::text,
+        'Edited Work Order ' || d.doc_no, ${input.reason},
+        ${asJson(snapshot)}::jsonb, to_jsonb(d)
+      FROM work_order d WHERE d.id = ${id}::uuid
+    `,
+  ]);
+}
+
+/**
+ * Close, cancel or reopen a PO or WO, with a reason. A document already billed
+ * against cannot be cancelled: the bill would point at something that says it
+ * never happened.
+ */
+export async function setOrderDocStatus(
+  kind: 'po' | 'wo',
+  id: string,
+  status: OrderStatus,
+  reason: string,
+  actor: Actor,
+): Promise<void> {
+  const before = kind === 'po' ? await getPurchaseOrder(id) : await getWorkOrder(id);
+  const label = kind === 'po' ? 'Purchase Order' : 'Work Order';
+  if (!before) throw new InputError(`That ${label.toLowerCase()} no longer exists.`);
+  if (before.status === status) return;
+  if (status === 'cancelled' && (await referencedSourceLines(kind, id)).size > 0) {
+    throw new InputError(
+      `${label} ${before.docNo} has been billed against and cannot be cancelled. Close it instead.`,
+    );
+  }
+  const word = status === 'open' ? 'Reopened' : status === 'closed' ? 'Closed' : 'Cancelled';
+  const entity = kind === 'po' ? 'purchase_order' : 'work_order';
+  const sql = db();
+  await sql.transaction([
+    kind === 'po'
+      ? sql`UPDATE purchase_order SET status = ${status}::text, updated_at = now() WHERE id = ${id}::uuid`
+      : sql`UPDATE work_order SET status = ${status}::text, updated_at = now() WHERE id = ${id}::uuid`,
+    sql`
+      INSERT INTO activity_log (actor_user_id, actor_name, action, entity, entity_id, summary, reason)
+      VALUES (${actor.id}::text, ${actor.name}::text, 'update', ${entity}::text, ${id}::text,
+        ${`${word} ${label} ${before.docNo}`}::text, ${reason}::text)
+    `,
+  ]);
+}
+
+/**
+ * What each bill line is tied to, checked before the bill is written.
+ *
+ * A customer bill line names a Sales Order line of that customer. A supplier's
+ * bill line names a PO line of that supplier, and a subcontractor's a WO line
+ * of that subcontractor, each of which carries its order line; naming the
+ * order line directly is allowed too, for work that came without a PO or WO.
+ * A link to a closed or cancelled document is refused unless the line already
+ * had it, so correcting a typo on an old bill is never blocked.
+ *
+ * A linked line's free text order_no is written from the order, the customer's
+ * own reference when there is one, so the reports that still read it agree.
+ */
+type ResolvedLink = {
+  orderLineId: string | null;
+  poLineId: string | null;
+  woLineId: string | null;
+  orderNo: string | null;
+};
+
+async function resolveBillLinks(
+  input: BillFormInput,
+  party: { id: string; name: string },
+  already: { orderLineIds: Set<string>; sourceLineIds: Set<string> },
+): Promise<ResolvedLink[]> {
+  const out: ResolvedLink[] = [];
+  for (const line of input.lines) {
+    if (!line.orderLineId && !line.sourceLineId) {
+      out.push({ orderLineId: null, poLineId: null, woLineId: null, orderNo: line.orderNo });
+      continue;
+    }
+    let orderLineId = line.orderLineId;
+    let poLineId: string | null = null;
+    let woLineId: string | null = null;
+
+    if (line.sourceLineId) {
+      if (input.partyRole === 'customer') {
+        throw new InputError('A customer bill line is tied to a Sales Order line, not a PO or WO.');
+      }
+      const kind = input.partyRole === 'supplier' ? 'po' : 'wo';
+      const source = await getSourceLine(kind, line.sourceLineId);
+      if (!source) throw new InputError('A PO or WO line on this bill no longer exists.');
+      if (source.partyId !== party.id) {
+        throw new InputError(`${source.docNo} was issued to another party, not ${party.name}.`);
+      }
+      if (source.status !== 'open' && !already.sourceLineIds.has(source.id)) {
+        throw new InputError(`${source.docNo} is ${source.status} and takes no new bills.`);
+      }
+      orderLineId = source.orderLineId;
+      if (kind === 'po') poLineId = source.id;
+      else woLineId = source.id;
+    }
+
+    const order = await getOrderLineOption(orderLineId!);
+    if (!order) throw new InputError('An order line on this bill no longer exists.');
+    if (input.partyRole === 'customer' && order.partyId !== party.id) {
+      throw new InputError(`${order.orderDocNo} belongs to ${order.partyName}, not ${party.name}.`);
+    }
+    if (input.partyRole === 'supplier' && order.category !== 'fabric') {
+      throw new InputError(`${order.orderDocNo} line ${order.lineNo} is a dyeing service and takes no yarn.`);
+    }
+    if (
+      order.orderStatus !== 'open' &&
+      !already.orderLineIds.has(order.id) &&
+      !(line.sourceLineId && already.sourceLineIds.has(line.sourceLineId))
+    ) {
+      throw new InputError(`Sales Order ${order.orderDocNo} is ${order.orderStatus} and takes no new bills.`);
+    }
+    out.push({
+      orderLineId: order.id,
+      poLineId,
+      woLineId,
+      orderNo: order.customerRef ?? order.orderDocNo,
+    });
+  }
+  return out;
+}
+
+/**
+ * An expense's order, checked before it is written. A line implies its order,
+ * whatever order was posted beside it; an order alone is a cost on the whole
+ * order. A closed or cancelled order takes no new cost unless it already had
+ * this one.
+ */
+async function resolveExpenseOrder(
+  input: ExpenseFormInput,
+  already: { salesOrderId: string | null; orderLineId: string | null } = {
+    salesOrderId: null,
+    orderLineId: null,
+  },
+): Promise<{ salesOrderId: string | null; orderLineId: string | null; orderNo: string | null }> {
+  if (input.orderLineId) {
+    const line = await getOrderLineOption(input.orderLineId);
+    if (!line) throw new InputError('That order line no longer exists.');
+    if (line.orderStatus !== 'open' && already.orderLineId !== line.id) {
+      throw new InputError(`Sales Order ${line.orderDocNo} is ${line.orderStatus} and takes no new costs.`);
+    }
+    return {
+      salesOrderId: line.orderId,
+      orderLineId: line.id,
+      orderNo: line.customerRef ?? line.orderDocNo,
+    };
+  }
+  if (input.salesOrderId) {
+    const order = await getSalesOrder(input.salesOrderId);
+    if (!order) throw new InputError('That order no longer exists.');
+    if (order.status !== 'open' && already.salesOrderId !== order.id) {
+      throw new InputError(`Sales Order ${order.docNo} is ${order.status} and takes no new costs.`);
+    }
+    return {
+      salesOrderId: order.id,
+      orderLineId: null,
+      orderNo: order.customerRef ?? order.docNo,
+    };
+  }
+  return { salesOrderId: null, orderLineId: null, orderNo: input.orderNo };
 }

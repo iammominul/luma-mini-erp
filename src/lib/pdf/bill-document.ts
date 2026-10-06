@@ -20,12 +20,12 @@ import { describedFileName, numberedFileName } from './file-name';
 /**
  * The Bill, as an A4 document, for either side of the business.
  *
- * The bill LUMA sends is still hand-written, so the number on this document is
- * that hand-written number: paper and PDF have to agree when a customer holds
- * both. The system's own number is recorded but deliberately not printed. When
- * billing moves fully into the ERP the hand-written bill retires, and the system
- * number becomes the number on this line without anything else about the
- * document changing.
+ * The number printed is the system's CB number (owner, 2026-10-06), the way an
+ * established ERP prints its own. LUMA still writes a paper bill book, so its
+ * number rides beside the CB number as Paper Ref and a customer holding the
+ * paper can match the two. A bill received is printed under the party's own
+ * number, because it is their document; its BR number is noted as where it is
+ * filed.
  *
  * Figures come off the saved bill, computed once at posting. Nothing is
  * recalculated here.

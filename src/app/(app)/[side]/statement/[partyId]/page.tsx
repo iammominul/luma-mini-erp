@@ -14,6 +14,10 @@ import { formatDate, todayInDhaka } from '@/lib/dates';
 import { isUuid } from '@/lib/ids';
 import { findParty, listMovements } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
+import { RecordPaymentDialog } from '@/components/RecordPaymentDialog';
+import { Money } from '@/lib/money';
+import { can } from '@/lib/permissions';
+import { requireUser } from '@/lib/session';
 import {
   buildStatement,
   closingLabel,
@@ -40,6 +44,7 @@ export default async function StatementPage({
   params: Promise<{ side: string; partyId: string }>;
   searchParams: Promise<Search>;
 }) {
+  const user = await requireUser();
   const { side, partyId } = await params;
   if (!isSide(side)) notFound();
   const copy = copyFor(side);
@@ -73,6 +78,17 @@ export default async function StatementPage({
     to,
   });
   const labels = statementLabels(copy.role);
+  // What is owed in the direction this lens settles, offered as the amount on
+  // Record Receipt or Record Payment. Nothing is offered when the balance
+  // runs the other way, because then nothing is owed on this side.
+  const owed =
+    copy.paymentDirection === 'in'
+      ? statement.closing.isNegative() || statement.closing.isZero()
+        ? null
+        : statement.closing
+      : statement.closing.isNegative()
+        ? Money.ZERO.subtract(statement.closing)
+        : null;
 
   const period =
     from && to
@@ -204,13 +220,20 @@ export default async function StatementPage({
           >
             New {copy.billSingular}
           </LinkButton>
-          <LinkButton
-            href={`/${side}/settlements/new?party=${party.id}`}
-            variant="secondary"
-            icon="plus"
-          >
-            New {copy.settlementSingular}
-          </LinkButton>
+          {/* Recorded here in a dialog, with the party already chosen and the
+              balance offered as the amount, because the statement is where
+              somebody is when the cheque arrives. */}
+          {can(user.role, 'settlement:manage') ? (
+            <RecordPaymentDialog
+              side={side}
+              partyId={party.id}
+              partyName={party.name}
+              isReceipt={copy.paymentDirection === 'in'}
+              returnTo={`/${side}/statement/${party.code ?? party.id}`}
+              today={todayInDhaka()}
+              suggestedAmount={owed?.toDecimalString()}
+            />
+          ) : null}
           <DownloadButton href={pdfHref}>Party Ledger PDF</DownloadButton>
         </div>
       </div>

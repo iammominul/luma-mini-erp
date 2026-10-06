@@ -63,71 +63,64 @@ export const PINNED: (NavItem & { icon: IconName })[] = [
 ];
 
 /**
- * Six groups, and which side of the book a screen belongs to decides the first
- * two of them.
+ * Grouped by business function, the way the Bangladesh textile ERPs arrange it
+ * (owner, 2026-10-06): Sales, Purchase, Work Orders. That replaced Receivables
+ * and Payables, which fitted an app that only billed and stopped fitting once
+ * there were orders to raise against both sides.
  *
- * The full ERP's `11-navigation-and-admin.md` puts both sides in one Money
- * group. This app deliberately does not, and the divergence was taken with the
- * reason on the record: every package an accounts clerk in this market has used
- * splits the receivable side from the payable side, SAP calls them Sales A/R
- * and Purchasing A/P, Odoo and Zoho call them Sales and Purchases, and this app
- * is two sides before it is anything else. A bill raised and a bill received
- * are not two rows of one list, they are opposite directions of money, and one
- * Money group asks somebody to read the item label to work out which way a
- * screen points. If the ERP is ever made to agree, this is the shape to move
- * to, not the other way around.
+ * The rule the old split existed for still holds: one side of the book never
+ * spreads across groups. Sales is the whole receivable side, from the order to
+ * the outstanding; Purchase and Work Orders are the payable side, one for the
+ * spinners who sell yarn and one for the knitters and dye houses who work the
+ * fabric. Each group runs in the same order, the order first and the
+ * outstanding last, so the eye finds the same item in the same place in each.
  *
- * A group holds the whole of one side: what was billed, what was settled, the
- * ledger it lands in, and what is left outstanding.
+ * Outstanding stays the short label in all three. Its group heading is directly
+ * above it in the rail and printed over its title by Crumb, which is the
+ * reasoning recorded when the long labels were reversed on 2026-08-24.
+ *
+ * Commercial (LC and PI) and Store (challans, phase 2) slot in later as groups
+ * of their own.
  */
 export const GROUPS: NavGroup[] = [
   {
-    key: 'receivables',
-    label: 'Receivables',
+    key: 'sales',
+    label: 'Sales',
     icon: 'receivable',
     items: [
+      { href: '/orders', label: 'Sales Orders' },
       { href: '/customers/bills', label: 'Customer Bills' },
       { href: '/customers/settlements', label: 'Money Receipts' },
       { href: '/customers/statement', label: 'Customer Ledger' },
-      // Back to the short label (2026-08-24), reversing the 2026-08-15 change
-      // that made these Customer Outstanding and Subcontractor Outstanding.
-      // That change was made against a worry rather than a case: the two are
-      // never read without their side beside them. In the rail the group
-      // heading is directly above, and on the screen itself Crumb prints the
-      // group over the title, so the page says Receivables and then
-      // Outstanding. Search never shows a menu label at all. What the long
-      // label did cost was real: it was the longest entry in the rail and set
-      // the width of the whole thing.
       { href: '/customers', label: 'Outstanding', exact: true },
     ],
   },
   {
-    key: 'payables',
-    label: 'Payables',
+    key: 'purchase',
+    label: 'Purchase',
     icon: 'payable',
-    // Two parties are paid out of this side since 2026-10-06: the knitters and
-    // dye houses who work the fabric, and the suppliers who sell the yarn. Each
-    // item names whose it is, because "Bills Received" stopped saying that the
-    // moment there were two kinds. Each lens keeps its own run of four, in the
-    // same order as Receivables, so the eye finds the same item in the same
-    // place in either run.
     items: [
-      { href: '/subcontractors/bills', label: 'Subcontractor Bills' },
-      { href: '/subcontractors/settlements', label: 'Subcontractor Payments' },
-      { href: '/subcontractors/statement', label: 'Subcontractor Ledger' },
-      {
-        href: '/subcontractors',
-        label: 'Subcontractor Outstanding',
-        exact: true,
-      },
+      { href: '/purchase-orders', label: 'Purchase Orders' },
       { href: '/suppliers/bills', label: 'Supplier Bills' },
       { href: '/suppliers/settlements', label: 'Supplier Payments' },
       { href: '/suppliers/statement', label: 'Supplier Ledger' },
-      { href: '/suppliers', label: 'Supplier Outstanding', exact: true },
+      { href: '/suppliers', label: 'Outstanding', exact: true },
     ],
   },
-  // The two sides above took their ledgers with them, so what is left is the
-  // money that belongs to neither.
+  {
+    key: 'work',
+    label: 'Work Orders',
+    icon: 'work',
+    items: [
+      { href: '/work-orders', label: 'Work Orders' },
+      { href: '/subcontractors/bills', label: 'Subcontractor Bills' },
+      { href: '/subcontractors/settlements', label: 'Subcontractor Payments' },
+      { href: '/subcontractors/statement', label: 'Subcontractor Ledger' },
+      { href: '/subcontractors', label: 'Outstanding', exact: true },
+    ],
+  },
+  // The three sides above took their ledgers with them, so what is left is the
+  // money that belongs to none of them.
   //
   // This group was called Accounts, after the department and after what Tally
   // calls it. Two things were wrong with that. It held Expenses and Expense

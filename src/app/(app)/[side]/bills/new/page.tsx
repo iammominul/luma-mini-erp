@@ -7,6 +7,8 @@ import { listParties, nextCustomerBillSerial } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
 import { checkBillNoAction, createBillAction } from '../actions';
 import { requirePermission } from '@/lib/session';
+import { can } from '@/lib/permissions';
+import { billLinkOptions } from '../link-options';
 
 export default async function NewBillPage({
   params,
@@ -15,25 +17,25 @@ export default async function NewBillPage({
   params: Promise<{ side: string }>;
   searchParams: Promise<{ party?: string }>;
 }) {
-  await requirePermission('bill:manage');
+  const user = await requirePermission('bill:manage');
   const { side } = await params;
   if (!isSide(side)) notFound();
   const copy = copyFor(side);
   const { party } = await searchParams;
-  const [parties, nextSerial] = await Promise.all([
+  const [parties, nextSerial, linkOptions] = await Promise.all([
     listParties({ role: copy.role }),
-    // Only the customer side takes a system number, so only it has one to show.
+    // Only the customer side previews its number: a BR number is issued on
+    // save and never printed, so there is nothing to preview.
     copy.billNoIsOurs ? nextCustomerBillSerial() : Promise.resolve(null),
+    billLinkOptions(copy.role),
   ]);
+  const canCreateParty = can(user.role, 'party:manage');
 
   return (
     <>
-      <PageTitle
-        title={`New ${copy.billSingular}`}
-        subtitle="Enter it as the paper bill reads."
-      />
+      <PageTitle title={`New ${copy.billSingular}`} />
 
-      {parties.length === 0 ? (
+      {parties.length === 0 && !canCreateParty ? (
         <Notice tone="error">
           There are no active {copy.partyPlural.toLowerCase()} yet.{' '}
           <Link href="/parties" className="underline">
@@ -50,6 +52,8 @@ export default async function NewBillPage({
           cancelHref={`/${side}/bills`}
           nextSerial={nextSerial}
           checkBillNo={checkBillNoAction}
+          linkOptions={linkOptions}
+          canCreateParty={canCreateParty}
           values={{
             partyId: party ?? '',
             status: 'posted',

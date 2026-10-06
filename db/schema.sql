@@ -99,6 +99,140 @@ INSERT INTO counter (name, value) VALUES
   ('money_receipt', 0), ('payment_voucher', 0)
   ON CONFLICT (name) DO NOTHING;
 
+-- Orders (2026-10-06) ---------------------------------------------------------
+--
+-- LUMA now sells finished fabric as well as dyeing customers' own, so a job is a
+-- record and not only a free text reference on a bill line. Three documents:
+--
+--   sales_order     what the customer booked: SO-26-0001
+--   purchase_order  yarn LUMA buys against it from a supplier: PO-26-0001
+--   work_order      knitting or dyeing LUMA sends to a subcontractor: WO-26-0001
+--
+-- Every bill line and expense points back at an order line, which is what lets
+-- an order be costed end to end. Nothing here holds a total or a status worked
+-- out from the others: booked value, what was billed, what it cost and the
+-- stage an order is at are all computed on read (rule 2). The status column is
+-- only what a person decides: open, closed or cancelled.
+--
+-- An order is never deleted. It is cancelled with a reason, and only while no
+-- document points at it, so a cost can never lose the order it was filed under.
+-- Yarn is bought per order, never held, which is why there is no stock table
+-- and no valuation here (CLAUDE.md section 7).
+
+CREATE TABLE IF NOT EXISTS sales_order (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- Issued on save from the counter, in the same transaction. There is no
+  -- draft order, so nothing can leave a hole in the series.
+  doc_no         text NOT NULL,
+  party_id       uuid NOT NULL REFERENCES party (id),
+  order_date     date NOT NULL,
+  -- The customer's own order or work order number, as their paper says it.
+  customer_ref   text,
+  status         text NOT NULL DEFAULT 'open'
+                 CONSTRAINT sales_order_status_check
+                 CHECK (status IN ('open', 'closed', 'cancelled')),
+  notes          text,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS sales_order_doc_no_key ON sales_order (doc_no);
+CREATE INDEX IF NOT EXISTS sales_order_party_idx ON sales_order (party_id, order_date);
+
+CREATE TABLE IF NOT EXISTS sales_order_line (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id       uuid NOT NULL REFERENCES sales_order (id),
+  line_no        integer NOT NULL,
+  -- What is sold. A new kind is a wider CHECK, never a new table.
+  category       text NOT NULL
+                 CONSTRAINT sales_order_line_category_check
+                 CHECK (category IN ('fabric', 'dyeing_service')),
+  description    text NOT NULL,
+  color          text,
+  -- Fabric and a dyeing service are both sold by grey kg; the unit list is
+  -- there for a category that is not, and nothing offers it until one exists.
+  unit           text NOT NULL DEFAULT 'kg'
+                 CONSTRAINT sales_order_line_unit_check
+                 CHECK (unit IN ('kg', 'pcs', 'dozen', 'gross', 'yard', 'meter')),
+  quantity       numeric(12, 3) NOT NULL CHECK (quantity > 0),
+  rate           numeric(12, 6) NOT NULL CHECK (rate >= 0),
+  CONSTRAINT sales_order_line_no_key UNIQUE (order_id, line_no),
+  -- The target of the expense's composite key, which stops a line being filed
+  -- under an order it does not belong to.
+  CONSTRAINT sales_order_line_order_key UNIQUE (id, order_id)
+);
+
+CREATE TABLE IF NOT EXISTS purchase_order (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  doc_no         text NOT NULL,
+  party_id       uuid NOT NULL REFERENCES party (id),
+  order_date     date NOT NULL,
+  -- Where the spinner delivers: a knitter direct, or LUMA itself when null.
+  deliver_to_id  uuid REFERENCES party (id),
+  delivery_by    date,
+  status         text NOT NULL DEFAULT 'open'
+                 CONSTRAINT purchase_order_status_check
+                 CHECK (status IN ('open', 'closed', 'cancelled')),
+  -- Payment and delivery terms, printed on the order.
+  terms          text,
+  notes          text,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS purchase_order_doc_no_key ON purchase_order (doc_no);
+
+CREATE TABLE IF NOT EXISTS purchase_order_line (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  po_id          uuid NOT NULL REFERENCES purchase_order (id),
+  line_no        integer NOT NULL,
+  -- Yarn is bought against one order, so every line names the order line.
+  order_line_id  uuid NOT NULL REFERENCES sales_order_line (id),
+  description    text NOT NULL,
+  quantity_kg    numeric(12, 3) NOT NULL CHECK (quantity_kg > 0),
+  rate           numeric(12, 6) NOT NULL CHECK (rate >= 0),
+  CONSTRAINT purchase_order_line_no_key UNIQUE (po_id, line_no)
+);
+
+CREATE TABLE IF NOT EXISTS work_order (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  doc_no         text NOT NULL,
+  party_id       uuid NOT NULL REFERENCES party (id),
+  process        text NOT NULL
+                 CONSTRAINT work_order_process_check
+                 CHECK (process IN ('knitting', 'dyeing_finishing')),
+  order_date     date NOT NULL,
+  -- Where the work goes next: another subcontractor, the customer, or LUMA
+  -- itself when null.
+  deliver_to_id  uuid REFERENCES party (id),
+  delivery_by    date,
+  status         text NOT NULL DEFAULT 'open'
+                 CONSTRAINT work_order_status_check
+                 CHECK (status IN ('open', 'closed', 'cancelled')),
+  terms          text,
+  notes          text,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS work_order_doc_no_key ON work_order (doc_no);
+
+CREATE TABLE IF NOT EXISTS work_order_line (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  wo_id          uuid NOT NULL REFERENCES work_order (id),
+  line_no        integer NOT NULL,
+  order_line_id  uuid NOT NULL REFERENCES sales_order_line (id),
+  description    text NOT NULL,
+  color          text,
+  -- As the program writes them, which is often a range: "160-170", "30 Open".
+  gsm            text,
+  dia            text,
+  quantity_kg    numeric(12, 3) NOT NULL CHECK (quantity_kg > 0),
+  rate           numeric(12, 6) NOT NULL CHECK (rate >= 0),
+  CONSTRAINT work_order_line_no_key UNIQUE (wo_id, line_no)
+);
+
+INSERT INTO counter (name, value) VALUES
+  ('sales_order', 0), ('purchase_order', 0), ('work_order', 0)
+  ON CONFLICT (name) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS bill (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   party_id    uuid NOT NULL REFERENCES party (id),
@@ -190,7 +324,15 @@ CREATE TABLE IF NOT EXISTS bill_line (
   -- of them; rounded to the poisha it stops reproducing the amount the party
   -- was shown. The amount below is still exact poisha.
   rate        numeric(12, 6) NOT NULL CHECK (rate >= 0),
-  amount      numeric(14, 2) NOT NULL CHECK (amount >= 0)
+  amount      numeric(14, 2) NOT NULL CHECK (amount >= 0),
+  -- The order line this line was billed or charged against (2026-10-06). On a
+  -- supplier's bill it comes through the PO line, on a subcontractor's through
+  -- the WO line, so both are kept: the order line for costing, the PO or WO
+  -- line for what was ordered against what was billed. Null on a line keyed
+  -- before orders existed, which is costed by its free text order_no instead.
+  order_line_id uuid REFERENCES sales_order_line (id),
+  po_line_id    uuid REFERENCES purchase_order_line (id),
+  wo_line_id    uuid REFERENCES work_order_line (id)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS bill_line_no_key ON bill_line (bill_id, line_no);
@@ -319,6 +461,12 @@ CREATE TABLE IF NOT EXISTS expense (
   -- already carries. It is what lets one order be costed end to end. Null is
   -- ordinary and means the cost is not attributable to a single order.
   order_no    text,
+  -- The order record itself (2026-10-06): a whole order (freight or a lab
+  -- test for all of it) or one line of it (a transport trip for one fabric).
+  -- The composite key in the migrations below stops a line being filed under
+  -- an order it does not belong to.
+  sales_order_id uuid REFERENCES sales_order (id),
+  order_line_id  uuid,
   notes       text,
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()
@@ -1573,3 +1721,45 @@ UPDATE counter c SET value = GREATEST(c.value, (
   FROM bill b WHERE b.doc_no ~ '^BR-\d+-\d+$'
 ))
 WHERE c.name = 'bill_received';
+
+
+-- Orders, and every cost and sale tied to one (2026-10-06).
+--
+-- The order tables are new and declared above, so CREATE TABLE IF NOT EXISTS
+-- covers an existing database too. What follows adds the links to the tables
+-- that already exist. Expand only (rule 15): the free text order_no stays and
+-- is still written, so the code serving during the build keeps working.
+ALTER TABLE bill_line ADD COLUMN IF NOT EXISTS order_line_id uuid
+  REFERENCES sales_order_line (id);
+ALTER TABLE bill_line ADD COLUMN IF NOT EXISTS po_line_id uuid
+  REFERENCES purchase_order_line (id);
+ALTER TABLE bill_line ADD COLUMN IF NOT EXISTS wo_line_id uuid
+  REFERENCES work_order_line (id);
+CREATE INDEX IF NOT EXISTS bill_line_order_line_idx ON bill_line (order_line_id)
+  WHERE order_line_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS bill_line_po_line_idx ON bill_line (po_line_id)
+  WHERE po_line_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS bill_line_wo_line_idx ON bill_line (wo_line_id)
+  WHERE wo_line_id IS NOT NULL;
+
+ALTER TABLE expense ADD COLUMN IF NOT EXISTS sales_order_id uuid
+  REFERENCES sales_order (id);
+ALTER TABLE expense ADD COLUMN IF NOT EXISTS order_line_id uuid;
+ALTER TABLE expense DROP CONSTRAINT IF EXISTS expense_order_line_fk;
+ALTER TABLE expense ADD CONSTRAINT expense_order_line_fk
+  FOREIGN KEY (order_line_id, sales_order_id)
+  REFERENCES sales_order_line (id, order_id);
+-- A line without its order would slip past the composite key, which only
+-- checks when both halves are present.
+ALTER TABLE expense DROP CONSTRAINT IF EXISTS expense_order_line_needs_order;
+ALTER TABLE expense ADD CONSTRAINT expense_order_line_needs_order
+  CHECK (order_line_id IS NULL OR sales_order_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS expense_sales_order_idx ON expense (sales_order_id)
+  WHERE sales_order_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS purchase_order_line_order_idx
+  ON purchase_order_line (order_line_id);
+CREATE INDEX IF NOT EXISTS work_order_line_order_idx
+  ON work_order_line (order_line_id);
+CREATE INDEX IF NOT EXISTS sales_order_customer_ref_lower_idx
+  ON sales_order (lower(customer_ref));

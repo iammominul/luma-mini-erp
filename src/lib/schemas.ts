@@ -36,6 +36,16 @@ const optionalText = (max: number) =>
     .optional()
     .transform((value) => (value === '' || value === undefined ? null : value));
 
+/** A uuid, or blank or absent, which becomes null. */
+const optionalUuid = z
+  .union([
+    z.string().trim().uuid('That record is not one this book knows'),
+    z.literal(''),
+    z.null(),
+  ])
+  .optional()
+  .transform((value) => (value ? value : null));
+
 /** A calendar date as 'YYYY-MM-DD', checked for being a real date. */
 export const isoDateSchema = z
   .string()
@@ -123,6 +133,15 @@ export const billLineSchema = z.object({
   orderNo: optionalText(40),
   /** The dye lot number, as written on the challan and the bill. */
   lotNo: optionalText(40),
+  /**
+   * What the line was billed against (2026-10-06). On a customer bill, a
+   * Sales Order line. On a supplier's bill, a Purchase Order line, and on a
+   * subcontractor's a Work Order line, each of which names its order line.
+   * Blank on a line nobody tied to an order. The mutation checks that the
+   * line belongs to this party and is still open.
+   */
+  orderLineId: optionalUuid,
+  sourceLineId: optionalUuid,
   /** Grey weight, which is what the amount is calculated on. */
   greyKg: weightKg('grey weight'),
   /**
@@ -387,6 +406,12 @@ export const expenseFormSchema = z.object({
   reference: optionalText(80),
   /** The order this cost belongs to, so it can be costed against that order. */
   orderNo: optionalText(60),
+  /**
+   * The Sales Order it is filed against, or one line of it (2026-10-06). The
+   * mutation checks both and writes the free text reference from the order.
+   */
+  salesOrderId: optionalUuid,
+  orderLineId: optionalUuid,
   notes: optionalText(1000),
   reason: optionalText(300),
 });
@@ -599,3 +624,108 @@ export const ownPasswordSchema = z
 export function firstError(error: z.ZodError): string {
   return error.issues[0]?.message ?? 'Check the values entered';
 }
+
+// Orders (2026-10-06) ----------------------------------------------------------
+
+/** A rate per unit, six decimals, as a bill line takes it. */
+const rateSchema = z
+  .string()
+  .trim()
+  .regex(/^\d+(\.\d{1,6})?$/, 'Enter the rate with up to 6 decimals')
+  .refine(
+    accepts(parseRate, (microTaka) => microTaka >= 0n),
+    'Rate cannot be negative',
+  );
+
+const orderStatusSchema = z.enum(['open', 'closed', 'cancelled']);
+
+export const salesOrderLineSchema = z.object({
+  /** Set when an existing line is edited, so its id and its links survive. */
+  id: optionalUuid,
+  category: z.enum(['fabric', 'dyeing_service']),
+  description: z
+    .string()
+    .trim()
+    .min(1, 'Every line needs a description')
+    .max(300),
+  color: optionalText(60),
+  /** Grey kg for both categories there are today. */
+  quantity: weightKg('quantity'),
+  rate: rateSchema,
+});
+export type SalesOrderLineInput = z.infer<typeof salesOrderLineSchema>;
+
+export const salesOrderFormSchema = z.object({
+  partyId: z.string().uuid('Select a customer'),
+  orderDate: isoDateSchema,
+  customerRef: optionalText(60),
+  notes: optionalText(1000),
+  lines: z.array(salesOrderLineSchema).min(1, 'Add at least one order line'),
+  reason: optionalText(300),
+});
+export type SalesOrderFormInput = z.infer<typeof salesOrderFormSchema>;
+
+/** Closing or cancelling an order, which always states why. */
+export const orderStatusFormSchema = z.object({
+  id: z.string().uuid(),
+  status: orderStatusSchema,
+  reason: z.string().trim().min(1, 'State why').max(300),
+});
+
+export const purchaseOrderLineSchema = z.object({
+  id: optionalUuid,
+  orderLineId: z.string().uuid('Choose the order line this yarn is for'),
+  description: z
+    .string()
+    .trim()
+    .min(1, 'Every line needs a description')
+    .max(300),
+  quantityKg: weightKg('quantity'),
+  rate: rateSchema,
+});
+
+export const purchaseOrderFormSchema = z.object({
+  partyId: z.string().uuid('Select a supplier'),
+  orderDate: isoDateSchema,
+  deliverToId: optionalUuid,
+  deliveryBy: z
+    .union([isoDateSchema, z.literal('')])
+    .optional()
+    .transform((value) => (value ? value : null)),
+  terms: optionalText(500),
+  notes: optionalText(1000),
+  lines: z.array(purchaseOrderLineSchema).min(1, 'Add at least one line'),
+  reason: optionalText(300),
+});
+export type PurchaseOrderFormInput = z.infer<typeof purchaseOrderFormSchema>;
+
+export const workOrderLineSchema = z.object({
+  id: optionalUuid,
+  orderLineId: z.string().uuid('Choose the order line this work is for'),
+  description: z
+    .string()
+    .trim()
+    .min(1, 'Every line needs a description')
+    .max(300),
+  color: optionalText(60),
+  gsm: optionalText(40),
+  dia: optionalText(40),
+  quantityKg: weightKg('quantity'),
+  rate: rateSchema,
+});
+
+export const workOrderFormSchema = z.object({
+  partyId: z.string().uuid('Select a subcontractor'),
+  process: z.enum(['knitting', 'dyeing_finishing']),
+  orderDate: isoDateSchema,
+  deliverToId: optionalUuid,
+  deliveryBy: z
+    .union([isoDateSchema, z.literal('')])
+    .optional()
+    .transform((value) => (value ? value : null)),
+  terms: optionalText(500),
+  notes: optionalText(1000),
+  lines: z.array(workOrderLineSchema).min(1, 'Add at least one line'),
+  reason: optionalText(300),
+});
+export type WorkOrderFormInput = z.infer<typeof workOrderFormSchema>;

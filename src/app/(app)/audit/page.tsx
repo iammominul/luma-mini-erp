@@ -23,6 +23,9 @@ const ENTITY_LABEL: Record<string, string> = {
   // SELECT DISTINCT entity. Without this the screen offers a filter called
   // expense_claim and prints a raw table name beside it.
   expense_claim: 'Expense Claim',
+  sales_order: 'Sales Order',
+  purchase_order: 'Purchase Order',
+  work_order: 'Work Order',
   loan: 'Loan',
   fund_movement: 'Fund Voucher',
   employee: 'Employee',

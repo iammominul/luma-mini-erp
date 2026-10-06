@@ -12,6 +12,7 @@ import {
 } from '@/lib/amount';
 import type { SideCopy } from '@/lib/side';
 import { NATURE_OF_WORK } from '@/lib/types';
+import { PartyPicker } from './PartyPicker';
 import { useKeptValues } from './use-kept-values';
 import {
   Button,
@@ -32,6 +33,11 @@ import {
 export type BillFormState = { error?: string };
 
 export type BillFormLine = {
+  /**
+   * The order line this line is tied to: a Sales Order line on a customer
+   * bill, a PO or WO line on a bill received. Blank when it is tied to none.
+   */
+  linkId: string;
   description: string;
   color: string;
   challanNo: string;
@@ -54,6 +60,7 @@ export type BillFormValues = {
 };
 
 const EMPTY_LINE: BillFormLine = {
+  linkId: '',
   description: '',
   color: '',
   challanNo: '',
@@ -97,6 +104,65 @@ function previewDocNo(billDate: string, serial: number): string | null {
   return `CB-${year}-${digits.padStart(Math.max(4, digits.length), '0')}`;
 }
 
+/**
+ * One choice in a line's Order picker (2026-10-06): a Sales Order line on a
+ * customer bill, a PO line on a supplier's, a WO line on a subcontractor's.
+ */
+export type BillLinkOption = {
+  id: string;
+  partyId: string;
+  label: string;
+  open: boolean;
+  description: string;
+  color: string | null;
+  quantityKg: string | null;
+  rate: string | null;
+};
+
+/**
+ * The Order cell on a bill line. A picker of the orders this bill can be tied
+ * to; a line tied to none keeps the free text box beneath it, which is how
+ * every bill was costed before orders were records and how one still can be.
+ */
+function OrderLinkCell({
+  line,
+  options,
+  onPick,
+  onText,
+}: {
+  line: BillFormLine;
+  options: BillLinkOption[];
+  onPick: (id: string) => void;
+  onText: (orderNo: string) => void;
+}) {
+  const linked = line.linkId !== '';
+  return (
+    <div className="space-y-1">
+      {options.length > 0 || linked ? (
+        <Select value={line.linkId} onChange={(e) => onPick(e.target.value)}>
+          <option value="">Not tied to an order</option>
+          {options.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+            </option>
+          ))}
+        </Select>
+      ) : null}
+      {linked ? null : (
+        <TextInput
+          type="text"
+          value={line.orderNo}
+          onChange={(e) => onText(e.target.value)}
+          maxLength={40}
+          autoComplete="off"
+          aria-label="Order No as written"
+          placeholder={options.length > 0 ? 'or Order No as written' : undefined}
+        />
+      )}
+    </div>
+  );
+}
+
 export function BillForm({
   copy,
   parties,
@@ -109,6 +175,8 @@ export function BillForm({
   docNo,
   nextSerial,
   checkBillNo,
+  linkOptions = [],
+  canCreateParty = false,
 }: {
   copy: SideCopy;
   parties: { id: string; name: string }[];
@@ -124,6 +192,10 @@ export function BillForm({
   /** The serial the next customer bill would take. Null on the other side. */
   nextSerial?: number | null;
   /** Asks whether the number is already in the book. A warning, not a gate. */
+  /** What each line can be tied to, for every party on this lens. */
+  linkOptions?: BillLinkOption[];
+  /** Whether New Party is offered beside the party select. */
+  canCreateParty?: boolean;
   checkBillNo?: (input: {
     side: string;
     billNo: string;
@@ -213,6 +285,36 @@ export function BillForm({
       current.map((line, i) => (i === index ? { ...line, ...patch } : line)),
     );
 
+  // What a line can be tied to: the open orders of this bill's party, and
+  // whatever the line is already tied to even if that order has since closed.
+  const linkFor = (line: BillFormLine) =>
+    linkOptions.filter(
+      (option) =>
+        option.id === line.linkId ||
+        (option.open && option.partyId === header.partyId),
+    );
+
+  // Tying a line fills what is still blank from the order; nothing typed is
+  // overwritten, because the bill states what was actually charged.
+  const pick = (index: number, linkId: string) => {
+    const option = linkOptions.find((o) => o.id === linkId);
+    const line = lines[index]!;
+    update(index, {
+      linkId,
+      description: line.description || option?.description || '',
+      color: line.color || option?.color || '',
+      greyKg: line.greyKg || option?.quantityKg || '',
+      rate: line.rate || option?.rate || '',
+    });
+  };
+
+  // What is posted: the link goes in the field the lens uses for it.
+  const postedLines = lines.map(({ linkId, ...line }) => ({
+    ...line,
+    orderLineId: copy.role === 'customer' ? linkId : '',
+    sourceLineId: copy.role === 'customer' ? '' : linkId,
+  }));
+
   const amounts = lines.map(safeAmount);
   const total = sumMoney(amounts.filter((a): a is Money => a !== null));
   const totalGrey = sumGrams(lines.map((line) => safeGrams(line.greyKg)));
@@ -238,7 +340,7 @@ export function BillForm({
     <form action={submit} className="space-y-4">
       <input type="hidden" name="side" value={copy.side} />
       {billId ? <input type="hidden" name="id" value={billId} /> : null}
-      <input type="hidden" name="linesJson" value={JSON.stringify(lines)} />
+      <input type="hidden" name="linesJson" value={JSON.stringify(postedLines)} />
 
       {/* Three blocks rather than one row of five. Who the bill is against and
           when, then what identifies it, then what it is for. They were one flat
@@ -250,22 +352,15 @@ export function BillForm({
             Party and Date
           </h3>
           <div className="space-y-3">
-            <Field label={copy.partyWord}>
-              <Select
-                ref={register('partyId')}
-                name="partyId"
-                value={header.partyId}
-                onChange={(e) => setField({ partyId: e.target.value })}
-                required
-              >
-                <option value="">Select {copy.partyWord}</option>
-                {parties.map((party) => (
-                  <option key={party.id} value={party.id}>
-                    {party.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+            <PartyPicker
+              role={copy.role}
+              label={copy.partyWord}
+              parties={parties}
+              value={header.partyId}
+              onChange={(partyId) => setField({ partyId })}
+              selectRef={register('partyId')}
+              canCreate={canCreateParty}
+            />
 
             <Field label="Bill Date">
               <TextInput
@@ -391,7 +486,7 @@ export function BillForm({
               <tr>
                 <Th className="w-8">No</Th>
                 <Th>Description</Th>
-                <Th className="w-24">Order No</Th>
+                <Th className="w-48">Order</Th>
                 <Th className="w-24">Challan No</Th>
                 <Th className="w-24">LOT No</Th>
                 {isYarn ? null : <Th className="w-24">Color</Th>}
@@ -435,14 +530,11 @@ export function BillForm({
                     />
                   </Td>
                   <Td>
-                    <TextInput
-                      type="text"
-                      value={line.orderNo}
-                      onChange={(e) =>
-                        update(index, { orderNo: e.target.value })
-                      }
-                      maxLength={40}
-                      autoComplete="off"
+                    <OrderLinkCell
+                      line={line}
+                      options={linkFor(line)}
+                      onPick={(id) => pick(index, id)}
+                      onText={(orderNo) => update(index, { orderNo })}
                     />
                   </Td>
                   <Td>
@@ -610,15 +702,12 @@ export function BillForm({
                 </Field>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Order No">
-                    <TextInput
-                      type="text"
-                      value={line.orderNo}
-                      onChange={(e) =>
-                        update(index, { orderNo: e.target.value })
-                      }
-                      maxLength={40}
-                      autoComplete="off"
+                  <Field label="Order">
+                    <OrderLinkCell
+                      line={line}
+                      options={linkFor(line)}
+                      onPick={(id) => pick(index, id)}
+                      onText={(orderNo) => update(index, { orderNo })}
                     />
                   </Field>
                   <Field label="Challan No">

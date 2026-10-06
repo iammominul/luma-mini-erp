@@ -324,17 +324,18 @@ formatters. Do not "improve" them here. If one has a bug, fix it in both.
   This rule is about **screen text**. The dense comments in the code are house
   style and stay: they are for the next person editing the file, not for
   somebody trying to get a bill out.
-  **The rail splits the two sides, and that is a knowing divergence**
-  (2026-08-15). The ERP's `11-navigation-and-admin.md` keeps one Money group
-  holding both. Here the first two groups are Receivables and Payables, because
-  every package this market has used splits the receivable side from the payable
-  side, and this app is two sides before it is anything else: a bill raised and
-  a bill received are opposite directions of money, and one group makes somebody
-  read the item label to work out which way a screen points. Each group holds
-  the whole of its side, bills, settlements, ledger and outstanding. Books is
-  Accounts, which is what the department is called and what Tally calls it, and
-  holds what belongs to neither side. If the ERP is made to agree, this is the
-  shape to move to.
+  **The rail is grouped by business function: Sales, Purchase, Work Orders**
+  (2026-10-06), the way the Bangladesh textile ERPs arrange it. It replaced
+  Receivables and Payables (2026-08-15), which suited an app that only billed
+  and had no home for orders. The rule that split existed for still holds:
+  **one side of the book never spreads across groups.** Sales is the whole
+  receivable side, Sales Orders to Outstanding. Purchase (spinners, yarn) and
+  Work Orders (knitters and dye houses) are the payable side, each whole: its
+  order document, its bills, its payments, its ledger, its outstanding, in the
+  same order in every group. Cash and Funds holds what belongs to none of them.
+  Commercial (LC, PI) and Store (challans) arrive later as groups of their own.
+  The ERP's `11-navigation-and-admin.md` keeps one Money group; if it is made to
+  agree, this is the shape to move to.
   **There is no Frequent block, and Parties is not pinned** (2026-08-15). The
   rail used to carry four shortcuts on a tinted strip above the groups. Every one
   of them was the first or second item of Receivables or Payables, which are the
@@ -425,7 +426,10 @@ customers are billed. Add the case to the tests.
 Every request to add fabric tracking, process loss, rate cards, or a
 double-entry ledger belongs in the **full ERP**, not here. If this app starts
 growing modules, the reason it exists has been lost. Say so rather than building
-it.
+it. The exceptions below were each decided by the owner with the reason on the
+record; fabric sales is the latest, and its phases 2 and 3 (kilos through the
+chain, process loss, pre-cost) are inside it. Anything outside a recorded
+exception still gets the warning.
 
 **The dashboard's trading summary is a view, not a module** (2026-08-12). LUMA
 subcontracts the dyeing it bills for, so a subcontractor's bill is its cost of
@@ -535,6 +539,35 @@ A staff reimbursement is an ordinary expense voucher with the employee as the
 payee, and the tier is overhead either way, so the profit statement is unaffected
 in shape. `audit/page.tsx` keeps its `expense_claim` label permanently: the
 activity log is append only by rule 5 and outlives the table.
+
+**Fabric sales and orders are the fourth exception** (owner, 2026-10-06). LUMA
+now sells finished fabric as well as dyeing customers' own: it buys yarn
+against an order, has it knitted and dyed by subcontractors, and sells the
+result. The owner decided this runs here rather than waiting for the ERP. It
+brought the Supplier side, Sales Orders (`SO`), Purchase Orders (`PO`) and Work
+Orders (`WO`), with every bill line and expense tied to an order line, and an
+order costed end to end. The plan, with every decision behind it, is
+`docs/plans/2026-10-06-fabric-sales-phase-1.md`. Five limits hold it:
+
+1. **No stock and no valuation.** Yarn is bought against one order, never held,
+   so a cost is tied to an order by reference and not valued through a store.
+   If yarn or chemicals are ever bought ahead and held, that is the ERP's
+   inventory module, not this app.
+2. **Everything an order shows is computed on read** (rule 2): booked value,
+   billed, every cost, contribution, and the **stage**, which is read off the
+   documents (a PO means Yarn Ordered, a dyeing WO means In Dyeing) and never
+   typed. The status column holds only what a person decides: open, closed,
+   cancelled. `order-costing.ts` is the arithmetic and is pure.
+3. **Contribution, never profit.** Overhead is never apportioned to an order,
+   and a cost filed against a whole order is never split across its lines.
+   Limit 3 of the trading summary above applies unchanged.
+4. **A cost never loses its order.** An order line something points at cannot
+   be removed; an order with documents on it cannot be cancelled, only closed;
+   a closed order takes no new links except the one a document already had.
+5. **Deliberately absent, each for later:** LC and PI (a Commercial module),
+   challans and kilos through the chain with process loss (phase 2), pre-cost
+   and budget against actual (phase 3), and chemicals, which may be a separate
+   company and would then run its own copy of this app.
 
 **HR and payroll are separate.** HR holds the people: the personnel file and the
 salary structure on the `employee` row. Payroll works out the money, a month at

@@ -1,6 +1,26 @@
 # Fabric sales, phase 1: numbering, suppliers, orders and order costing
 
-**Status:** proposed, 2026-10-06. Not started.
+**Status:** 1a and 1b built on `feature/fabric-sales-phase-1`, 2026-10-06. Not
+yet released: the rehearsal against a pulled copy of production comes first.
+
+**Where the build differs from this plan, and why:**
+
+- **Order Costing report** (`/reports/orders`) was not reworked. A linked line
+  writes its free text `order_no` from the order (the customer's reference, or
+  the SO number), so every linked bill and expense already appears there under
+  that reference. Reading the report from Sales Orders directly is left for
+  when it is needed; the Sales Order screen is now the per order view.
+- **Business Summary line** is the existing tile row (Receivable, Payable, Cash,
+  Net Result), with the period's expenses in the Trading band under it. A
+  second line repeating those figures was not added.
+- **A Dyeing Service order starts at Booked**, not In Dyeing, until a dyeing WO
+  is issued for it. The stage is read off documents, and before the WO there
+  is no document saying dyeing has started.
+- **Cash and Funds keeps its name** rather than becoming Accounts: Accounts is
+  also a role name, which is why it was renamed before (CLAUDE.md section 4).
+- **The three Outstanding items keep the short label**, by the 2026-08-24
+  reasoning recorded in `nav-items.ts`.
+- **Sales Order permissions reuse `bill:read` and `bill:manage`**, as planned.
 **Decided by:** the owner, in conversation on 2026-10-06 (answers recorded below).
 
 ## Why this exists
@@ -499,8 +519,26 @@ then an **Order Level** row for costs filed against the order and no line, then
 each shown by its number. From the order: **New Purchase Order** and **New Work
 Order**, prefilled from its lines.
 
-Rail: Receivables opens with **Sales Orders**; Payables opens with **Purchase
-Orders** and **Work Orders** (open question 2).
+**The rail is redesigned in 1b** (owner, 2026-10-06), by business function the
+way Bangladesh textile ERPs arrange it, while keeping each side of the book in
+one place:
+
+| Group | Holds |
+| --- | --- |
+| Dashboard | pinned |
+| Sales | Sales Orders, Customer Bills, Money Receipts, Customer Ledger, Customer Outstanding |
+| Purchase | Purchase Orders, Supplier Bills, Supplier Payments, Supplier Ledger, Supplier Outstanding |
+| Work Orders | Work Orders, Subcontractor Bills, Subcontractor Payments, Subcontractor Ledger, Subcontractor Outstanding |
+| Accounts | Expenses, Loans, Owner's Account |
+| HR and Payroll | unchanged |
+| Reports | Profit Statement, Cash Flow, Cash Book, Expense Register, Order Costing |
+| Setup | Parties |
+| Settings | Users, Audit Trail |
+
+Commercial (LC, PI) and Store (challans, phase 2) slot in later as groups of
+their own. CLAUDE.md section 4's Receivables and Payables entry is rewritten
+with it: Sales is the whole receivable side, Purchase and Work Orders the whole
+payable side, so the rule that one side never splits across groups holds.
 
 ### C6. The pure module
 
@@ -528,6 +566,36 @@ incomplete rather than cheap.
   PO / WO No.
 - `export.ts` writes the new tables and columns. This is the file the ERP imports.
 - `audit/page.tsx` labels the new tables.
+
+### C7a. Dashboard and quick entry (owner, 2026-10-06)
+
+Taken from a reference dashboard the owner shared, and only the parts that fit
+this book. Every figure is computed on read from documents already recorded.
+
+- **Needs Attention strip** under the tiles: one line of counts, each a link.
+  Customer drafts not posted; posted bills missing detail; receivable over 60
+  days; Work Orders open past their delivery date; order lines with
+  subcontractor work billed and nothing billed to the customer.
+- **Order Pipeline**: open Sales Orders with a stage **derived from the
+  documents**, never typed: Booked (no PO or WO), Yarn Ordered (a PO), In
+  Knitting, In Dyeing (an open WO of that process), Billed (a customer bill on
+  every line), Closed. A dyeing service line starts at In Dyeing.
+- **Business Summary line**: receivable, payable, this month's expense, cash
+  (cash only for a role with `fund:read`).
+- **Top Customers** by billing in the period, with each one's share, as a bar
+  list. No donut beside it.
+- **New buttons** in the dashboard head: New Sales Order, New Customer Bill,
+  New Receipt. Not a tile grid: that would repeat the menu.
+- **Quick create in a dialog**, only for short tasks: **New Party** from inside
+  the party picker on a bill, Sales Order, PO or WO, so a new buyer does not
+  make anyone leave half-keyed lines; **Record Receipt / Record Payment** from
+  a party's statement and from a bill. Documents with line grids stay full
+  pages, because a dialog dismissed by a stray click loses what was typed,
+  which rule 12 forbids.
+
+Deliberately not taken: gradient or purple tiles, a donut duplicating a list, a
+growth figure with no stated basis, a delete button on every party row, an
+approvals queue, and a status somebody types by hand.
 
 ### C8. 1b tests
 

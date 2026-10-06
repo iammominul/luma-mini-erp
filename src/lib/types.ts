@@ -129,6 +129,17 @@ export type BillLine = {
   orderNo: string | null;
   /** The dye lot this line was run as, as written on the paper. */
   lotNo: string | null;
+  /**
+   * The Sales Order line it was billed against, and on a bill received the PO
+   * or WO line it came through (2026-10-06). Null on a line nobody tied to an
+   * order, which is costed by its free text orderNo instead.
+   */
+  orderLineId: string | null;
+  sourceLineId: string | null;
+  /** 'SO-26-0001 / 2', for display. */
+  orderRef: string | null;
+  /** 'WO-26-0004 / 1' or 'PO-26-0002 / 1', for display. */
+  sourceRef: string | null;
   /** Grey weight in kg as text, up to three decimals. The billing basis. */
   greyKg: string;
   /** Finished weight in kg as text, recorded from the paper bill. */
@@ -473,6 +484,11 @@ export type Expense = {
   reference: string | null;
   /** The order this cost belongs to, when it belongs to one. */
   orderNo: string | null;
+  /** The Sales Order it is filed against (2026-10-06), and the line if one. */
+  salesOrderId: string | null;
+  orderLineId: string | null;
+  /** 'SO-26-0001', for display beside the free text reference. */
+  orderDocNo: string | null;
   notes: string | null;
 };
 
@@ -772,3 +788,170 @@ export function periodLabel(period: string): string {
   ];
   return `${names[month - 1]} ${year}`;
 }
+
+// Orders (2026-10-06) ----------------------------------------------------------
+//
+// A Sales Order is what the customer booked; a Purchase Order is the yarn bought
+// against it; a Work Order is the knitting or dyeing sent out for it. Every
+// figure that can be worked out from the documents (booked value, what was
+// billed, what it cost, the stage it is at) is worked out on read and never
+// stored here. The status is only what a person decides.
+
+export type OrderStatus = 'open' | 'closed' | 'cancelled';
+
+export const ORDER_STATUSES: { value: OrderStatus; label: string }[] = [
+  { value: 'open', label: 'Open' },
+  { value: 'closed', label: 'Closed' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
+
+export function orderStatusLabel(value: string): string {
+  return ORDER_STATUSES.find((s) => s.value === value)?.label ?? value;
+}
+
+/** What a Sales Order line sells. A new kind is a wider list, never a new table. */
+export type OrderCategory = 'fabric' | 'dyeing_service';
+
+export const ORDER_CATEGORIES: { value: OrderCategory; label: string }[] = [
+  { value: 'fabric', label: 'Finished Fabric' },
+  { value: 'dyeing_service', label: 'Dyeing Service' },
+];
+
+export function orderCategoryLabel(value: string): string {
+  return ORDER_CATEGORIES.find((c) => c.value === value)?.label ?? value;
+}
+
+/** Units a line can be sold in. Fabric and dyeing are always kg. */
+export type OrderUnit = 'kg' | 'pcs' | 'dozen' | 'gross' | 'yard' | 'meter';
+
+/** The process a Work Order sends out. */
+export type WorkProcess = 'knitting' | 'dyeing_finishing';
+
+export const WORK_PROCESSES: { value: WorkProcess; label: string }[] = [
+  { value: 'knitting', label: 'Knitting' },
+  { value: 'dyeing_finishing', label: 'Dyeing & Finishing' },
+];
+
+export function workProcessLabel(value: string): string {
+  return WORK_PROCESSES.find((p) => p.value === value)?.label ?? value;
+}
+
+export type SalesOrderLine = {
+  id: string;
+  lineNo: number;
+  category: OrderCategory;
+  description: string;
+  color: string | null;
+  unit: OrderUnit;
+  /** Booked quantity as text, up to three decimals. Grey kg for fabric and dyeing. */
+  quantity: string;
+  /** Rate per unit as NUMERIC(12,6) text. Print through formatRate. */
+  rate: string;
+};
+
+export type SalesOrder = {
+  id: string;
+  /** 'SO-26-0001' */
+  docNo: string;
+  partyId: string;
+  partyName: string;
+  /** 'YYYY-MM-DD' */
+  orderDate: string;
+  /** The customer's own order or work order number. */
+  customerRef: string | null;
+  status: OrderStatus;
+  notes: string | null;
+  lines: SalesOrderLine[];
+};
+
+export type PurchaseOrderLine = {
+  id: string;
+  lineNo: number;
+  orderLineId: string;
+  /** The Sales Order and line it is bought for, for display. */
+  orderDocNo: string;
+  orderLineNo: number;
+  description: string;
+  quantityKg: string;
+  rate: string;
+  amount: Money;
+};
+
+export type PurchaseOrder = {
+  id: string;
+  /** 'PO-26-0001' */
+  docNo: string;
+  partyId: string;
+  partyName: string;
+  orderDate: string;
+  deliverToId: string | null;
+  deliverToName: string | null;
+  deliveryBy: string | null;
+  status: OrderStatus;
+  terms: string | null;
+  notes: string | null;
+  total: Money;
+  lines: PurchaseOrderLine[];
+};
+
+export type WorkOrderLine = {
+  id: string;
+  lineNo: number;
+  orderLineId: string;
+  orderDocNo: string;
+  orderLineNo: number;
+  description: string;
+  color: string | null;
+  gsm: string | null;
+  dia: string | null;
+  quantityKg: string;
+  rate: string;
+  amount: Money;
+};
+
+export type WorkOrder = {
+  id: string;
+  /** 'WO-26-0001' */
+  docNo: string;
+  partyId: string;
+  partyName: string;
+  process: WorkProcess;
+  orderDate: string;
+  deliverToId: string | null;
+  deliverToName: string | null;
+  deliveryBy: string | null;
+  status: OrderStatus;
+  terms: string | null;
+  notes: string | null;
+  total: Money;
+  lines: WorkOrderLine[];
+};
+
+/** One order line, as a picker on a bill, a PO or a WO offers it. */
+export type OrderLineOption = {
+  id: string;
+  orderId: string;
+  orderDocNo: string;
+  lineNo: number;
+  partyId: string;
+  partyName: string;
+  customerRef: string | null;
+  category: OrderCategory;
+  description: string;
+  color: string | null;
+};
+
+/** One PO or WO line, as the picker on a supplier or subcontractor bill offers it. */
+export type SourceLineOption = {
+  id: string;
+  docNo: string;
+  lineNo: number;
+  partyId: string;
+  orderLineId: string;
+  orderDocNo: string;
+  customerRef: string | null;
+  description: string;
+  color: string | null;
+  quantityKg: string;
+  rate: string;
+};

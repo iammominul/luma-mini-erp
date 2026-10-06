@@ -48,6 +48,8 @@ const LINE = {
   challanNo: null,
   orderNo: null,
   lotNo: 'YL-77',
+  orderLineId: null,
+  sourceLineId: null,
   greyKg: '500',
   finishedKg: null,
   rate: '380',

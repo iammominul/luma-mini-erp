@@ -62,7 +62,17 @@ export async function createPaymentAction(
   }
 
   revalidatePath('/', 'layout');
-  redirect(`/${side}/settlements`);
+  redirect(returnTo(formData) ?? `/${side}/settlements`);
+}
+
+/**
+ * Where a receipt recorded from the dialog on a statement or a bill goes back
+ * to (2026-10-06): the screen it was opened from. Only a path within this app
+ * is honored, so the field cannot be used to send anybody elsewhere.
+ */
+function returnTo(formData: FormData): string | null {
+  const path = text(formData, 'returnTo');
+  return path.startsWith('/') && !path.startsWith('//') ? path : null;
 }
 
 export async function updatePaymentAction(

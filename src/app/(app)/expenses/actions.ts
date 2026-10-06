@@ -28,6 +28,8 @@ function readExpense(formData: FormData) {
     mode: text(formData, 'mode'),
     reference: text(formData, 'reference'),
     orderNo: text(formData, 'orderNo'),
+    salesOrderId: text(formData, 'salesOrderId'),
+    orderLineId: text(formData, 'orderLineId'),
     notes: text(formData, 'notes'),
     reason: text(formData, 'reason'),
   });

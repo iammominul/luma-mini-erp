@@ -7,20 +7,23 @@ import { copyFor, isSide } from '@/lib/side';
 import { billHandle } from '@/lib/types';
 import { checkBillNoAction, updateBillAction } from '../../actions';
 import { requirePermission } from '@/lib/session';
+import { can } from '@/lib/permissions';
+import { billLinkOptions } from '../../link-options';
 
 export default async function EditBillPage({
   params,
 }: {
   params: Promise<{ side: string; id: string }>;
 }) {
-  await requirePermission('bill:manage');
+  const user = await requirePermission('bill:manage');
   const { side, id } = await params;
   if (!isSide(side)) notFound();
   const copy = copyFor(side);
 
-  const [bill, parties] = await Promise.all([
+  const [bill, parties, linkOptions] = await Promise.all([
     findBill(id),
     listParties({ role: copy.role, includeInactive: true }),
+    billLinkOptions(copy.role),
   ]);
   if (!bill || bill.partyRole !== copy.role) notFound();
 
@@ -37,6 +40,8 @@ export default async function EditBillPage({
         billId={bill.id}
         docNo={bill.docNo}
         checkBillNo={checkBillNoAction}
+        linkOptions={linkOptions}
+        canCreateParty={can(user.role, 'party:manage')}
         values={{
           partyId: bill.partyId,
           status: bill.status,
@@ -46,6 +51,10 @@ export default async function EditBillPage({
           billDate: bill.billDate,
           notes: bill.notes ?? '',
           lines: bill.lines.map((line) => ({
+            linkId:
+              (bill.partyRole === 'customer'
+                ? line.orderLineId
+                : line.sourceLineId) ?? '',
             description: line.description,
             color: line.color ?? '',
             challanNo: line.challanNo ?? '',

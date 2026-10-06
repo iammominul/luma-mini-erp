@@ -5,6 +5,13 @@ import { db } from './db';
 import { isDocNo, isUuid } from './ids';
 import { can } from './permissions';
 import { sideForRole } from './side';
+import { formatQtyKg, lineAmount, parseQtyKg, sumMoney } from './amount';
+import {
+  type OrderLevelInput,
+  type OrderLineInput,
+  type OrderStage,
+  orderStage,
+} from './order-costing';
 import type {
   LeaveType,
   PerDayBasis,
@@ -31,6 +38,10 @@ import {
   type OwnerTotals,
   type LeaveRecord,
   type NatureOfWork,
+  type OrderCategory,
+  type OrderLineOption,
+  type OrderStatus,
+  type OrderUnit,
   type Party,
   type PartyBalance,
   type PartyRole,
@@ -43,12 +54,18 @@ import {
   type PayrollRun,
   type PayrollRunSummary,
   type PayrollStatus,
+  type PurchaseOrder,
+  type SalesOrder,
+  type SourceLineOption,
+  type WorkOrder,
+  type WorkProcess,
   expenseCategoryTier,
   fundCategoryLabel,
   fundDirection,
   natureOfWorkLabel,
   paymentModeLabel,
   roleOfDirection,
+  workProcessLabel,
 } from './types';
 import type { CashMovement, CashSource } from './cashbook';
 
@@ -486,9 +503,20 @@ export async function getBill(id: string): Promise<Bill | null> {
       WHERE bill.id = ${id}::uuid
     `,
     sql`
-      SELECT id, line_no, description, color, challan_no,
-        order_no, lot_no, grey_kg, finished_kg, rate, amount
-      FROM bill_line WHERE bill_id = ${id}::uuid ORDER BY line_no
+      SELECT l.id, l.line_no, l.description, l.color, l.challan_no,
+        l.order_no, l.lot_no, l.grey_kg, l.finished_kg, l.rate, l.amount,
+        l.order_line_id, COALESCE(l.po_line_id, l.wo_line_id) AS source_line_id,
+        so.doc_no || ' / ' || sol.line_no AS order_ref,
+        COALESCE(po.doc_no || ' / ' || pl.line_no,
+          wo.doc_no || ' / ' || wl.line_no) AS source_ref
+      FROM bill_line l
+      LEFT JOIN sales_order_line sol ON sol.id = l.order_line_id
+      LEFT JOIN sales_order so ON so.id = sol.order_id
+      LEFT JOIN purchase_order_line pl ON pl.id = l.po_line_id
+      LEFT JOIN purchase_order po ON po.id = pl.po_id
+      LEFT JOIN work_order_line wl ON wl.id = l.wo_line_id
+      LEFT JOIN work_order wo ON wo.id = wl.wo_id
+      WHERE l.bill_id = ${id}::uuid ORDER BY l.line_no
     `,
   ])) as [Row[], Row[]];
 
@@ -509,6 +537,10 @@ export async function getBill(id: string): Promise<Bill | null> {
       challanNo: maybe(line.challan_no),
       orderNo: maybe(line.order_no),
       lotNo: maybe(line.lot_no),
+      orderLineId: maybe(line.order_line_id),
+      sourceLineId: maybe(line.source_line_id),
+      orderRef: maybe(line.order_ref),
+      sourceRef: maybe(line.source_ref),
       greyKg: text(line.grey_kg),
       finishedKg: maybe(line.finished_kg),
       rate: text(line.rate),
@@ -990,6 +1022,9 @@ function toExpense(row: Row): Expense {
     mode: text(row.mode) as PaymentMode,
     reference: maybe(row.reference),
     orderNo: maybe(row.order_no),
+    salesOrderId: maybe(row.sales_order_id),
+    orderLineId: maybe(row.order_line_id),
+    orderDocNo: maybe(row.order_doc_no),
     notes: maybe(row.notes),
   };
 }
@@ -1269,6 +1304,9 @@ export async function listExpenses(
   const to = options.to ?? null;
   const rows = (await sql`
     SELECT id, doc_no, to_char(spent_on, 'YYYY-MM-DD') AS spent_on, category, order_no,
+      sales_order_id, order_line_id,
+      (SELECT so.doc_no FROM sales_order so WHERE so.id = expense.sales_order_id)
+        AS order_doc_no,
       payee, description, amount, mode, reference, notes
     FROM expense
     WHERE (${category}::text IS NULL OR category = ${category}::text)
@@ -1307,6 +1345,9 @@ export async function getExpense(id: string): Promise<Expense | null> {
   const sql = db();
   const rows = (await sql`
     SELECT id, doc_no, to_char(spent_on, 'YYYY-MM-DD') AS spent_on, category, order_no,
+      sales_order_id, order_line_id,
+      (SELECT so.doc_no FROM sales_order so WHERE so.id = expense.sales_order_id)
+        AS order_doc_no,
       payee, description, amount, mode, reference, notes
     FROM expense WHERE id = ${id}::uuid
   `) as Row[];
@@ -1321,6 +1362,9 @@ export async function findExpense(handle: string): Promise<Expense | null> {
   const sql = db();
   const rows = (await sql`
     SELECT id, doc_no, to_char(spent_on, 'YYYY-MM-DD') AS spent_on, category, order_no,
+      sales_order_id, order_line_id,
+      (SELECT so.doc_no FROM sales_order so WHERE so.id = expense.sales_order_id)
+        AS order_doc_no,
       payee, description, amount, mode, reference, notes
     FROM expense WHERE lower(doc_no) = lower(${handle})
   `) as Row[];
@@ -2769,6 +2813,47 @@ export async function searchRecords(
 
   const hits: SearchHit[] = [];
 
+  // Sales, Purchase and Work Orders (2026-10-06), by their number or, for a
+  // Sales Order, the customer's own reference. Listed as orders: that is what
+  // all three are, and the code says which.
+  const orderDocs = (await db()`
+    SELECT 'so' AS kind, so.doc_no, so.customer_ref AS extra, p.name AS party_name
+    FROM sales_order so JOIN party p ON p.id = so.party_id
+    WHERE so.doc_no ILIKE ${like} OR so.customer_ref ILIKE ${like}
+      OR p.name % ${trimmed}
+    UNION ALL
+    SELECT 'po', d.doc_no, NULL, p.name
+    FROM purchase_order d JOIN party p ON p.id = d.party_id
+    WHERE d.doc_no ILIKE ${like} OR p.name % ${trimmed}
+    UNION ALL
+    SELECT 'wo', d.doc_no, d.process, p.name
+    FROM work_order d JOIN party p ON p.id = d.party_id
+    WHERE d.doc_no ILIKE ${like} OR p.name % ${trimmed}
+    LIMIT ${limit}::int
+  `) as Row[];
+  for (const row of orderDocs) {
+    const kind = text(row.kind);
+    const docNo = text(row.doc_no);
+    const base =
+      kind === 'so' ? '/orders' : kind === 'po' ? '/purchase-orders' : '/work-orders';
+    const what =
+      kind === 'so'
+        ? 'Sales Order'
+        : kind === 'po'
+          ? 'Purchase Order'
+          : `Work Order, ${workProcessLabel(text(row.extra))}`;
+    hits.push({
+      kind: 'order',
+      code: docNo,
+      label: [what, text(row.party_name), kind === 'so' ? maybe(row.extra) : null]
+        .filter(Boolean)
+        .join(', '),
+      href: `${base}/${docNo}`,
+      exact: isExact(docNo, kind === 'so' ? maybe(row.extra) : null),
+      indirect: isIndirect(docNo, kind === 'so' ? maybe(row.extra) : null),
+    });
+  }
+
   for (const row of bills) {
     // The lens follows the role, so a yarn bill opens under Suppliers.
     const side = sideForRole(roleOf(row.party_role, row.direction));
@@ -2898,4 +2983,914 @@ export async function searchRecords(
   });
 
   return hits.slice(0, limit);
+}
+
+// Orders (2026-10-06) ----------------------------------------------------------
+//
+// Sales Orders, Purchase Orders and Work Orders, and everything worked out from
+// them. Booked value, what was billed and what it cost are never stored: they
+// are summed here from the bill lines and expenses that point at an order line,
+// and the arithmetic itself is order-costing.ts. A PO or WO line's amount is
+// worked out with lineAmount in JavaScript rather than in SQL, so the one
+// rounding rule in amount.ts is the only one there is.
+
+/** A Sales Order as a list shows it: what it is and where it has got to. */
+export type SalesOrderSummary = {
+  id: string;
+  docNo: string;
+  partyId: string;
+  partyName: string;
+  orderDate: string;
+  customerRef: string | null;
+  status: OrderStatus;
+  categories: OrderCategory[];
+  bookedValue: Money;
+  billed: Money;
+  stage: OrderStage;
+};
+
+const orderStatusOf = (value: unknown): OrderStatus =>
+  value === 'closed' || value === 'cancelled' ? value : 'open';
+
+export async function listSalesOrders(
+  options: {
+    partyId?: string | null;
+    status?: string | null;
+    /** Matches the SO number, the customer's reference or the customer. */
+    search?: string | null;
+    limit?: number;
+  } = {},
+): Promise<SalesOrderSummary[]> {
+  const sql = db();
+  const partyId = options.partyId && isUuid(options.partyId) ? options.partyId : null;
+  const status = options.status || null;
+  const search = options.search?.trim() ? `%${options.search.trim()}%` : null;
+  const limit = options.limit ?? 200;
+
+  const [orderRows, lineRows] = (await Promise.all([
+    sql`
+      SELECT so.id, so.doc_no, so.party_id, p.name AS party_name,
+        to_char(so.order_date, 'YYYY-MM-DD') AS order_date,
+        so.customer_ref, so.status
+      FROM sales_order so JOIN party p ON p.id = so.party_id
+      WHERE (${partyId}::uuid IS NULL OR so.party_id = ${partyId}::uuid)
+        AND (${status}::text IS NULL OR so.status = ${status}::text)
+        AND (${search}::text IS NULL OR so.doc_no ILIKE ${search}::text
+          OR so.customer_ref ILIKE ${search}::text OR p.name ILIKE ${search}::text)
+      ORDER BY so.order_date DESC, so.doc_no DESC
+      LIMIT ${limit}::int
+    `,
+    // Every line of the same orders, with what the stage is read from. The
+    // filter is repeated rather than passed as a list of ids, because the
+    // driver binds values one at a time.
+    sql`
+      SELECT sol.order_id, sol.category, sol.quantity::text AS quantity,
+        sol.rate::text AS rate,
+        EXISTS (SELECT 1 FROM purchase_order_line pl
+          JOIN purchase_order po ON po.id = pl.po_id
+          WHERE pl.order_line_id = sol.id AND po.status <> 'cancelled')
+          AS has_po,
+        EXISTS (SELECT 1 FROM work_order_line wl
+          JOIN work_order wo ON wo.id = wl.wo_id
+          WHERE wl.order_line_id = sol.id AND wo.status <> 'cancelled'
+            AND wo.process = 'knitting') AS has_knitting,
+        EXISTS (SELECT 1 FROM work_order_line wl
+          JOIN work_order wo ON wo.id = wl.wo_id
+          WHERE wl.order_line_id = sol.id AND wo.status <> 'cancelled'
+            AND wo.process = 'dyeing_finishing') AS has_dyeing,
+        COALESCE((SELECT SUM(l.amount) FROM bill_line l
+          JOIN bill b ON b.id = l.bill_id
+          WHERE l.order_line_id = sol.id AND b.direction = 'issued'
+            AND b.status = 'posted'), 0) AS billed,
+        EXISTS (SELECT 1 FROM bill_line l JOIN bill b ON b.id = l.bill_id
+          WHERE l.order_line_id = sol.id AND b.direction = 'issued'
+            AND b.status = 'posted') AS is_billed
+      FROM sales_order_line sol
+      JOIN sales_order so ON so.id = sol.order_id
+      JOIN party p ON p.id = so.party_id
+      WHERE (${partyId}::uuid IS NULL OR so.party_id = ${partyId}::uuid)
+        AND (${status}::text IS NULL OR so.status = ${status}::text)
+        AND (${search}::text IS NULL OR so.doc_no ILIKE ${search}::text
+          OR so.customer_ref ILIKE ${search}::text OR p.name ILIKE ${search}::text)
+      ORDER BY sol.order_id, sol.line_no
+    `,
+  ])) as [Row[], Row[]];
+
+  const linesByOrder = new Map<string, Row[]>();
+  for (const row of lineRows) {
+    const key = text(row.order_id);
+    linesByOrder.set(key, [...(linesByOrder.get(key) ?? []), row]);
+  }
+
+  return orderRows.map((row) => {
+    const lines = linesByOrder.get(text(row.id)) ?? [];
+    const statusValue = orderStatusOf(row.status);
+    return {
+      id: text(row.id),
+      docNo: text(row.doc_no),
+      partyId: text(row.party_id),
+      partyName: text(row.party_name),
+      orderDate: text(row.order_date),
+      customerRef: maybe(row.customer_ref),
+      status: statusValue,
+      categories: [
+        ...new Set(lines.map((line) => text(line.category) as OrderCategory)),
+      ],
+      bookedValue: sumMoney(
+        lines.map((line) => lineAmount(text(line.quantity), text(line.rate))),
+      ),
+      billed: sumMoney(lines.map((line) => money(line.billed))),
+      stage: orderStage({
+        status: statusValue,
+        lines: lines.map((line) => ({
+          hasPurchaseOrder: Boolean(line.has_po),
+          hasKnittingOrder: Boolean(line.has_knitting),
+          hasDyeingOrder: Boolean(line.has_dyeing),
+          billedToCustomer: Boolean(line.is_billed),
+        })),
+      }),
+    };
+  });
+}
+
+/** A Sales Order by its SO number or its id. */
+export async function findSalesOrder(handle: string): Promise<SalesOrder | null> {
+  if (isUuid(handle)) return getSalesOrder(handle);
+  if (!isDocNo(handle)) return null;
+  const sql = db();
+  const rows = (await sql`
+    SELECT id::text AS id FROM sales_order WHERE upper(doc_no) = upper(${handle}::text)
+  `) as Row[];
+  return rows[0] ? getSalesOrder(text(rows[0].id)) : null;
+}
+
+export async function getSalesOrder(id: string): Promise<SalesOrder | null> {
+  if (!isUuid(id)) return null;
+  const sql = db();
+  const [orderRows, lineRows] = (await Promise.all([
+    sql`
+      SELECT so.id, so.doc_no, so.party_id, p.name AS party_name,
+        to_char(so.order_date, 'YYYY-MM-DD') AS order_date,
+        so.customer_ref, so.status, so.notes
+      FROM sales_order so JOIN party p ON p.id = so.party_id
+      WHERE so.id = ${id}::uuid
+    `,
+    sql`
+      SELECT id, line_no, category, description, color, unit,
+        quantity::text AS quantity, rate::text AS rate
+      FROM sales_order_line WHERE order_id = ${id}::uuid ORDER BY line_no
+    `,
+  ])) as [Row[], Row[]];
+  const row = orderRows[0];
+  if (!row) return null;
+  return {
+    id: text(row.id),
+    docNo: text(row.doc_no),
+    partyId: text(row.party_id),
+    partyName: text(row.party_name),
+    orderDate: text(row.order_date),
+    customerRef: maybe(row.customer_ref),
+    status: orderStatusOf(row.status),
+    notes: maybe(row.notes),
+    lines: lineRows.map((line) => ({
+      id: text(line.id),
+      lineNo: count(line.line_no),
+      category: text(line.category) as OrderCategory,
+      description: text(line.description),
+      color: maybe(line.color),
+      unit: text(line.unit) as OrderUnit,
+      quantity: text(line.quantity),
+      rate: text(line.rate),
+    })),
+  };
+}
+
+/**
+ * Which of an order's lines something already points at, so an edit cannot
+ * remove a line a bill, a PO, a WO or an expense was filed against.
+ */
+export async function referencedOrderLines(orderId: string): Promise<Set<string>> {
+  if (!isUuid(orderId)) return new Set();
+  const sql = db();
+  const rows = (await sql`
+    SELECT sol.id::text AS id FROM sales_order_line sol
+    WHERE sol.order_id = ${orderId}::uuid AND (
+      EXISTS (SELECT 1 FROM bill_line l WHERE l.order_line_id = sol.id)
+      OR EXISTS (SELECT 1 FROM purchase_order_line pl WHERE pl.order_line_id = sol.id)
+      OR EXISTS (SELECT 1 FROM work_order_line wl WHERE wl.order_line_id = sol.id)
+      OR EXISTS (SELECT 1 FROM expense e WHERE e.order_line_id = sol.id))
+  `) as Row[];
+  return new Set(rows.map((row) => text(row.id)));
+}
+
+/** Whether any document at all is filed against the order. */
+export async function salesOrderInUse(orderId: string): Promise<boolean> {
+  if (!isUuid(orderId)) return false;
+  const sql = db();
+  const rows = (await sql`
+    SELECT (
+      EXISTS (SELECT 1 FROM expense e WHERE e.sales_order_id = ${orderId}::uuid)
+      OR EXISTS (SELECT 1 FROM sales_order_line sol WHERE sol.order_id = ${orderId}::uuid
+        AND (EXISTS (SELECT 1 FROM bill_line l WHERE l.order_line_id = sol.id)
+          OR EXISTS (SELECT 1 FROM purchase_order_line pl WHERE pl.order_line_id = sol.id)
+          OR EXISTS (SELECT 1 FROM work_order_line wl WHERE wl.order_line_id = sol.id)))
+    ) AS in_use
+  `) as Row[];
+  return Boolean(rows[0]?.in_use);
+}
+
+/**
+ * Everything order-costing.ts needs for one order, read from the documents.
+ *
+ * A subcontractor's bill line counts as knitting or dyeing by the Work Order
+ * it was billed against, and, where it names an order line but no WO, by the
+ * bill's own nature of work. A supplier's bill line is yarn. An expense
+ * counts by the tier of its category; freight is transport.
+ */
+export async function salesOrderFigures(orderId: string): Promise<{
+  lines: OrderLineInput[];
+  orderLevel: OrderLevelInput;
+} | null> {
+  const order = await getSalesOrder(orderId);
+  if (!order) return null;
+  const sql = db();
+  const [billRows, poRows, woRows, expenseRows] = (await Promise.all([
+    sql`
+      SELECT l.order_line_id,
+        CASE
+          WHEN b.direction = 'issued' THEN 'sale'
+          WHEN COALESCE(b.party_role, 'subcontractor') = 'supplier' THEN 'yarn'
+          WHEN COALESCE(wo.process,
+            CASE WHEN b.nature_of_work = 'knitting' THEN 'knitting'
+              ELSE 'dyeing_finishing' END) = 'knitting' THEN 'knitting'
+          ELSE 'dyeing'
+        END AS kind,
+        SUM(l.amount) AS amount, SUM(l.grey_kg)::text AS qty
+      FROM bill_line l
+      JOIN bill b ON b.id = l.bill_id
+      JOIN sales_order_line sol ON sol.id = l.order_line_id
+      LEFT JOIN work_order_line wl ON wl.id = l.wo_line_id
+      LEFT JOIN work_order wo ON wo.id = wl.wo_id
+      WHERE sol.order_id = ${orderId}::uuid AND b.status = 'posted'
+      GROUP BY 1, 2
+    `,
+    sql`
+      SELECT pl.order_line_id, pl.quantity_kg::text AS qty, pl.rate::text AS rate
+      FROM purchase_order_line pl
+      JOIN purchase_order po ON po.id = pl.po_id
+      JOIN sales_order_line sol ON sol.id = pl.order_line_id
+      WHERE sol.order_id = ${orderId}::uuid AND po.status <> 'cancelled'
+    `,
+    sql`
+      SELECT wl.order_line_id, wo.process, wl.quantity_kg::text AS qty,
+        wl.rate::text AS rate
+      FROM work_order_line wl
+      JOIN work_order wo ON wo.id = wl.wo_id
+      JOIN sales_order_line sol ON sol.id = wl.order_line_id
+      WHERE sol.order_id = ${orderId}::uuid AND wo.status <> 'cancelled'
+    `,
+    sql`
+      SELECT order_line_id, category, SUM(amount) AS amount
+      FROM expense WHERE sales_order_id = ${orderId}::uuid
+      GROUP BY 1, 2
+    `,
+  ])) as [Row[], Row[], Row[], Row[]];
+
+  const zero = () => ({
+    billed: Money.ZERO,
+    billedQty: 0n,
+    yarnOrdered: Money.ZERO,
+    yarnBilled: Money.ZERO,
+    knittingOrdered: Money.ZERO,
+    knittingBilled: Money.ZERO,
+    dyeingOrdered: Money.ZERO,
+    dyeingBilled: Money.ZERO,
+    transport: Money.ZERO,
+    otherDirect: Money.ZERO,
+    selling: Money.ZERO,
+  });
+  const byLine = new Map(order.lines.map((line) => [line.id, zero()]));
+  const orderLevel = { transport: Money.ZERO, otherDirect: Money.ZERO, selling: Money.ZERO };
+
+  for (const row of billRows) {
+    const entry = byLine.get(text(row.order_line_id));
+    if (!entry) continue;
+    const amount = money(row.amount);
+    switch (text(row.kind)) {
+      case 'sale':
+        entry.billed = entry.billed.add(amount);
+        entry.billedQty += parseQtyKg(text(row.qty) || '0');
+        break;
+      case 'yarn':
+        entry.yarnBilled = entry.yarnBilled.add(amount);
+        break;
+      case 'knitting':
+        entry.knittingBilled = entry.knittingBilled.add(amount);
+        break;
+      default:
+        entry.dyeingBilled = entry.dyeingBilled.add(amount);
+    }
+  }
+  for (const row of poRows) {
+    const entry = byLine.get(text(row.order_line_id));
+    if (entry) {
+      entry.yarnOrdered = entry.yarnOrdered.add(
+        lineAmount(text(row.qty), text(row.rate)),
+      );
+    }
+  }
+  for (const row of woRows) {
+    const entry = byLine.get(text(row.order_line_id));
+    if (!entry) continue;
+    const amount = lineAmount(text(row.qty), text(row.rate));
+    if (text(row.process) === 'knitting') {
+      entry.knittingOrdered = entry.knittingOrdered.add(amount);
+    } else {
+      entry.dyeingOrdered = entry.dyeingOrdered.add(amount);
+    }
+  }
+  for (const row of expenseRows) {
+    const amount = money(row.amount);
+    const category = text(row.category);
+    const tier = expenseCategoryTier(category);
+    // Overhead is never pinned to an order, even when somebody filed it there.
+    if (tier === 'operating') continue;
+    const target = maybe(row.order_line_id)
+      ? byLine.get(text(row.order_line_id))
+      : orderLevel;
+    if (!target) continue;
+    if (tier === 'selling') {
+      target.selling = target.selling.add(amount);
+    } else if (category === 'freight_inward' || category === 'freight_outward') {
+      target.transport = target.transport.add(amount);
+    } else {
+      target.otherDirect = target.otherDirect.add(amount);
+    }
+  }
+
+  return {
+    lines: order.lines.map((line) => {
+      const entry = byLine.get(line.id) ?? zero();
+      return {
+        lineId: line.id,
+        lineNo: line.lineNo,
+        category: line.category,
+        description: line.description,
+        color: line.color,
+        quantity: line.quantity,
+        rate: line.rate,
+        ...entry,
+        billedQty: formatQtyKg(entry.billedQty),
+      };
+    }),
+    orderLevel,
+  };
+}
+
+/** Every document filed against one order, for the list under its figures. */
+export async function salesOrderDocuments(orderId: string): Promise<{
+  purchaseOrders: { docNo: string; partyName: string; date: string; status: OrderStatus }[];
+  workOrders: {
+    docNo: string;
+    partyName: string;
+    date: string;
+    process: WorkProcess;
+    status: OrderStatus;
+  }[];
+  bills: {
+    id: string;
+    docNo: string | null;
+    billNo: string | null;
+    partyName: string;
+    partyRole: PartyRole;
+    date: string;
+    amount: Money;
+  }[];
+  expenses: {
+    docNo: string | null;
+    date: string;
+    category: ExpenseCategory;
+    description: string;
+    lineNo: number | null;
+    amount: Money;
+  }[];
+}> {
+  if (!isUuid(orderId)) {
+    return { purchaseOrders: [], workOrders: [], bills: [], expenses: [] };
+  }
+  const sql = db();
+  const [poRows, woRows, billRows, expenseRows] = (await Promise.all([
+    sql`
+      SELECT DISTINCT po.doc_no, p.name AS party_name,
+        to_char(po.order_date, 'YYYY-MM-DD') AS date, po.status
+      FROM purchase_order po
+      JOIN party p ON p.id = po.party_id
+      JOIN purchase_order_line pl ON pl.po_id = po.id
+      JOIN sales_order_line sol ON sol.id = pl.order_line_id
+      WHERE sol.order_id = ${orderId}::uuid
+      ORDER BY 3, 1
+    `,
+    sql`
+      SELECT DISTINCT wo.doc_no, p.name AS party_name,
+        to_char(wo.order_date, 'YYYY-MM-DD') AS date, wo.process, wo.status
+      FROM work_order wo
+      JOIN party p ON p.id = wo.party_id
+      JOIN work_order_line wl ON wl.wo_id = wo.id
+      JOIN sales_order_line sol ON sol.id = wl.order_line_id
+      WHERE sol.order_id = ${orderId}::uuid
+      ORDER BY 3, 1
+    `,
+    sql`
+      SELECT b.id, b.doc_no, b.bill_no, p.name AS party_name, b.party_role,
+        b.direction, to_char(b.bill_date, 'YYYY-MM-DD') AS date,
+        SUM(l.amount) AS amount
+      FROM bill_line l
+      JOIN bill b ON b.id = l.bill_id
+      JOIN party p ON p.id = b.party_id
+      JOIN sales_order_line sol ON sol.id = l.order_line_id
+      WHERE sol.order_id = ${orderId}::uuid AND b.status = 'posted'
+      GROUP BY b.id, b.doc_no, b.bill_no, p.name, b.party_role, b.direction, b.bill_date
+      ORDER BY b.bill_date, b.doc_no
+    `,
+    sql`
+      SELECT e.doc_no, to_char(e.spent_on, 'YYYY-MM-DD') AS date, e.category,
+        e.description, e.amount, sol.line_no
+      FROM expense e
+      LEFT JOIN sales_order_line sol ON sol.id = e.order_line_id
+      WHERE e.sales_order_id = ${orderId}::uuid
+      ORDER BY e.spent_on, e.doc_no
+    `,
+  ])) as [Row[], Row[], Row[], Row[]];
+
+  return {
+    purchaseOrders: poRows.map((row) => ({
+      docNo: text(row.doc_no),
+      partyName: text(row.party_name),
+      date: text(row.date),
+      status: orderStatusOf(row.status),
+    })),
+    workOrders: woRows.map((row) => ({
+      docNo: text(row.doc_no),
+      partyName: text(row.party_name),
+      date: text(row.date),
+      process: text(row.process) as WorkProcess,
+      status: orderStatusOf(row.status),
+    })),
+    bills: billRows.map((row) => ({
+      id: text(row.id),
+      docNo: maybe(row.doc_no),
+      billNo: maybe(row.bill_no),
+      partyName: text(row.party_name),
+      partyRole: roleOf(row.party_role, row.direction),
+      date: text(row.date),
+      amount: money(row.amount),
+    })),
+    expenses: expenseRows.map((row) => ({
+      docNo: maybe(row.doc_no),
+      date: text(row.date),
+      category: text(row.category) as ExpenseCategory,
+      description: text(row.description),
+      lineNo: row.line_no === null || row.line_no === undefined ? null : count(row.line_no),
+      amount: money(row.amount),
+    })),
+  };
+}
+
+/**
+ * Every Sales Order line, for the pickers on a bill, a PO, a WO and an
+ * expense. All of them, closed ones included, with the order's status beside
+ * each: a form offers the open ones and still shows a closed one that a
+ * document being edited already points at.
+ */
+export async function listOrderLineOptions(
+  options: { partyId?: string | null } = {},
+): Promise<(OrderLineOption & { orderStatus: OrderStatus })[]> {
+  const sql = db();
+  const partyId = options.partyId && isUuid(options.partyId) ? options.partyId : null;
+  const rows = (await sql`
+    SELECT sol.id, sol.order_id, so.doc_no, sol.line_no, so.party_id,
+      p.name AS party_name, so.customer_ref, so.status, sol.category,
+      sol.description, sol.color
+    FROM sales_order_line sol
+    JOIN sales_order so ON so.id = sol.order_id
+    JOIN party p ON p.id = so.party_id
+    WHERE (${partyId}::uuid IS NULL OR so.party_id = ${partyId}::uuid)
+    ORDER BY so.order_date DESC, so.doc_no DESC, sol.line_no
+  `) as Row[];
+  return rows.map((row) => ({
+    id: text(row.id),
+    orderId: text(row.order_id),
+    orderDocNo: text(row.doc_no),
+    lineNo: count(row.line_no),
+    partyId: text(row.party_id),
+    partyName: text(row.party_name),
+    customerRef: maybe(row.customer_ref),
+    category: text(row.category) as OrderCategory,
+    description: text(row.description),
+    color: maybe(row.color),
+    orderStatus: orderStatusOf(row.status),
+  }));
+}
+
+/** One order line with its order, for checking a link before it is written. */
+export async function getOrderLineOption(
+  id: string,
+): Promise<(OrderLineOption & { orderStatus: OrderStatus }) | null> {
+  if (!isUuid(id)) return null;
+  const sql = db();
+  const rows = (await sql`
+    SELECT sol.id, sol.order_id, so.doc_no, sol.line_no, so.party_id,
+      p.name AS party_name, so.customer_ref, so.status, sol.category,
+      sol.description, sol.color
+    FROM sales_order_line sol
+    JOIN sales_order so ON so.id = sol.order_id
+    JOIN party p ON p.id = so.party_id
+    WHERE sol.id = ${id}::uuid
+  `) as Row[];
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: text(row.id),
+    orderId: text(row.order_id),
+    orderDocNo: text(row.doc_no),
+    lineNo: count(row.line_no),
+    partyId: text(row.party_id),
+    partyName: text(row.party_name),
+    customerRef: maybe(row.customer_ref),
+    category: text(row.category) as OrderCategory,
+    description: text(row.description),
+    color: maybe(row.color),
+    orderStatus: orderStatusOf(row.status),
+  };
+}
+
+/**
+ * Every PO line (kind 'po') or WO line (kind 'wo'), for the picker on a
+ * supplier's or subcontractor's bill, with the status of its PO or WO.
+ */
+export async function listSourceLineOptions(
+  kind: 'po' | 'wo',
+  options: { partyId?: string | null } = {},
+): Promise<(SourceLineOption & { status: OrderStatus })[]> {
+  const sql = db();
+  const partyId = options.partyId && isUuid(options.partyId) ? options.partyId : null;
+  const rows = (kind === 'po'
+    ? await sql`
+        SELECT pl.id, po.doc_no, pl.line_no, po.party_id, po.status,
+          pl.order_line_id, so.doc_no AS order_doc_no, so.customer_ref,
+          pl.description, NULL::text AS color,
+          pl.quantity_kg::text AS quantity_kg, pl.rate::text AS rate
+        FROM purchase_order_line pl
+        JOIN purchase_order po ON po.id = pl.po_id
+        JOIN sales_order_line sol ON sol.id = pl.order_line_id
+        JOIN sales_order so ON so.id = sol.order_id
+        WHERE (${partyId}::uuid IS NULL OR po.party_id = ${partyId}::uuid)
+        ORDER BY po.order_date DESC, po.doc_no DESC, pl.line_no
+      `
+    : await sql`
+        SELECT wl.id, wo.doc_no, wl.line_no, wo.party_id, wo.status,
+          wl.order_line_id, so.doc_no AS order_doc_no, so.customer_ref,
+          wl.description, wl.color,
+          wl.quantity_kg::text AS quantity_kg, wl.rate::text AS rate
+        FROM work_order_line wl
+        JOIN work_order wo ON wo.id = wl.wo_id
+        JOIN sales_order_line sol ON sol.id = wl.order_line_id
+        JOIN sales_order so ON so.id = sol.order_id
+        WHERE (${partyId}::uuid IS NULL OR wo.party_id = ${partyId}::uuid)
+        ORDER BY wo.order_date DESC, wo.doc_no DESC, wl.line_no
+      `) as Row[];
+  return rows.map((row) => ({
+    id: text(row.id),
+    docNo: text(row.doc_no),
+    lineNo: count(row.line_no),
+    partyId: text(row.party_id),
+    orderLineId: text(row.order_line_id),
+    orderDocNo: text(row.order_doc_no),
+    customerRef: maybe(row.customer_ref),
+    description: text(row.description),
+    color: maybe(row.color),
+    quantityKg: text(row.quantity_kg),
+    rate: text(row.rate),
+    status: orderStatusOf(row.status),
+  }));
+}
+
+/** A PO or WO line with its document's party and status, to check a link. */
+export async function getSourceLine(
+  kind: 'po' | 'wo',
+  id: string,
+): Promise<(SourceLineOption & { status: OrderStatus }) | null> {
+  if (!isUuid(id)) return null;
+  const all = await listSourceLineOptions(kind);
+  return all.find((line) => line.id === id) ?? null;
+}
+
+// Purchase Orders and Work Orders.
+
+type OrderDocKind = 'po' | 'wo';
+
+/** The rows a PO or WO list shows. */
+export type OrderDocSummary = {
+  id: string;
+  docNo: string;
+  partyName: string;
+  date: string;
+  deliveryBy: string | null;
+  status: OrderStatus;
+  /** Knitting or Dyeing & Finishing on a WO; null on a PO. */
+  process: WorkProcess | null;
+  /** The Sales Orders its lines are for. */
+  orderDocNos: string[];
+  total: Money;
+};
+
+export async function listOrderDocs(
+  kind: OrderDocKind,
+  options: { partyId?: string | null; status?: string | null } = {},
+): Promise<OrderDocSummary[]> {
+  const sql = db();
+  const partyId = options.partyId && isUuid(options.partyId) ? options.partyId : null;
+  const status = options.status || null;
+  const rows = (kind === 'po'
+    ? await sql`
+        SELECT d.id, d.doc_no, p.name AS party_name,
+          to_char(d.order_date, 'YYYY-MM-DD') AS date,
+          to_char(d.delivery_by, 'YYYY-MM-DD') AS delivery_by, d.status,
+          NULL::text AS process,
+          (SELECT jsonb_agg(jsonb_build_object('q', l.quantity_kg::text,
+              'r', l.rate::text, 'so', so.doc_no))
+            FROM purchase_order_line l
+            JOIN sales_order_line sol ON sol.id = l.order_line_id
+            JOIN sales_order so ON so.id = sol.order_id
+            WHERE l.po_id = d.id) AS lines
+        FROM purchase_order d JOIN party p ON p.id = d.party_id
+        WHERE (${partyId}::uuid IS NULL OR d.party_id = ${partyId}::uuid)
+          AND (${status}::text IS NULL OR d.status = ${status}::text)
+        ORDER BY d.order_date DESC, d.doc_no DESC
+      `
+    : await sql`
+        SELECT d.id, d.doc_no, p.name AS party_name,
+          to_char(d.order_date, 'YYYY-MM-DD') AS date,
+          to_char(d.delivery_by, 'YYYY-MM-DD') AS delivery_by, d.status,
+          d.process,
+          (SELECT jsonb_agg(jsonb_build_object('q', l.quantity_kg::text,
+              'r', l.rate::text, 'so', so.doc_no))
+            FROM work_order_line l
+            JOIN sales_order_line sol ON sol.id = l.order_line_id
+            JOIN sales_order so ON so.id = sol.order_id
+            WHERE l.wo_id = d.id) AS lines
+        FROM work_order d JOIN party p ON p.id = d.party_id
+        WHERE (${partyId}::uuid IS NULL OR d.party_id = ${partyId}::uuid)
+          AND (${status}::text IS NULL OR d.status = ${status}::text)
+        ORDER BY d.order_date DESC, d.doc_no DESC
+      `) as Row[];
+
+  return rows.map((row) => {
+    const lines = (
+      typeof row.lines === 'string' ? JSON.parse(row.lines) : (row.lines ?? [])
+    ) as { q: string; r: string; so: string }[];
+    return {
+      id: text(row.id),
+      docNo: text(row.doc_no),
+      partyName: text(row.party_name),
+      date: text(row.date),
+      deliveryBy: maybe(row.delivery_by),
+      status: orderStatusOf(row.status),
+      process: maybe(row.process) as WorkProcess | null,
+      orderDocNos: [...new Set(lines.map((line) => line.so))],
+      total: sumMoney(lines.map((line) => lineAmount(line.q, line.r))),
+    };
+  });
+}
+
+export async function findPurchaseOrder(handle: string): Promise<PurchaseOrder | null> {
+  const id = await orderDocId('po', handle);
+  return id ? getPurchaseOrder(id) : null;
+}
+
+export async function findWorkOrder(handle: string): Promise<WorkOrder | null> {
+  const id = await orderDocId('wo', handle);
+  return id ? getWorkOrder(id) : null;
+}
+
+async function orderDocId(kind: OrderDocKind, handle: string): Promise<string | null> {
+  if (isUuid(handle)) return handle;
+  if (!isDocNo(handle)) return null;
+  const sql = db();
+  const rows = (kind === 'po'
+    ? await sql`SELECT id::text AS id FROM purchase_order
+        WHERE upper(doc_no) = upper(${handle}::text)`
+    : await sql`SELECT id::text AS id FROM work_order
+        WHERE upper(doc_no) = upper(${handle}::text)`) as Row[];
+  return rows[0] ? text(rows[0].id) : null;
+}
+
+export async function getPurchaseOrder(id: string): Promise<PurchaseOrder | null> {
+  if (!isUuid(id)) return null;
+  const sql = db();
+  const [docRows, lineRows] = (await Promise.all([
+    sql`
+      SELECT d.id, d.doc_no, d.party_id, p.name AS party_name,
+        to_char(d.order_date, 'YYYY-MM-DD') AS order_date,
+        d.deliver_to_id, t.name AS deliver_to_name,
+        to_char(d.delivery_by, 'YYYY-MM-DD') AS delivery_by,
+        d.status, d.terms, d.notes
+      FROM purchase_order d
+      JOIN party p ON p.id = d.party_id
+      LEFT JOIN party t ON t.id = d.deliver_to_id
+      WHERE d.id = ${id}::uuid
+    `,
+    sql`
+      SELECT l.id, l.line_no, l.order_line_id, so.doc_no AS order_doc_no,
+        sol.line_no AS order_line_no, l.description,
+        l.quantity_kg::text AS quantity_kg, l.rate::text AS rate
+      FROM purchase_order_line l
+      JOIN sales_order_line sol ON sol.id = l.order_line_id
+      JOIN sales_order so ON so.id = sol.order_id
+      WHERE l.po_id = ${id}::uuid ORDER BY l.line_no
+    `,
+  ])) as [Row[], Row[]];
+  const row = docRows[0];
+  if (!row) return null;
+  const lines = lineRows.map((line) => ({
+    id: text(line.id),
+    lineNo: count(line.line_no),
+    orderLineId: text(line.order_line_id),
+    orderDocNo: text(line.order_doc_no),
+    orderLineNo: count(line.order_line_no),
+    description: text(line.description),
+    quantityKg: text(line.quantity_kg),
+    rate: text(line.rate),
+    amount: lineAmount(text(line.quantity_kg), text(line.rate)),
+  }));
+  return {
+    id: text(row.id),
+    docNo: text(row.doc_no),
+    partyId: text(row.party_id),
+    partyName: text(row.party_name),
+    orderDate: text(row.order_date),
+    deliverToId: maybe(row.deliver_to_id),
+    deliverToName: maybe(row.deliver_to_name),
+    deliveryBy: maybe(row.delivery_by),
+    status: orderStatusOf(row.status),
+    terms: maybe(row.terms),
+    notes: maybe(row.notes),
+    total: sumMoney(lines.map((line) => line.amount)),
+    lines,
+  };
+}
+
+export async function getWorkOrder(id: string): Promise<WorkOrder | null> {
+  if (!isUuid(id)) return null;
+  const sql = db();
+  const [docRows, lineRows] = (await Promise.all([
+    sql`
+      SELECT d.id, d.doc_no, d.party_id, p.name AS party_name, d.process,
+        to_char(d.order_date, 'YYYY-MM-DD') AS order_date,
+        d.deliver_to_id, t.name AS deliver_to_name,
+        to_char(d.delivery_by, 'YYYY-MM-DD') AS delivery_by,
+        d.status, d.terms, d.notes
+      FROM work_order d
+      JOIN party p ON p.id = d.party_id
+      LEFT JOIN party t ON t.id = d.deliver_to_id
+      WHERE d.id = ${id}::uuid
+    `,
+    sql`
+      SELECT l.id, l.line_no, l.order_line_id, so.doc_no AS order_doc_no,
+        sol.line_no AS order_line_no, l.description, l.color, l.gsm, l.dia,
+        l.quantity_kg::text AS quantity_kg, l.rate::text AS rate
+      FROM work_order_line l
+      JOIN sales_order_line sol ON sol.id = l.order_line_id
+      JOIN sales_order so ON so.id = sol.order_id
+      WHERE l.wo_id = ${id}::uuid ORDER BY l.line_no
+    `,
+  ])) as [Row[], Row[]];
+  const row = docRows[0];
+  if (!row) return null;
+  const lines = lineRows.map((line) => ({
+    id: text(line.id),
+    lineNo: count(line.line_no),
+    orderLineId: text(line.order_line_id),
+    orderDocNo: text(line.order_doc_no),
+    orderLineNo: count(line.order_line_no),
+    description: text(line.description),
+    color: maybe(line.color),
+    gsm: maybe(line.gsm),
+    dia: maybe(line.dia),
+    quantityKg: text(line.quantity_kg),
+    rate: text(line.rate),
+    amount: lineAmount(text(line.quantity_kg), text(line.rate)),
+  }));
+  return {
+    id: text(row.id),
+    docNo: text(row.doc_no),
+    partyId: text(row.party_id),
+    partyName: text(row.party_name),
+    process: text(row.process) as WorkProcess,
+    orderDate: text(row.order_date),
+    deliverToId: maybe(row.deliver_to_id),
+    deliverToName: maybe(row.deliver_to_name),
+    deliveryBy: maybe(row.delivery_by),
+    status: orderStatusOf(row.status),
+    terms: maybe(row.terms),
+    notes: maybe(row.notes),
+    total: sumMoney(lines.map((line) => line.amount)),
+    lines,
+  };
+}
+
+/** Which lines of a PO or WO a bill already points at, so an edit cannot drop them. */
+export async function referencedSourceLines(
+  kind: OrderDocKind,
+  docId: string,
+): Promise<Set<string>> {
+  if (!isUuid(docId)) return new Set();
+  const sql = db();
+  const rows = (kind === 'po'
+    ? await sql`SELECT l.id::text AS id FROM purchase_order_line l
+        WHERE l.po_id = ${docId}::uuid
+          AND EXISTS (SELECT 1 FROM bill_line b WHERE b.po_line_id = l.id)`
+    : await sql`SELECT l.id::text AS id FROM work_order_line l
+        WHERE l.wo_id = ${docId}::uuid
+          AND EXISTS (SELECT 1 FROM bill_line b WHERE b.wo_line_id = l.id)`) as Row[];
+  return new Set(rows.map((row) => text(row.id)));
+}
+
+// The dashboard.
+
+/**
+ * The counts behind the Needs Attention strip, each a question the book can
+ * answer and a screen that settles it. Overdue receivable is not here: the
+ * ageing the dashboard already reads answers that.
+ */
+export async function attentionCounts(today: string): Promise<{
+  draftBills: number;
+  billsNeedingDetail: number;
+  overdueWorkOrders: number;
+  unbilledOrderLines: number;
+}> {
+  const sql = db();
+  const rows = (await sql`
+    SELECT
+      (SELECT COUNT(*) FROM bill WHERE status = 'draft') AS draft_bills,
+      (SELECT COUNT(*) FROM bill b WHERE b.status = 'posted'
+        AND EXISTS (SELECT 1 FROM bill_line l WHERE l.bill_id = b.id
+          AND l.color IS NULL)
+        AND COALESCE(b.party_role, CASE WHEN b.direction = 'issued'
+          THEN 'customer' ELSE 'subcontractor' END) <> 'supplier')
+        AS needs_detail,
+      (SELECT COUNT(*) FROM work_order WHERE status = 'open'
+        AND delivery_by < ${today}::date) AS overdue_work_orders,
+      -- Work a subcontractor or supplier has billed on a line of an open
+      -- order, with nothing billed to the customer on it yet.
+      (SELECT COUNT(*) FROM sales_order_line sol
+        JOIN sales_order so ON so.id = sol.order_id AND so.status = 'open'
+        WHERE EXISTS (SELECT 1 FROM bill_line l JOIN bill b ON b.id = l.bill_id
+            WHERE l.order_line_id = sol.id AND b.direction = 'received'
+              AND b.status = 'posted')
+          AND NOT EXISTS (SELECT 1 FROM bill_line l JOIN bill b ON b.id = l.bill_id
+            WHERE l.order_line_id = sol.id AND b.direction = 'issued'
+              AND b.status = 'posted')) AS unbilled_lines
+  `) as Row[];
+  const row = rows[0] ?? {};
+  return {
+    draftBills: count(row.draft_bills),
+    billsNeedingDetail: count(row.needs_detail),
+    overdueWorkOrders: count(row.overdue_work_orders),
+    unbilledOrderLines: count(row.unbilled_lines),
+  };
+}
+
+/** Customers ranked by what was billed to them in a window. */
+export async function topCustomers(
+  from: string,
+  to: string,
+  limit = 5,
+): Promise<{ total: Money; customers: { partyId: string; name: string; code: string | null; billed: Money }[] }> {
+  const sql = db();
+  const [rows, totals] = (await Promise.all([
+    sql`
+      SELECT p.id, p.name, p.code, SUM(b.total) AS billed
+      FROM bill b JOIN party p ON p.id = b.party_id
+      WHERE b.direction = 'issued' AND b.status = 'posted'
+        AND b.bill_date >= ${from}::date AND b.bill_date <= ${to}::date
+      GROUP BY p.id, p.name, p.code
+      ORDER BY SUM(b.total) DESC, p.name
+      LIMIT ${limit}::int
+    `,
+    sql`
+      SELECT COALESCE(SUM(total), 0) AS total FROM bill
+      WHERE direction = 'issued' AND status = 'posted'
+        AND bill_date >= ${from}::date AND bill_date <= ${to}::date
+    `,
+  ])) as [Row[], Row[]];
+  return {
+    total: money(totals[0]?.total),
+    customers: rows.map((row) => ({
+      partyId: text(row.id),
+      name: text(row.name),
+      code: maybe(row.code),
+      billed: money(row.billed),
+    })),
+  };
 }

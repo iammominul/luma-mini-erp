@@ -38,6 +38,10 @@ export type ExportBundle = {
    */
   loans: unknown[];
   fundMovements: unknown[];
+  /** Orders, each with its lines (2026-10-06). */
+  salesOrders: unknown[];
+  purchaseOrders: unknown[];
+  workOrders: unknown[];
   activityLog: unknown[];
 };
 
@@ -86,7 +90,9 @@ export async function exportEverything(): Promise<ExportBundle> {
               'lotNo', l.lot_no,
               'greyKg', l.grey_kg::text, 'finishedKg', l.finished_kg::text,
               'rate', l.rate::text,
-              'amount', l.amount::text) ORDER BY l.line_no), '[]'::jsonb)
+              'amount', l.amount::text,
+              'orderLineId', l.order_line_id, 'poLineId', l.po_line_id,
+              'woLineId', l.wo_line_id) ORDER BY l.line_no), '[]'::jsonb)
             FROM bill_line l WHERE l.bill_id = b.id)
           -- Date, then the system's own number. bill_no is text and orders
           -- nothing: '104' sorts before '34', and the bill books were run out
@@ -136,6 +142,7 @@ export async function exportEverything(): Promise<ExportBundle> {
           -- migration input: without it every per order figure has to be keyed
           -- again on the other side.
           'orderNo', x.order_no,
+          'salesOrderId', x.sales_order_id, 'orderLineId', x.order_line_id,
           'notes', x.notes)
           ORDER BY x.spent_on, x.doc_no), '[]'::jsonb)
         FROM expense x),
@@ -224,6 +231,55 @@ export async function exportEverything(): Promise<ExportBundle> {
           'reference', f.reference, 'notes', f.notes)
           ORDER BY f.moved_on, f.doc_no), '[]'::jsonb)
         FROM fund_movement f LEFT JOIN loan l2 ON l2.id = f.loan_id),
+      -- Sales, Purchase and Work Orders (2026-10-06), each with its lines. The
+      -- line ids are what bill lines and expenses point at, so they travel and
+      -- the ERP can rebuild every link rather than guessing from text.
+      'salesOrders', (
+        SELECT COALESCE(jsonb_agg(jsonb_build_object(
+          'id', o.id, 'docNo', o.doc_no, 'partyId', o.party_id,
+          'orderDate', to_char(o.order_date, 'YYYY-MM-DD'),
+          'customerRef', o.customer_ref, 'status', o.status, 'notes', o.notes,
+          'lines', (
+            SELECT COALESCE(jsonb_agg(jsonb_build_object(
+              'id', l.id, 'lineNo', l.line_no, 'category', l.category,
+              'description', l.description, 'color', l.color, 'unit', l.unit,
+              'quantity', l.quantity::text, 'rate', l.rate::text)
+              ORDER BY l.line_no), '[]'::jsonb)
+            FROM sales_order_line l WHERE l.order_id = o.id))
+          ORDER BY o.doc_no), '[]'::jsonb)
+        FROM sales_order o),
+      'purchaseOrders', (
+        SELECT COALESCE(jsonb_agg(jsonb_build_object(
+          'id', d.id, 'docNo', d.doc_no, 'partyId', d.party_id,
+          'orderDate', to_char(d.order_date, 'YYYY-MM-DD'),
+          'deliverToId', d.deliver_to_id,
+          'deliveryBy', to_char(d.delivery_by, 'YYYY-MM-DD'),
+          'status', d.status, 'terms', d.terms, 'notes', d.notes,
+          'lines', (
+            SELECT COALESCE(jsonb_agg(jsonb_build_object(
+              'id', l.id, 'lineNo', l.line_no, 'orderLineId', l.order_line_id,
+              'description', l.description, 'quantityKg', l.quantity_kg::text,
+              'rate', l.rate::text) ORDER BY l.line_no), '[]'::jsonb)
+            FROM purchase_order_line l WHERE l.po_id = d.id))
+          ORDER BY d.doc_no), '[]'::jsonb)
+        FROM purchase_order d),
+      'workOrders', (
+        SELECT COALESCE(jsonb_agg(jsonb_build_object(
+          'id', d.id, 'docNo', d.doc_no, 'partyId', d.party_id,
+          'process', d.process,
+          'orderDate', to_char(d.order_date, 'YYYY-MM-DD'),
+          'deliverToId', d.deliver_to_id,
+          'deliveryBy', to_char(d.delivery_by, 'YYYY-MM-DD'),
+          'status', d.status, 'terms', d.terms, 'notes', d.notes,
+          'lines', (
+            SELECT COALESCE(jsonb_agg(jsonb_build_object(
+              'id', l.id, 'lineNo', l.line_no, 'orderLineId', l.order_line_id,
+              'description', l.description, 'color', l.color, 'gsm', l.gsm,
+              'dia', l.dia, 'quantityKg', l.quantity_kg::text,
+              'rate', l.rate::text) ORDER BY l.line_no), '[]'::jsonb)
+            FROM work_order_line l WHERE l.wo_id = d.id))
+          ORDER BY d.doc_no), '[]'::jsonb)
+        FROM work_order d),
       'activityLog', (
         SELECT COALESCE(jsonb_agg(jsonb_build_object(
           'id', a.id::text,
@@ -249,6 +305,9 @@ export async function exportEverything(): Promise<ExportBundle> {
       leaveRecords: [],
       loans: [],
       fundMovements: [],
+      salesOrders: [],
+      purchaseOrders: [],
+      workOrders: [],
       activityLog: [],
     }
   );

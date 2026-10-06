@@ -89,3 +89,43 @@ export async function togglePartyActiveAction(
   await setPartyActive(id, active, actorOf(actor));
   revalidatePath('/', 'layout');
 }
+
+/**
+ * A party created from inside another form (2026-10-06): the "New Party"
+ * dialog in the party picker on a bill, a Sales Order, a PO or a WO.
+ *
+ * Called as a function rather than posted as a form, so the dialog can sit
+ * inside the form it serves without nesting one form in another, and so the
+ * half-keyed document behind it is never submitted or reloaded. It takes only
+ * what a new party needs to be billed: the name, the role the picker is for,
+ * and a phone and address if they are to hand. The rest is set on the party's
+ * own screen later. The same permission and the same mutation as the full
+ * form, so nothing about a party made this way differs.
+ */
+export async function quickCreatePartyAction(input: {
+  name: string;
+  role: string;
+  phone: string;
+  address: string;
+}): Promise<{ id: string; name: string } | { error: string }> {
+  const parsed = partyFormSchema.safeParse({
+    code: '',
+    name: input.name,
+    roles: [input.role],
+    contactPerson: '',
+    phone: input.phone,
+    address: input.address,
+    openingBalance: '0',
+    openingAsOf: '',
+  });
+  if (!parsed.success) return { error: firstError(parsed.error) };
+
+  try {
+    const actor = await actingUser('party:manage');
+    const id = await createParty(parsed.data, actorOf(actor));
+    revalidatePath('/', 'layout');
+    return { id, name: parsed.data.name };
+  } catch (error) {
+    return { error: message(error) };
+  }
+}

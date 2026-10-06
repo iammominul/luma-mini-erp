@@ -10,7 +10,10 @@ import {
   Notice,
 } from '@/components/ui';
 import { formatQtyKg, formatRate, parseQtyKg, sumGrams } from '@/lib/amount';
-import { formatDate } from '@/lib/dates';
+import { formatDate, todayInDhaka } from '@/lib/dates';
+import { RecordPaymentDialog } from '@/components/RecordPaymentDialog';
+import { can } from '@/lib/permissions';
+import { requireUser } from '@/lib/session';
 import { isUuid } from '@/lib/ids';
 import { findBill } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
@@ -23,6 +26,7 @@ export default async function BillPage({
 }: {
   params: Promise<{ side: string; id: string }>;
 }) {
+  const user = await requireUser();
   const { side, id } = await params;
   if (!isSide(side)) notFound();
   const copy = copyFor(side);
@@ -81,6 +85,17 @@ export default async function BillPage({
         <div className="flex flex-wrap items-center gap-2">
           {isDraft ? (
             <PostBillBox action={postBillAction} id={bill.id} side={side} />
+          ) : null}
+          {!isDraft && can(user.role, 'settlement:manage') ? (
+            <RecordPaymentDialog
+              side={side}
+              partyId={bill.partyId}
+              partyName={bill.party.name}
+              isReceipt={copy.paymentDirection === 'in'}
+              returnTo={`/${side}/bills/${handle}`}
+              today={todayInDhaka()}
+              suggestedAmount={bill.total.toDecimalString()}
+            />
           ) : null}
           <DownloadButton href={`/${side}/bills/${handle}/pdf`}>
             Download PDF
@@ -143,7 +158,8 @@ export default async function BillPage({
               head: 'Order No',
               headClassName: 'w-24',
               only: 'table',
-              cell: (line) => line.orderNo ?? '',
+              // The order it is tied to when it is, else the text as written.
+              cell: (line) => line.orderRef ?? line.orderNo ?? '',
             },
             {
               key: 'challanNo',
@@ -214,7 +230,9 @@ export default async function BillPage({
                   line.color,
                   line.lotNo ? `LOT ${line.lotNo}` : null,
                   line.challanNo ? `Challan ${line.challanNo}` : null,
-                  line.orderNo ? `Order ${line.orderNo}` : null,
+                  line.orderRef ?? line.orderNo
+                    ? `Order ${line.orderRef ?? line.orderNo}`
+                    : null,
                   line.finishedKg ? `F/Wt ${line.finishedKg}` : null,
                 ]
                   .filter(Boolean)

@@ -5,6 +5,7 @@ import { isUuid } from '@/lib/ids';
 import { findExpense } from '@/lib/queries';
 import { updateExpenseAction } from '../../actions';
 import { requirePermission } from '@/lib/session';
+import { expenseOrderOptions } from '../../order-options';
 
 export default async function EditExpensePage({
   params,
@@ -13,7 +14,10 @@ export default async function EditExpensePage({
 }) {
   await requirePermission('expense:manage');
   const { id } = await params;
-  const expense = await findExpense(id);
+  const [expense, orderOptions] = await Promise.all([
+    findExpense(id),
+    expenseOrderOptions(),
+  ]);
   if (!expense) notFound();
 
   // One record, one address: a uuid resolves but answers with the voucher
@@ -31,6 +35,7 @@ export default async function EditExpensePage({
         cancelHref="/expenses"
         requireReason
         expenseId={expense.id}
+        orderOptions={orderOptions}
         values={{
           spentOn: expense.spentOn,
           category: expense.category,
@@ -40,6 +45,8 @@ export default async function EditExpensePage({
           mode: expense.mode,
           reference: expense.reference ?? '',
           orderNo: expense.orderNo ?? '',
+          salesOrderId: expense.salesOrderId ?? '',
+          orderLineId: expense.orderLineId ?? '',
           notes: expense.notes ?? '',
         }}
       />

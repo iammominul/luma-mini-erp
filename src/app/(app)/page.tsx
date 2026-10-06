@@ -8,6 +8,7 @@ import {
   Card,
   CardHeader,
   FigureRows,
+  LinkButton,
   PageTitle,
   type StatDelta,
   StatTile,
@@ -29,19 +30,59 @@ import { formatTaka } from '@/lib/format';
 import { Money } from '@/lib/money';
 import { statementFor } from '@/lib/profit';
 import {
+  attentionCounts,
   bookSpan,
   cashMovements,
   listPartyBalances,
+  listSalesOrders,
   monthlyMovement,
   monthlyTrading,
   receivableAgeing,
+  topCustomers,
 } from '@/lib/queries';
+import { StageTag } from '@/components/OrderTags';
 import { buildCashBook } from '@/lib/cashbook';
 import { buildCashFlow } from '@/lib/cashflow';
 import { can } from '@/lib/permissions';
 import { requireUser } from '@/lib/session';
 import { copyFor, type Side } from '@/lib/side';
 import { type PartyBalance } from '@/lib/types';
+
+/**
+ * The Needs Attention strip (2026-10-06): one line of counts under the tiles,
+ * each a link to the screen that settles it. Every count is a question the
+ * book can answer from documents already in it; nothing here is typed by
+ * anyone or stored. A count of nothing is left out, and when every count is
+ * nothing the strip says so in one quiet line rather than disappearing, so its
+ * absence is never mistaken for it having failed to load.
+ */
+function AttentionStrip({
+  items,
+}: {
+  items: { count: number; label: string; href: string }[];
+}) {
+  const live = items.filter((item) => item.count > 0);
+  return (
+    <div className="mt-3 rounded border border-[var(--color-rule)] bg-white px-3 py-2 text-sm">
+      {live.length === 0 ? (
+        <span className="text-[var(--color-muted)]">Nothing needs attention.</span>
+      ) : (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="font-semibold text-[var(--color-warn)]">Needs Attention</span>
+          {live.map((item) => (
+            <Link
+              key={item.href + item.label}
+              href={item.href}
+              className="text-[var(--color-navy)] hover:underline"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function outstanding(balances: PartyBalance[]): PartyBalance[] {
   return balances
@@ -295,6 +336,9 @@ export default async function DashboardPage({
     result,
     priorResult,
     tradingByMonth,
+    attention,
+    pipeline,
+    top,
   ] = await Promise.all([
     listPartyBalances('customer'),
     listPartyBalances('subcontractor'),
@@ -307,6 +351,9 @@ export default async function DashboardPage({
     statementFor(from, to),
     statementFor(before.from, before.to),
     monthlyTrading(from, to),
+    attentionCounts(today),
+    listSalesOrders({ status: 'open' }),
+    topCustomers(from, to),
   ]);
 
   // The cash position, and only for a role entitled to it. It is a balance as
@@ -424,6 +471,23 @@ export default async function DashboardPage({
         controls={
           <RangeFilter active={range} from={from} to={to} custom={custom} />
         }
+        action={
+          can(user.role, 'bill:manage') ? (
+            <div className="flex flex-wrap gap-2">
+              <LinkButton href="/orders/new" icon="plus">
+                New Sales Order
+              </LinkButton>
+              <LinkButton href="/customers/bills/new" variant="secondary" icon="plus">
+                New Customer Bill
+              </LinkButton>
+              {can(user.role, 'settlement:manage') ? (
+                <LinkButton href="/customers/settlements/new" variant="secondary" icon="plus">
+                  New Receipt
+                </LinkButton>
+              ) : null}
+            </div>
+          ) : undefined
+        }
       />
 
       {/* Four figures lead, and they are the four a person opens this screen
@@ -464,6 +528,36 @@ export default async function DashboardPage({
           delta={deltaOf(result.netResult, priorResult.netResult)}
         />
       </div>
+
+      <AttentionStrip
+        items={[
+          {
+            count: attention.draftBills,
+            label: `${attention.draftBills} draft ${attention.draftBills === 1 ? 'bill' : 'bills'} not posted`,
+            href: '/customers/bills?status=draft',
+          },
+          {
+            count: attention.billsNeedingDetail,
+            label: `${attention.billsNeedingDetail} ${attention.billsNeedingDetail === 1 ? 'bill' : 'bills'} missing detail`,
+            href: '/customers/bills?status=needs_detail',
+          },
+          {
+            count: overSixtyDays.isZero() ? 0 : 1,
+            label: `${formatTaka(overSixtyDays)} receivable over 60 days`,
+            href: '/customers',
+          },
+          {
+            count: attention.overdueWorkOrders,
+            label: `${attention.overdueWorkOrders} ${attention.overdueWorkOrders === 1 ? 'work order' : 'work orders'} past delivery`,
+            href: '/work-orders?status=open',
+          },
+          {
+            count: attention.unbilledOrderLines,
+            label: `${attention.unbilledOrderLines} order ${attention.unbilledOrderLines === 1 ? 'line' : 'lines'} with work billed and nothing billed to the customer`,
+            href: '/orders?status=open',
+          },
+        ]}
+      />
 
       <div className="mt-2">
         <Band title="Trading" action={<SectionLink href="/reports" />}>
@@ -549,6 +643,76 @@ export default async function DashboardPage({
             </div>
           </Band>
         ) : null}
+
+        {/* Open orders and where each has got to, read off its documents, and
+            who the period's billing went to. */}
+        <Band title="Orders" action={<SectionLink href="/orders" />}>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader title="Order Pipeline" />
+              <DataTable
+                columns={[
+                  {
+                    key: 'docNo',
+                    head: 'SO No',
+                    headClassName: 'w-28',
+                    phone: 'meta',
+                    cell: (order) => (
+                      <Link
+                        href={`/orders/${order.docNo}`}
+                        className="text-[var(--color-navy)] hover:underline"
+                      >
+                        {order.docNo}
+                      </Link>
+                    ),
+                  },
+                  {
+                    key: 'party',
+                    head: 'Customer',
+                    phone: 'title',
+                    cell: (order) => order.partyName,
+                  },
+                  {
+                    key: 'booked',
+                    head: 'Booked',
+                    numeric: true,
+                    phone: 'amount',
+                    cell: (order) => formatTaka(order.bookedValue),
+                  },
+                  {
+                    key: 'stage',
+                    head: 'Stage',
+                    headClassName: 'w-28',
+                    phone: 'meta',
+                    cell: (order) => <StageTag stage={order.stage} />,
+                  },
+                ]}
+                rows={pipeline.slice(0, 8)}
+                rowKey={(order) => order.id}
+                rowHref={(order) => `/orders/${order.docNo}`}
+                empty="No open orders"
+              />
+            </Card>
+            <CategoryBarChart
+              title="Top Customers"
+              note={
+                top.total.isZero()
+                  ? undefined
+                  : `Of ${formatTaka(top.total)} billed in the period`
+              }
+              columnLabel="Customer"
+              valueLabel="Billed"
+              singleColor
+              points={top.customers.map((row) =>
+                datum(
+                  `${row.name} (${marginPercent(row.billed, top.total) ?? '0.0%'})`,
+                  row.billed,
+                ),
+              )}
+              emptyMessage="Nothing billed in this period"
+            />
+          </div>
+        </Band>
 
         <Band
           title="Cost by Category"

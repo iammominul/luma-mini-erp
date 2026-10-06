@@ -29,6 +29,7 @@ export type IconName =
   | 'books'
   | 'people'
   | 'parties'
+  | 'work'
   | 'admin'
   | 'reports'
   | 'chevron'
@@ -97,6 +98,14 @@ const PATHS: Record<IconName, React.ReactNode> = {
     </>
   ),
   // Bars on an axis. A report is read as a shape before it is read as figures.
+  // A roll of fabric on a frame: work sent out to be knitted or dyed.
+  work: (
+    <>
+      <circle cx="8" cy="6.5" r="3.5" />
+      <circle cx="8" cy="6.5" r="1" />
+      <path d="M3 14h10M5.5 10 4 14M10.5 10 12 14" />
+    </>
+  ),
   reports: (
     <>
       <path d="M2.5 13.4h11" />
