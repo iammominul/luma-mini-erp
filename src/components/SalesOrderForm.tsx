@@ -137,7 +137,7 @@ export function SalesOrderForm({
             />
           </Field>
           <Field label="SO No">
-            <div className="figure rounded border border-[var(--color-line)] bg-[var(--color-canvas)] px-3 py-2 text-sm text-[var(--color-muted)]">
+            <div className="figure rounded border border-rule bg-surface-2 px-3 py-2 text-sm text-ink-3">
               {docNo ?? 'Issued on save'}
             </div>
           </Field>
@@ -193,7 +193,7 @@ export function SalesOrderForm({
             <tbody>
               {lines.map((line, index) => (
                 <tr key={line.id || `new-${index}`}>
-                  <Td className="text-[var(--color-muted)]">{index + 1}</Td>
+                  <Td className="text-ink-3">{index + 1}</Td>
                   <Td>
                     <Select
                       value={line.category}
@@ -250,7 +250,7 @@ export function SalesOrderForm({
                       <button
                         type="button"
                         onClick={() => remove(index)}
-                        className="text-sm text-red-700 hover:underline"
+                        className="text-sm text-crit hover:underline"
                       >
                         Remove
                       </button>
@@ -260,7 +260,7 @@ export function SalesOrderForm({
               ))}
             </tbody>
             <tfoot>
-              <tr className="bg-[var(--color-canvas)] font-semibold">
+              <tr className="bg-surface-2 font-semibold">
                 <Td colSpan={6}>Booked Value</Td>
                 <Td numeric>{formatTaka(total)}</Td>
                 <Td />
@@ -269,18 +269,18 @@ export function SalesOrderForm({
           </Table>
         </div>
 
-        <div className="divide-y divide-[var(--color-line)] md:hidden">
+        <div className="divide-y divide-rule md:hidden">
           {lines.map((line, index) => (
             <div key={line.id || `new-${index}`} className="space-y-3 p-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">
+                <span className="text-xs font-semibold uppercase tracking-wide text-ink-3">
                   Line {index + 1}
                 </span>
                 {lines.length > 1 ? (
                   <button
                     type="button"
                     onClick={() => remove(index)}
-                    className="-mr-2 inline-flex min-h-11 items-center px-2 text-sm text-red-700"
+                    className="-mr-2 inline-flex min-h-11 items-center px-2 text-sm text-crit"
                   >
                     Remove
                   </button>
@@ -333,7 +333,7 @@ export function SalesOrderForm({
                 </Field>
                 <div>
                   <span className="mb-1 block text-sm font-medium">Amount</span>
-                  <div className="py-2.5 text-right text-base font-semibold">
+                  <div className="py-2.5 text-right text-title font-semibold">
                     {amounts[index] ? formatTaka(amounts[index]!) : '-'}
                   </div>
                 </div>
@@ -341,7 +341,7 @@ export function SalesOrderForm({
             </div>
           ))}
         </div>
-        <p className="border-t border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-muted)]">
+        <p className="border-t border-rule px-4 py-2 text-xs text-ink-3">
           Booked value in words: {amountInWords(total)}
         </p>
       </Card>
@@ -372,7 +372,7 @@ export function SalesOrderForm({
 
       {state.error ? <Notice tone="error">{state.error}</Notice> : null}
 
-      <div className="sticky bottom-0 -mx-4 border-t border-[var(--color-rule)] bg-[var(--color-surface-2)] px-4 py-3 md:-mx-6 md:px-6">
+      <div className="sticky bottom-0 -mx-4 border-t border-rule bg-surface-2 px-4 py-3 md:-mx-6 md:px-6">
         <FormActions>
           <Button type="submit" icon="check" disabled={pending}>
             {pending ? 'Saving' : submitLabel}

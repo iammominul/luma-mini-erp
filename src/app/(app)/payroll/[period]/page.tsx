@@ -130,7 +130,7 @@ export default async function PayrollRunPage({
           <Button type="submit" variant="secondary" icon="check">
             Fill Advance Recoveries
           </Button>
-          <span className="ml-2 text-xs text-[var(--color-muted)]">
+          <span className="ml-2 text-xs text-ink-3">
             Sets the Advance column from each employee&rsquo;s recovery
             agreement, replacing what is in it now.
           </span>
@@ -190,7 +190,7 @@ export default async function PayrollRunPage({
                 <tr key={employee.id}>
                   <Td>
                     {employee.name}
-                    <span className="ml-2 text-xs text-[var(--color-muted)]">
+                    <span className="ml-2 text-xs text-ink-3">
                       {employee.code}
                     </span>
                   </Td>
@@ -223,7 +223,7 @@ export default async function PayrollRunPage({
             </thead>
             <tbody>
               {lines.map((line) => (
-                <tr key={line.id} className="hover:bg-gray-50">
+                <tr key={line.id} className="hover:bg-surface-2">
                   <Td>{line.employeeName}</Td>
                   <Td numeric>{formatTaka(line.netPaid)}</Td>
                   <Td>{line.paidOn ?? ''}</Td>

@@ -51,20 +51,20 @@ export function RecentChanges({ entries }: { entries: ActivityEntry[] }) {
       </button>
 
       {open ? (
-        <div className="absolute right-0 top-full z-50 mt-1 w-80 max-w-[calc(100vw-1rem)] rounded border border-[var(--color-line)] bg-white text-[var(--color-ink)] shadow-lg">
-          <div className="border-b border-[var(--color-line)] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">
+        <div className="absolute right-0 top-full z-50 mt-1 w-80 max-w-[calc(100vw-1rem)] rounded border border-rule bg-white text-ink shadow-lg">
+          <div className="border-b border-rule px-3 py-2 text-xs font-semibold uppercase tracking-wide text-ink-3">
             Recent Changes
           </div>
           {entries.length === 0 ? (
-            <p className="px-3 py-4 text-center text-sm text-[var(--color-muted)]">
+            <p className="px-3 py-4 text-center text-sm text-ink-3">
               Nothing recorded yet
             </p>
           ) : (
-            <ul className="max-h-80 divide-y divide-[var(--color-line)] overflow-y-auto">
+            <ul className="max-h-80 divide-y divide-rule overflow-y-auto">
               {entries.map((entry) => (
                 <li key={entry.id} className="px-3 py-2">
                   <div className="text-sm">{entry.summary}</div>
-                  <div className="mt-0.5 text-xs text-[var(--color-muted)]">
+                  <div className="mt-0.5 text-xs text-ink-3">
                     <span className="capitalize">{entry.action}</span>
                     {' by '}
                     {entry.actorName ?? 'Not recorded'}
@@ -78,7 +78,7 @@ export function RecentChanges({ entries }: { entries: ActivityEntry[] }) {
           <Link
             href="/audit"
             onClick={() => setOpen(false)}
-            className="block border-t border-[var(--color-line)] px-3 py-2.5 text-center text-sm font-medium text-[var(--color-navy)] hover:bg-[var(--color-canvas)]"
+            className="block border-t border-rule px-3 py-2.5 text-center text-sm font-medium text-navy hover:bg-surface-2"
           >
             View Audit Trail
           </Link>

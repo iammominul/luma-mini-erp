@@ -54,7 +54,7 @@ export default async function ManageUserPage({
       />
 
       {lastActiveOwner ? (
-        <Card className="mt-4 max-w-lg p-4 text-sm text-[var(--color-muted)]">
+        <Card className="mt-4 max-w-lg p-4 text-sm text-ink-3">
           This is the last active Owner. The role and the status are locked,
           because changing either would leave nobody able to add a user or
           approve a payroll run. Make somebody else an Owner first.

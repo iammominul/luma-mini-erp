@@ -10,6 +10,7 @@ import {
 } from '@/lib/mutations';
 import { deleteSchema, firstError, leaveFormSchema } from '@/lib/schemas';
 import { ForbiddenError, actingUser, actorOf } from '@/lib/session';
+import { flash } from '@/lib/flash';
 
 export type LeaveFormState = { error?: string };
 
@@ -47,6 +48,7 @@ export async function createLeaveAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Leave recorded.');
   redirect('/leave');
 }
 
@@ -68,5 +70,6 @@ export async function deleteLeaveAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Leave removed.');
   redirect('/leave');
 }

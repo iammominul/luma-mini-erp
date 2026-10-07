@@ -161,7 +161,7 @@ export default async function StatementPage({
       key: 'reference',
       head: 'Reference',
       headClassName: 'w-32',
-      cellClassName: 'text-[var(--color-muted)]',
+      cellClassName: 'text-ink-3',
       phone: 'meta',
       cell: (row) => row.reference,
     },
@@ -195,7 +195,7 @@ export default async function StatementPage({
       headClassName: 'w-36',
       phone: 'full',
       phoneClassName:
-        'border-t border-[var(--color-line)] pt-2 text-base font-semibold',
+        'border-t border-rule pt-2 text-title font-semibold',
       cell: (row) => row.balance,
     },
   ];
@@ -206,8 +206,8 @@ export default async function StatementPage({
           sets its own. See the comment on main in AppShell.tsx. */}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3 md:pt-5">
         <div>
-          <h1 className="text-lg font-semibold">Party Ledger: {party.name}</h1>
-          <p className="mt-0.5 text-sm text-[var(--color-muted)]">
+          <h1 className="text-title font-semibold">Party Ledger: {party.name}</h1>
+          <p className="mt-0.5 text-sm text-ink-3">
             {copy.partyWord} | {period} | As of {formatDate(todayInDhaka())}{' '}
             (Asia/Dhaka)
           </p>
@@ -281,7 +281,7 @@ export default async function StatementPage({
               type="date"
               name="from"
               defaultValue={from ?? ''}
-              className="min-h-11 w-full rounded border border-[var(--color-line)] bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
+              className="min-h-11 w-full rounded border border-rule bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
             />
           </label>
           <label className="block w-full sm:w-auto">
@@ -290,7 +290,7 @@ export default async function StatementPage({
               type="date"
               name="to"
               defaultValue={to ?? ''}
-              className="min-h-11 w-full rounded border border-[var(--color-line)] bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
+              className="min-h-11 w-full rounded border border-rule bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
             />
           </label>
           <Button size="filter" block>
@@ -324,13 +324,13 @@ export default async function StatementPage({
           }}
         />
         {statement.rows.length === 0 ? (
-          <p className="border-t border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-muted)]">
+          <p className="border-t border-rule px-4 py-2 text-xs text-ink-3">
             No entries in this period. The balance above is the one brought
             forward.
           </p>
         ) : null}
         {statement.closing.isNegative() ? (
-          <p className="border-t border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-muted)]">
+          <p className="border-t border-rule px-4 py-2 text-xs text-ink-3">
             This closing balance is an advance held{' '}
             {copy.role === 'customer'
               ? 'from the customer'

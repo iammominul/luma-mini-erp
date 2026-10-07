@@ -11,6 +11,7 @@ import {
 } from '@/lib/mutations';
 import { firstError, partyFormSchema } from '@/lib/schemas';
 import { ForbiddenError, actingUser, actorOf } from '@/lib/session';
+import { flash } from '@/lib/flash';
 
 /**
  * Every action here checks 'party:manage' for itself. A server action is a
@@ -58,6 +59,7 @@ export async function createPartyAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Party added.');
   redirect('/parties');
 }
 
@@ -77,6 +79,7 @@ export async function updatePartyAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Party saved.');
   redirect('/parties');
 }
 

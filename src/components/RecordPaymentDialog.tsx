@@ -62,16 +62,16 @@ export function RecordPaymentDialog({
       </Button>
       <dialog
         ref={dialog}
-        className="w-[min(28rem,calc(100vw-2rem))] rounded border border-[var(--color-rule)] bg-white p-0 backdrop:bg-black/30"
+        className="pop w-[min(28rem,calc(100vw-2rem))] p-0 backdrop:bg-navy-3/40"
         aria-label={title}
       >
         <form action={submit}>
           <input type="hidden" name="side" value={side} />
           <input type="hidden" name="partyId" value={partyId} />
           <input type="hidden" name="returnTo" value={returnTo} />
-          <div className="border-b border-[var(--color-rule)] px-4 py-2.5">
-            <h2 className="text-sm font-semibold">{title}</h2>
-            <p className="text-xs text-[var(--color-muted)]">
+          <div className="border-b border-rule px-4 py-2.5">
+            <h2 className="text-heading font-semibold">{title}</h2>
+            <p className="text-xs text-ink-3">
               {isReceipt ? 'From' : 'To'} {partyName}
             </p>
           </div>
@@ -126,7 +126,7 @@ export function RecordPaymentDialog({
               </div>
             ) : null}
           </div>
-          <div className="flex justify-end gap-2 border-t border-[var(--color-rule)] px-4 py-2.5">
+          <div className="flex justify-end gap-2 border-t border-rule px-4 py-2.5">
             <Button
               type="button"
               variant="secondary"

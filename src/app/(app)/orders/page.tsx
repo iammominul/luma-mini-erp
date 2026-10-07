@@ -37,7 +37,7 @@ export default async function SalesOrdersPage({
       cellClassName: 'whitespace-nowrap font-medium',
       phone: 'meta',
       cell: (order) => (
-        <Link href={`/orders/${order.docNo}`} className="text-[var(--color-navy)] hover:underline">
+        <Link href={`/orders/${order.docNo}`} className="link">
           {order.docNo}
         </Link>
       ),
@@ -60,7 +60,7 @@ export default async function SalesOrdersPage({
       key: 'ref',
       head: 'Customer PO / WO',
       headClassName: 'w-36',
-      cellClassName: 'text-[var(--color-muted)]',
+      cellClassName: 'text-ink-3',
       phone: 'meta',
       cell: (order) => order.customerRef ?? '',
     },
@@ -142,7 +142,7 @@ export default async function SalesOrdersPage({
           rows={orders}
           rowKey={(order) => order.id}
           rowHref={(order) => `/orders/${order.docNo}`}
-          rowClassName="hover:bg-[var(--color-canvas)]"
+          rowClassName="hover:bg-surface-2"
           empty="No sales orders for this filter"
           total={{
             label: `${orders.length} ${orders.length === 1 ? 'order' : 'orders'}`,

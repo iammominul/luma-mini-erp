@@ -38,8 +38,8 @@ export default async function LoginPage() {
         <BrandBlock name={name} />
 
         <Card className="mt-5 p-5">
-          <h2 className="text-sm font-semibold">Sign In</h2>
-          <p className="mt-1 text-sm text-[var(--color-muted)]">
+          <h2 className="text-heading font-semibold">Sign In</h2>
+          <p className="mt-1 text-sm text-ink-3">
             Enter your email address and password.
           </p>
 
@@ -49,7 +49,7 @@ export default async function LoginPage() {
             ) : (
               <div className="space-y-3">
                 <Notice tone="error">{readiness.message}</Notice>
-                <p className="text-sm text-[var(--color-muted)]">
+                <p className="text-sm text-ink-3">
                   The steps are listed in README.md.
                 </p>
               </div>
@@ -76,7 +76,7 @@ export default async function LoginPage() {
 function BrandBlock({ name }: { name: string }) {
   return (
     <div className="flex flex-col items-center text-center">
-      <span className="flex h-14 w-14 items-center justify-center rounded bg-[var(--color-navy)]">
+      <span className="flex h-14 w-14 items-center justify-center rounded bg-navy">
         <img
           src="/brand-mark.svg"
           alt=""
@@ -85,7 +85,7 @@ function BrandBlock({ name }: { name: string }) {
           className="h-8 w-8"
         />
       </span>
-      <h1 className="mt-3 max-w-full truncate text-base font-semibold tracking-wide">
+      <h1 className="mt-3 max-w-full truncate text-title font-semibold tracking-wide">
         {name}
       </h1>
     </div>

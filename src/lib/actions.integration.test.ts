@@ -48,7 +48,11 @@ const session = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
+vi.mock('next/headers', () => ({
+  headers: async () => new Headers(),
+  // flash() sets the save confirmation; a test has no page to show it on.
+  cookies: async () => ({ set: () => {} }),
+}));
 vi.mock('./auth', () => ({
   auth: () => ({ api: { getSession: async () => ({ user: session.user }) } }),
 }));

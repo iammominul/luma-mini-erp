@@ -22,7 +22,7 @@ function columnsFor(
       cell: (row) => (
         <Link
           href={`/${side}/statement/${row.party.code ?? row.party.id}`}
-          className="font-medium text-[var(--color-navy)] hover:underline"
+          className="font-medium link"
         >
           {row.party.name}
         </Link>
@@ -31,7 +31,7 @@ function columnsFor(
     {
       key: 'contact',
       head: 'Contact',
-      cellClassName: 'text-[var(--color-muted)]',
+      cellClassName: 'text-ink-3',
       phone: 'meta',
       cell: (row) =>
         [row.party.contactPerson, row.party.phone].filter(Boolean).join(', '),
@@ -39,7 +39,7 @@ function columnsFor(
     {
       key: 'lastActivity',
       head: 'Last Entry',
-      cellClassName: 'text-[var(--color-muted)]',
+      cellClassName: 'text-ink-3',
       cell: (row) => formatDate(row.lastActivity),
     },
     {
@@ -56,7 +56,7 @@ function columnsFor(
       cell: (row) => (
         <Link
           href={`/${side}/statement/${row.party.code ?? row.party.id}`}
-          className="text-sm text-[var(--color-navy)] hover:underline"
+          className="text-sm link"
         >
           Open Ledger
         </Link>

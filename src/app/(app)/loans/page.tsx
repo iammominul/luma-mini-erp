@@ -6,6 +6,7 @@ import {
   PageTitle,
   StatTile,
   Table,
+  Tag,
   Td,
   Th,
 } from '@/components/ui';
@@ -95,9 +96,9 @@ export default async function LoansPage() {
                   <Td>
                     {loan.lender}
                     {loan.active ? null : (
-                      <span className="ml-2 text-xs text-[var(--color-muted)]">
+                      <Tag tone="done" className="ml-2">
                         Settled
-                      </span>
+                      </Tag>
                     )}
                   </Td>
                   <Td className="whitespace-nowrap">

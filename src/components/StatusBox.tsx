@@ -38,11 +38,11 @@ export function StatusBox({
       : [{ status: 'open', label: 'Reopen' }];
 
   return (
-    <details className="rounded border border-[var(--color-line)] bg-white">
+    <details className="rounded border border-rule bg-white">
       <summary className="px-3 py-1.5 text-sm font-medium">
         {status === 'open' ? 'Close or Cancel' : 'Reopen'}
       </summary>
-      <form action={submit} className="space-y-3 border-t border-[var(--color-line)] p-3">
+      <form action={submit} className="space-y-3 border-t border-rule p-3">
         <input type="hidden" name="id" value={id} />
         {kind ? <input type="hidden" name="kind" value={kind} /> : null}
         <label className="block">

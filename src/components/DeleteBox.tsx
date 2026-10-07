@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
-import { Button, Notice, Textarea } from './ui';
+import { Button, ButtonIcon, look, Notice, Textarea } from './ui';
 
 export type DeleteState = { error?: string };
 
@@ -28,17 +28,26 @@ export function DeleteBox({
   );
 
   return (
-    <details className="rounded border border-red-200 bg-white">
+    // Closed, it is one more button in the row of actions, the same height as
+    // its neighbors. Open, the reason form drops below it as a panel instead of
+    // growing inside the row, which pushed every other action about.
+    <details className="group relative">
       {/* The pointer comes from the base rule in globals.css, which covers a
           summary along with every button. */}
-      <summary className="px-3 py-1.5 text-sm font-medium text-red-700">
+      <summary
+        className={`${look({ variant: 'danger' })} list-none [&::-webkit-details-marker]:hidden`}
+      >
+        <ButtonIcon name="trash" />
         {title}
       </summary>
-      <form action={submit} className="space-y-3 border-t border-red-200 p-3">
+      <form
+        action={submit}
+        className="mt-1 space-y-3 rounded border border-crit/30 bg-white p-3 shadow-md md:absolute md:right-0 md:top-full md:z-30 md:w-80"
+      >
         <input type="hidden" name="id" value={id} />
         <input type="hidden" name="side" value={side} />
         <label className="block">
-          <span className="mb-1 block text-sm font-medium">
+          <span className="mb-1 block text-sm font-medium md:text-body">
             Reason for Removal
           </span>
           <Textarea name="reason" required maxLength={300} />

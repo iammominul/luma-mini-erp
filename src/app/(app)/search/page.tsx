@@ -75,29 +75,29 @@ export default async function SearchPage({
 
       {hits.length > 0 ? (
         <Card>
-          <ul className="divide-y divide-[var(--color-line)]">
+          <ul className="divide-y divide-rule">
             {hits.map((hit) => (
               <li key={`${hit.kind}-${hit.href}-${hit.code}`}>
                 <Link
                   href={hit.href}
-                  className="flex min-h-14 items-center gap-3 px-3 py-3 hover:bg-[var(--color-canvas)]"
+                  className="flex min-h-14 items-center gap-3 px-3 py-3 hover:bg-surface-2"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-baseline gap-x-2">
-                      <span className="font-medium text-[var(--color-navy)]">
+                      <span className="font-medium text-navy">
                         {hit.code}
                       </span>
                       {hit.exact ? (
-                        <span className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
+                        <span className="eyebrow">
                           Exact
                         </span>
                       ) : null}
                     </div>
-                    <div className="mt-0.5 text-sm text-[var(--color-muted)]">
+                    <div className="mt-0.5 text-sm text-ink-3">
                       {hit.label}
                     </div>
                   </div>
-                  <span className="shrink-0 rounded border border-[var(--color-line)] bg-[var(--color-canvas)] px-2 py-0.5 text-xs text-[var(--color-muted)]">
+                  <span className="shrink-0 rounded border border-rule bg-surface-2 px-2 py-0.5 text-xs text-ink-3">
                     {KIND_LABEL[hit.kind]}
                   </span>
                 </Link>

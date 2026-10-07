@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { InputError, setOpeningBalance } from '@/lib/mutations';
 import { firstError, openingBalanceSchema } from '@/lib/schemas';
 import { ForbiddenError, actingUser, actorOf } from '@/lib/session';
+import { flash } from '@/lib/flash';
 
 export type OpeningBalanceState = { error?: string };
 
@@ -44,5 +45,6 @@ export async function setOpeningBalanceAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Opening balance saved.');
   redirect('/reports/cash-book');
 }

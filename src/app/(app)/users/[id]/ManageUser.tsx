@@ -248,7 +248,7 @@ function StatusForm({
       />
       <p className="text-sm">
         <span className="font-medium">{disabled ? 'Disabled' : 'Active'}</span>.{' '}
-        <span className="text-[var(--color-muted)]">
+        <span className="text-ink-3">
           {disabled
             ? 'This account cannot sign in. Enabling it lets them in again with the password they had.'
             : 'Disabling signs this account out everywhere and refuses it a new sign-in. The account is kept, because its name is on the entries it made.'}

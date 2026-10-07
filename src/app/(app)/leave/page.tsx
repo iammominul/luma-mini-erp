@@ -103,7 +103,7 @@ export default async function LeavePage({
           columns={columns}
           rows={records}
           rowKey={(record) => record.id}
-          rowClassName="hover:bg-gray-50"
+          rowClassName="hover:bg-surface-2"
           empty={
             <>
               No leave recorded in {shown}.{' '}

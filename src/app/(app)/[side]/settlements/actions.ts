@@ -12,6 +12,7 @@ import {
 import { deleteSchema, firstError, paymentFormSchema } from '@/lib/schemas';
 import { ForbiddenError, actingUser, actorOf } from '@/lib/session';
 import { type Side, copyFor, isSide } from '@/lib/side';
+import { flash } from '@/lib/flash';
 
 export type PaymentFormState = { error?: string };
 
@@ -62,6 +63,7 @@ export async function createPaymentAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Payment recorded.');
   redirect(returnTo(formData) ?? `/${side}/settlements`);
 }
 
@@ -95,6 +97,7 @@ export async function updatePaymentAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Payment saved.');
   redirect(`/${side}/settlements`);
 }
 
@@ -117,5 +120,6 @@ export async function deletePaymentAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Payment removed.');
   redirect(`/${side}/settlements`);
 }

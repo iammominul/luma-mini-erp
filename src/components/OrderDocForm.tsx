@@ -195,7 +195,7 @@ export function OrderDocForm({
             </Field>
           ) : null}
           <Field label={isWo ? 'WO No' : 'PO No'}>
-            <div className="figure rounded border border-[var(--color-line)] bg-[var(--color-canvas)] px-3 py-2 text-sm text-[var(--color-muted)]">
+            <div className="figure rounded border border-rule bg-surface-2 px-3 py-2 text-sm text-ink-3">
               {docNo ?? 'Issued on save'}
             </div>
           </Field>
@@ -250,7 +250,7 @@ export function OrderDocForm({
             </Button>
           }
         />
-        <div className="divide-y divide-[var(--color-line)]">
+        <div className="divide-y divide-rule">
           {lines.map((line, index) => (
             <div key={line.id || `new-${index}`} className="grid gap-3 p-3 md:grid-cols-12">
               <div className="md:col-span-4">
@@ -344,7 +344,7 @@ export function OrderDocForm({
                   <button
                     type="button"
                     onClick={() => setLines((c) => c.filter((_, i) => i !== index))}
-                    className="inline-flex min-h-11 items-center px-2 text-sm text-red-700 md:min-h-0 md:py-2"
+                    className="inline-flex min-h-11 items-center px-2 text-sm text-crit md:min-h-0 md:py-2"
                   >
                     Remove
                   </button>
@@ -353,8 +353,8 @@ export function OrderDocForm({
             </div>
           ))}
         </div>
-        <div className="flex flex-wrap justify-between gap-2 border-t border-[var(--color-rule)] bg-[var(--color-canvas)] px-4 py-2 text-sm">
-          <span className="text-[var(--color-muted)]">{amountInWords(total)}</span>
+        <div className="flex flex-wrap justify-between gap-2 border-t border-rule bg-surface-2 px-4 py-2 text-sm">
+          <span className="text-ink-3">{amountInWords(total)}</span>
           <span className="font-semibold">Total {formatTaka(total)}</span>
         </div>
       </Card>
@@ -391,7 +391,7 @@ export function OrderDocForm({
 
       {state.error ? <Notice tone="error">{state.error}</Notice> : null}
 
-      <div className="sticky bottom-0 -mx-4 border-t border-[var(--color-rule)] bg-[var(--color-surface-2)] px-4 py-3 md:-mx-6 md:px-6">
+      <div className="sticky bottom-0 -mx-4 border-t border-rule bg-surface-2 px-4 py-3 md:-mx-6 md:px-6">
         <FormActions>
           <Button type="submit" icon="check" disabled={pending}>
             {pending ? 'Saving' : submitLabel}

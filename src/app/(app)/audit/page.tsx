@@ -94,7 +94,7 @@ export default async function AuditPage({
   };
 
   const CONTROL =
-    'min-h-11 w-full rounded border border-[var(--color-line)] bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm';
+    'min-h-11 w-full rounded border border-rule bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm';
 
   return (
     <>
@@ -187,7 +187,7 @@ export default async function AuditPage({
               key: 'at',
               head: 'When',
               headClassName: 'w-40',
-              cellClassName: 'whitespace-nowrap text-[var(--color-muted)]',
+              cellClassName: 'whitespace-nowrap text-ink-3',
               phone: 'meta',
               cell: (entry) => entry.at,
             },
@@ -217,8 +217,8 @@ export default async function AuditPage({
               key: 'reason',
               head: 'Reason',
               phone: 'full',
-              cellClassName: 'text-[var(--color-muted)]',
-              phoneClassName: 'text-[var(--color-muted)]',
+              cellClassName: 'text-ink-3',
+              phoneClassName: 'text-ink-3',
               cell: (entry) => entry.reason ?? '',
             },
             {
@@ -231,7 +231,7 @@ export default async function AuditPage({
               cellClassName: 'whitespace-nowrap',
               cell: (entry) =>
                 entry.actorName ?? (
-                  <span className="text-[var(--color-muted)]">
+                  <span className="text-ink-3">
                     Not recorded
                   </span>
                 ),
@@ -245,7 +245,7 @@ export default async function AuditPage({
 
       {pages > 1 ? (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
-          <span className="text-[var(--color-muted)]">
+          <span className="text-ink-3">
             Showing {firstOnPage} to {lastOnPage} of {matched}
           </span>
           <div className="flex items-center gap-2">
@@ -254,7 +254,7 @@ export default async function AuditPage({
                 Previous
               </LinkButton>
             ) : null}
-            <span className="text-[var(--color-muted)]">
+            <span className="text-ink-3">
               Page {page} of {pages}
             </span>
             {page < pages ? (

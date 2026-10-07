@@ -5,6 +5,7 @@ import {
   CardHeader,
   DownloadButton,
   LinkButton,
+  RecordHead,
   Table,
   Td,
   Th,
@@ -59,48 +60,44 @@ export default async function SettlementPage({
 
   return (
     <>
-      {/* The work area keeps no top padding, so a screen without a PageTitle
-          sets its own. See the comment on main in AppShell.tsx. */}
-      <div className="mb-4 md:pt-5">
-        <LinkButton
-          href={`/${side}/settlements`}
-          variant="secondary"
-          icon="back"
-        >
-          Back to {copy.settlementTitle}
-        </LinkButton>
-      </div>
-
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-semibold">
-            {copy.settlementSingular} {payment.docNo ?? ''}
-          </h1>
-          <p className="mt-0.5 text-sm text-[var(--color-muted)]">
-            {party.name} | {formatDate(payment.paidOn)} |{' '}
-            {paymentModeLabel(payment.mode)} | {formatTaka(payment.amount)}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <DownloadButton href={`/${side}/settlements/${handle}/pdf`}>
-            Download PDF
-          </DownloadButton>
-          <LinkButton
-            href={`/${side}/settlements/${handle}/edit`}
-            variant="secondary"
-            icon="edit"
-          >
-            Edit
-          </LinkButton>
-          <DeleteBox
-            action={deletePaymentAction}
-            id={payment.id}
-            side={side}
-            title={`Remove ${copy.settlementSingular}`}
-            confirmLabel={`Remove This ${copy.settlementSingular}`}
-          />
-        </div>
-      </div>
+      <RecordHead
+        back={{ href: `/${side}/settlements`, label: copy.settlementTitle }}
+        kind={copy.settlementSingular}
+        number={payment.docNo ?? copy.settlementSingular}
+        facts={[
+          { label: copy.partyWord, value: party.name },
+          { label: 'Date', value: formatDate(payment.paidOn) },
+          { label: 'Mode', value: paymentModeLabel(payment.mode) },
+        ]}
+        figures={[
+          {
+            label: copy.settlementColumn,
+            value: formatTaka(payment.amount),
+            strong: true,
+          },
+        ]}
+        actions={
+          <>
+            <DownloadButton href={`/${side}/settlements/${handle}/pdf`}>
+              Download PDF
+            </DownloadButton>
+            <LinkButton
+              href={`/${side}/settlements/${handle}/edit`}
+              variant="secondary"
+              icon="edit"
+            >
+              Edit
+            </LinkButton>
+            <DeleteBox
+              action={deletePaymentAction}
+              id={payment.id}
+              side={side}
+              title={`Remove ${copy.settlementSingular}`}
+              confirmLabel={`Remove This ${copy.settlementSingular}`}
+            />
+          </>
+        }
+      />
 
       <Card>
         <CardHeader title={`${copy.settlementSingular} Details`} />
@@ -125,7 +122,7 @@ export default async function SettlementPage({
           <span className="font-medium">In Words (BDT): </span>
           {amountInWords(payment.amount)}
         </div>
-        <p className="mt-2 text-xs text-[var(--color-muted)]">
+        <p className="mt-2 text-xs text-ink-3">
           Download the PDF for the letterhead copy with the signature block.
         </p>
       </Card>

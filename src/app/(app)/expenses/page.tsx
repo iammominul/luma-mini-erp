@@ -153,7 +153,7 @@ export default async function ExpensesPage({
           columns={columns}
           rows={expenses}
           rowKey={(expense) => expense.id}
-          rowClassName="hover:bg-gray-50"
+          rowClassName="hover:bg-surface-2"
           empty={
             <>
               No expenses recorded yet.{' '}

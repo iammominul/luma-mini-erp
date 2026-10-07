@@ -1,5 +1,7 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import {
   Bar,
   BarChart,
@@ -17,6 +19,7 @@ import {
   type ChartSeries,
 } from '@/lib/dashboard';
 import { ChartCard, MoneyTooltip, NoChartData } from './ChartCard';
+import { ShadeDefs, shadeUrl, useChartId } from './depth';
 import { useIsWide } from '../use-is-wide';
 
 /** As much of a category name as fits beside a bar on a phone. */
@@ -44,6 +47,7 @@ export function CategoryBarChart({
   points,
   /** One color for every bar, when the bars are one measure and not categories. */
   singleColor,
+  action,
   emptyMessage = 'Nothing recorded in this period',
 }: {
   title: string;
@@ -52,8 +56,15 @@ export function CategoryBarChart({
   valueLabel: string;
   points: CategoryPoint[];
   singleColor?: boolean;
+  /** What a click on a bar opens, named in the tooltip. */
+  action?: string;
   emptyMessage?: string;
 }) {
+  const router = useRouter();
+  // The bar under the pointer stays at full strength and the rest step back,
+  // so the one being read stands out without a color of its own.
+  const [hovered, setHovered] = useState<number | null>(null);
+  const shade = useChartId();
   // One series, so no legend: the title says what is being measured. Identity
   // here is the axis label beside each bar, which is text, not color.
   const series: ChartSeries[] = [
@@ -87,7 +98,7 @@ export function CategoryBarChart({
         // The name column and the room kept for the value label both give way
         // on a phone, so the chart fits 320px rather than scrolling sideways
         // inside its card. The full name is in the tooltip and the table view.
-        <div className="min-w-[300px]">
+        <div className="chart-depth min-w-[300px]">
           <ResponsiveContainer
             width="100%"
             height={Math.max(160, points.length * 42 + 24)}
@@ -97,6 +108,10 @@ export function CategoryBarChart({
               layout="vertical"
               margin={{ top: 4, right: wide ? 92 : 76, bottom: 4, left: 8 }}
             >
+              <ShadeDefs
+                prefix={shade}
+                colors={points.map((point, index) => colorFor(index, point.label))}
+              />
               <XAxis type="number" hide />
               <YAxis
                 type="category"
@@ -104,19 +119,32 @@ export function CategoryBarChart({
                 width={wide ? 132 : 84}
                 tickFormatter={(label: string) => shorten(label, wide)}
                 tick={{ fontSize: 11, fill: 'var(--color-ink)' }}
-                stroke="var(--color-line)"
+                stroke="var(--color-rule)"
                 tickLine={false}
                 axisLine={false}
               />
               <Tooltip
                 cursor={{ fill: 'rgba(20, 43, 64, 0.05)' }}
-                content={<MoneyTooltip series={series} />}
+                content={<MoneyTooltip series={series} action={action} />}
               />
-              <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={22}>
+              <Bar
+                dataKey="value"
+                radius={[0, 4, 4, 0]}
+                maxBarSize={22}
+                animationDuration={450}
+                onMouseEnter={(_, index) => setHovered(index)}
+                onMouseLeave={() => setHovered(null)}
+                onClick={(_, index) => {
+                  const href = points[index]?.href;
+                  if (href) router.push(href);
+                }}
+              >
                 {points.map((point, index) => (
                   <Cell
                     key={point.label}
-                    fill={colorFor(index, point.label)}
+                    fill={shadeUrl(shade, index)}
+                    fillOpacity={hovered === null || hovered === index ? 1 : 0.45}
+                    cursor={point.href ? 'pointer' : undefined}
                   />
                 ))}
                 {/* The figure sits at the end of its own bar: the relief the
@@ -124,7 +152,7 @@ export function CategoryBarChart({
                 <LabelList
                   dataKey="display"
                   position="right"
-                  className="fill-[var(--color-ink)]"
+                  className="fill-ink"
                   style={{ fontSize: 11 }}
                 />
               </Bar>

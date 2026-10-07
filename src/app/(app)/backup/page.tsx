@@ -10,26 +10,26 @@ export default async function BackupPage() {
 
       <div className="mb-4 grid gap-4 sm:grid-cols-3">
         <Card className="px-4 py-3">
-          <div className="text-xs uppercase tracking-wide text-[var(--color-muted)]">
+          <div className="text-xs uppercase tracking-wide text-ink-3">
             Parties
           </div>
-          <div className="mt-1 text-xl font-semibold">
+          <div className="mt-1 text-number font-semibold">
             {bundle.parties.length}
           </div>
         </Card>
         <Card className="px-4 py-3">
-          <div className="text-xs uppercase tracking-wide text-[var(--color-muted)]">
+          <div className="text-xs uppercase tracking-wide text-ink-3">
             Bills
           </div>
-          <div className="mt-1 text-xl font-semibold">
+          <div className="mt-1 text-number font-semibold">
             {bundle.bills.length}
           </div>
         </Card>
         <Card className="px-4 py-3">
-          <div className="text-xs uppercase tracking-wide text-[var(--color-muted)]">
+          <div className="text-xs uppercase tracking-wide text-ink-3">
             Receipts and Payments
           </div>
-          <div className="mt-1 text-xl font-semibold">
+          <div className="mt-1 text-number font-semibold">
             {bundle.payments.length}
           </div>
         </Card>
@@ -62,7 +62,7 @@ export default async function BackupPage() {
             </DownloadButton>
           </div>
 
-          <div className="text-[var(--color-muted)]">
+          <div className="text-ink-3">
             <p>
               Neon keeps its own point-in-time backups, so this is a second copy
               you hold yourself. Take the JSON file once a week and keep it off

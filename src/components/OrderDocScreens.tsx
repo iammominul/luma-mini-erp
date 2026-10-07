@@ -11,7 +11,9 @@ import {
   CardHeader,
   DownloadButton,
   LinkButton,
+  DocLinks,
   PageTitle,
+  RecordHead,
   Table,
   Td,
   Th,
@@ -19,6 +21,7 @@ import {
 import { formatQtyKg, formatRate, parseQtyKg } from '@/lib/amount';
 import { formatDate, todayInDhaka } from '@/lib/dates';
 import { formatTaka } from '@/lib/format';
+import { Money } from '@/lib/money';
 import { isUuid } from '@/lib/ids';
 import { can } from '@/lib/permissions';
 import {
@@ -132,7 +135,7 @@ export async function OrderDocListScreen({
       cellClassName: 'whitespace-nowrap font-medium',
       phone: 'meta',
       cell: (doc) => (
-        <Link href={`${copy.base}/${doc.docNo}`} className="text-[var(--color-navy)] hover:underline">
+        <Link href={`${copy.base}/${doc.docNo}`} className="link">
           {doc.docNo}
         </Link>
       ),
@@ -161,7 +164,7 @@ export async function OrderDocListScreen({
       key: 'orders',
       head: 'For Orders',
       phone: 'off',
-      cellClassName: 'text-[var(--color-muted)]',
+      cellClassName: 'text-ink-3',
       cell: (doc) => doc.orderDocNos.join(', '),
     },
     {
@@ -214,8 +217,17 @@ export async function OrderDocListScreen({
           rows={docs}
           rowKey={(doc) => doc.id}
           rowHref={(doc) => `${copy.base}/${doc.docNo}`}
-          rowClassName="hover:bg-[var(--color-canvas)]"
+          rowClassName="hover:bg-surface-2"
           empty={`No ${copy.title.toLowerCase()} for this filter`}
+          // The whole filtered list, added as Money.
+          total={{
+            label: `${docs.length} ${docs.length === 1 ? copy.singular : copy.title}`,
+            cells: {
+              total: formatTaka(
+                docs.reduce((sum, doc) => sum.add(doc.total), Money.ZERO),
+              ),
+            },
+          }}
         />
       </Card>
     </>
@@ -348,40 +360,43 @@ export async function OrderDocScreen({ kind, handle }: { kind: Kind; handle: str
 
   return (
     <>
-      <div className="mb-4 md:pt-5">
-        <LinkButton href={copy.base} variant="secondary" icon="back">
-          Back to {copy.title}
-        </LinkButton>
-      </div>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="flex flex-wrap items-center gap-2 text-lg font-semibold">
-            {copy.singular} {doc.docNo} <StatusTag status={doc.status} />
-          </h1>
-          <p className="mt-0.5 text-sm text-[var(--color-muted)]">
-            {[
-              doc.partyName,
-              wo ? workProcessLabel(wo.process) : 'Yarn',
-              formatDate(doc.orderDate),
-              doc.deliveryBy ? `Delivery by ${formatDate(doc.deliveryBy)}` : null,
-              `Deliver to ${doc.deliverToName ?? 'our store'}`,
-            ]
-              .filter(Boolean)
-              .join('  |  ')}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <DownloadButton href={`${copy.base}/${doc.docNo}/pdf`}>Download PDF</DownloadButton>
-          {mayEdit && doc.status === 'open' ? (
-            <LinkButton href={`${copy.base}/${doc.docNo}/edit`} variant="secondary" icon="edit">
-              Edit
-            </LinkButton>
-          ) : null}
-          {mayEdit ? (
-            <StatusBox action={setOrderDocStatusAction} id={doc.id} status={doc.status} kind={kind} />
-          ) : null}
-        </div>
-      </div>
+      <RecordHead
+        back={{ href: copy.base, label: copy.title }}
+        kind={wo ? `${copy.singular}: ${workProcessLabel(wo.process)}` : copy.singular}
+        number={doc.docNo}
+        tags={<StatusTag status={doc.status} />}
+        facts={[
+          { label: wo ? 'Subcontractor' : 'Supplier', value: doc.partyName },
+          { label: 'Date', value: formatDate(doc.orderDate) },
+          ...(doc.deliveryBy
+            ? [{ label: 'Delivery By', value: formatDate(doc.deliveryBy) }]
+            : []),
+          { label: 'Deliver To', value: doc.deliverToName ?? 'Our store' },
+          {
+            label: 'For Sales Order',
+            value: (
+              <DocLinks
+                links={[
+                  ...new Set(linesOf(doc, kind).map((line) => line.orderDocNo)),
+                ].map((no) => ({ text: no, href: `/orders/${no}` }))}
+              />
+            ),
+          },
+        ]}
+        actions={
+          <>
+            <DownloadButton href={`${copy.base}/${doc.docNo}/pdf`}>Download PDF</DownloadButton>
+            {mayEdit && doc.status === 'open' ? (
+              <LinkButton href={`${copy.base}/${doc.docNo}/edit`} variant="secondary" icon="edit">
+                Edit
+              </LinkButton>
+            ) : null}
+            {mayEdit ? (
+              <StatusBox action={setOrderDocStatusAction} id={doc.id} status={doc.status} kind={kind} />
+            ) : null}
+          </>
+        }
+      />
 
       <Card>
         <CardHeader title="Lines" />
@@ -402,14 +417,14 @@ export async function OrderDocScreen({ kind, handle }: { kind: Kind; handle: str
               const target = orderLine.get(line.orderLineId);
               return (
                 <tr key={line.id}>
-                  <Td className="text-[var(--color-muted)]">{line.lineNo}</Td>
+                  <Td className="text-ink-3">{line.lineNo}</Td>
                   <Td>{line.description}</Td>
                   <Td>
-                    <Link href={`/orders/${line.orderDocNo}`} className="text-[var(--color-navy)] hover:underline">
+                    <Link href={`/orders/${line.orderDocNo}`} className="link">
                       {line.orderDocNo} / {line.orderLineNo}
                     </Link>
                     {target ? (
-                      <div className="text-xs text-[var(--color-muted)]">
+                      <div className="text-xs text-ink-3">
                         {[target.partyName, target.customerRef, orderCategoryLabel(target.category)]
                           .filter(Boolean)
                           .join(', ')}
@@ -427,7 +442,7 @@ export async function OrderDocScreen({ kind, handle }: { kind: Kind; handle: str
             })}
           </tbody>
           <tfoot>
-            <tr className="bg-[var(--color-canvas)] font-semibold">
+            <tr className="bg-surface-2 font-semibold">
               <Td colSpan={wo ? 6 : 5}>Total</Td>
               <Td numeric>{formatTaka(doc.total)}</Td>
             </tr>

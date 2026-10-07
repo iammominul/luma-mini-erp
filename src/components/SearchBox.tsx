@@ -183,15 +183,15 @@ export function SearchBox({ className = '' }: { className?: string }) {
           className="min-h-11 w-full rounded border border-white/20 bg-white/10 px-3 py-2 pr-14 text-base text-white outline-none placeholder:text-white/50 focus:border-white/50 focus:bg-white/15 md:min-h-0 md:py-1.5 md:text-sm"
         />
         {/* The hint is desktop only: a phone has no Ctrl and no room for it. */}
-        <kbd className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-white/25 px-1.5 py-0.5 text-[10px] font-medium text-white/50 md:block">
+        <kbd className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-white/25 px-1.5 py-0.5 text-caption font-medium text-white/50 md:block">
           Ctrl K
         </kbd>
       </form>
 
       {open && query.length >= 2 ? (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded border border-[var(--color-line)] bg-white text-[var(--color-ink)] shadow-lg">
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded border border-rule bg-white text-ink shadow-lg">
           {hits.length === 0 ? (
-            <p className="px-3 py-4 text-center text-sm text-[var(--color-muted)]">
+            <p className="px-3 py-4 text-center text-sm text-ink-3">
               {loading ? 'Searching' : `Nothing matches ${query}`}
             </p>
           ) : (
@@ -206,19 +206,19 @@ export function SearchBox({ className = '' }: { className?: string }) {
                     type="button"
                     onClick={() => go(hit)}
                     onMouseEnter={() => setActive(index)}
-                    className={`flex w-full items-center gap-3 border-b border-[var(--color-line)] px-3 py-2.5 text-left last:border-b-0 ${
-                      index === active ? 'bg-[var(--color-canvas)]' : 'bg-white'
+                    className={`flex w-full items-center gap-3 border-b border-rule px-3 py-2.5 text-left last:border-b-0 ${
+                      index === active ? 'bg-surface-2' : 'bg-white'
                     }`}
                   >
                     <span className="min-w-0 flex-1">
-                      <span className="block font-medium text-[var(--color-navy)]">
+                      <span className="block font-medium text-navy">
                         {hit.code}
                       </span>
-                      <span className="mt-0.5 block truncate text-xs text-[var(--color-muted)]">
+                      <span className="mt-0.5 block truncate text-xs text-ink-3">
                         {hit.label}
                       </span>
                     </span>
-                    <span className="shrink-0 rounded border border-[var(--color-line)] bg-[var(--color-canvas)] px-1.5 py-0.5 text-[11px] text-[var(--color-muted)]">
+                    <span className="shrink-0 rounded border border-rule bg-surface-2 px-1.5 py-0.5 text-caption text-ink-3">
                       {KIND_LABEL[hit.kind]}
                     </span>
                   </button>
@@ -228,7 +228,7 @@ export function SearchBox({ className = '' }: { className?: string }) {
           )}
           <a
             href={`/search?q=${encodeURIComponent(query)}`}
-            className="block border-t border-[var(--color-line)] px-3 py-2.5 text-center text-sm font-medium text-[var(--color-navy)] hover:bg-[var(--color-canvas)]"
+            className="block border-t border-rule px-3 py-2.5 text-center text-sm font-medium text-navy hover:bg-surface-2"
           >
             See all results
           </a>

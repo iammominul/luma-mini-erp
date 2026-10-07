@@ -34,9 +34,9 @@ import { PINNED, groupHolding, groupsFor, isActive } from './nav-items';
  */
 
 // Roomier in the drawer, where it is tapped, and back to the dense rail at md.
-const ITEM = 'block border-l-2 py-3 text-sm md:py-1.5 md:text-[12.5px]';
+const ITEM = 'block border-l-2 py-3 text-sm md:py-1.5 md:text-body';
 
-const ON = 'border-white bg-[var(--color-navy-2)] font-medium text-white';
+const ON = 'border-white bg-navy-2 font-medium text-white';
 const OFF = 'border-transparent text-white/75 hover:bg-white/5 hover:text-white';
 
 export function AppNav({
@@ -91,7 +91,7 @@ export function AppNav({
       role={asDrawer ? 'dialog' : undefined}
       aria-modal={asDrawer || undefined}
       aria-label={asDrawer ? 'Main Menu' : undefined}
-      className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col overflow-y-auto border-r border-[var(--color-navy-3)] bg-[var(--color-navy)] text-white outline-none transition-transform duration-200 md:static md:z-auto md:h-full md:w-auto md:translate-x-0 ${
+      className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col overflow-y-auto border-r border-navy-3 bg-navy text-white outline-none transition-transform duration-200 md:static md:z-auto md:h-full md:w-auto md:translate-x-0 ${
         drawerOpen ? 'translate-x-0' : '-translate-x-full'
       } ${rail ? 'md:overflow-visible' : 'md:overflow-y-auto'}`}
     >
@@ -143,7 +143,7 @@ export function AppNav({
         {/* A rule between the dashboard and the groups. It used to be a tinted
             block of four shortcuts; see the note in nav-items.ts for why that
             went. */}
-        <div className="my-1.5 border-b border-[var(--color-navy-3)]" />
+        <div className="my-1.5 border-b border-navy-3" />
 
         {groups.map((group) => {
           const expanded = rail ? hovered === group.key : isOpen(group.key);
@@ -194,8 +194,8 @@ export function AppNav({
               {/* Collapsed, the group opens beside the rail rather than pushing
                   it wider, so the marks stay where the pointer expects them. */}
               {expanded && rail ? (
-                <div className="absolute left-full top-0 z-20 ml-1 w-52 rounded border border-white/15 bg-[var(--color-navy)] py-1 shadow-lg">
-                  <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/40">
+                <div className="absolute left-full top-0 z-20 ml-1 w-52 rounded border border-white/15 bg-navy py-1 shadow-lg">
+                  <div className="px-3 py-1 text-caption font-semibold uppercase tracking-wider text-white/40">
                     {group.label}
                   </div>
                   {group.items.map((item) => (
@@ -239,7 +239,7 @@ export function AppNav({
           aria-label={rail ? 'Expand the menu' : 'Collapse the menu'}
           aria-expanded={!rail}
           title={rail ? 'Expand the menu' : 'Collapse the menu'}
-          className={`flex w-full items-center gap-2.5 rounded py-1.5 text-[12px] text-white/60 hover:bg-white/10 hover:text-white ${
+          className={`flex w-full items-center gap-2.5 rounded py-1.5 text-meta text-white/60 hover:bg-white/10 hover:text-white ${
             rail ? 'justify-center px-0' : 'px-2'
           }`}
         >

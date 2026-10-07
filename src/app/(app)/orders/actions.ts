@@ -16,6 +16,7 @@ import {
   salesOrderFormSchema,
 } from '@/lib/schemas';
 import { ForbiddenError, actingUser, actorOf } from '@/lib/session';
+import { flash } from '@/lib/flash';
 
 export type OrderFormState = { error?: string };
 
@@ -67,6 +68,7 @@ export async function createSalesOrderAction(
   }
   const saved = await getSalesOrder(id);
   revalidatePath('/', 'layout');
+  await flash('Sales order booked.');
   redirect(`/orders/${saved?.docNo ?? id}`);
 }
 
@@ -87,6 +89,7 @@ export async function updateSalesOrderAction(
   }
   const saved = await getSalesOrder(id);
   revalidatePath('/', 'layout');
+  await flash('Sales order saved.');
   redirect(`/orders/${saved?.docNo ?? id}`);
 }
 
@@ -114,5 +117,6 @@ export async function setSalesOrderStatusAction(
   }
   const saved = await getSalesOrder(parsed.data.id);
   revalidatePath('/', 'layout');
+  await flash('Order status changed.');
   redirect(`/orders/${saved?.docNo ?? parsed.data.id}`);
 }

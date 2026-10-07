@@ -63,7 +63,7 @@ export default async function ExpenseRegisterPage({
               <CardHeader
                 title={tier.label}
                 action={
-                  <span className="text-sm text-[var(--color-muted)]">
+                  <span className="text-sm text-ink-3">
                     {formatTaka(tierTotal)}
                     {share ? ` (${share} of cost)` : ''}
                   </span>
@@ -86,7 +86,7 @@ export default async function ExpenseRegisterPage({
                     inTier.map((row) => (
                       <tr key={`${row.tier}-${row.label}`}>
                         <Td>{row.label}</Td>
-                        <Td className="text-[var(--color-muted)]">
+                        <Td className="text-ink-3">
                           {row.note}
                         </Td>
                         <Td numeric>{formatTaka(row.amount)}</Td>

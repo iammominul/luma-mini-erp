@@ -80,7 +80,7 @@ export default async function LoanPage({
 
       {loan.terms ? (
         <Card className="mb-4 px-4 py-3">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-ink-2)]">
+          <div className="eyebrow-strong">
             Interest and Terms
           </div>
           <p className="mt-1 whitespace-pre-line text-sm">{loan.terms}</p>
@@ -179,7 +179,7 @@ export default async function LoanPage({
                     {row.movement.docNo ?? ''}
                   </Td>
                   <Td>{fundCategoryLabel(row.movement.category)}</Td>
-                  <Td className="whitespace-nowrap text-[var(--color-muted)]">
+                  <Td className="whitespace-nowrap text-ink-3">
                     {paymentModeLabel(row.movement.mode)}
                   </Td>
                   <Td numeric>{row.moneyIn ? formatTaka(row.moneyIn) : ''}</Td>
@@ -208,7 +208,7 @@ export default async function LoanPage({
 
       {loan.notes ? (
         <Card className="mt-4 px-4 py-3">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-ink-2)]">
+          <div className="eyebrow-strong">
             Note
           </div>
           <p className="mt-1 whitespace-pre-line text-sm">{loan.notes}</p>

@@ -1,7 +1,9 @@
 @import 'tailwindcss';
 
 /* Brand tokens match the approved prototype and the real ERP frontend, so this
-   interim tool looks like the same product: navy, Inter, classic office. */
+   interim tool looks like the same product: a navy bar and rail, dense type,
+   classic enterprise software in the SAP manner. A light frame was tried on
+   2026-10-07 and turned down by the owner: the navy chrome stays. */
 @theme {
   --color-navy: #142b40;
   --color-navy-600: #1d3a54;
@@ -20,15 +22,26 @@
   --color-ink-3: #7b828b;
 
   --color-surface: #ffffff;
-  --color-surface-2: #f6f7f8;
-  --color-surface-3: #eef0f2;
+  --color-surface-2: #f4f6f8;
+  --color-surface-3: #eaedf1;
 
   /* Two rule weights, and the distinction is load bearing on a dense table:
      the strong rule closes a heading or a total, the soft one separates two
      rows of the same kind. One weight for both is what makes a long ledger
      read as a grid of boxes rather than as a column of figures. */
-  --color-rule: #c8ced5;
-  --color-rule-soft: #e5e8eb;
+  --color-rule: #d9dee5;
+  --color-rule-soft: #edf0f3;
+  /* The strong rule, kept for the one place a line has to close something: a
+     total row, the foot of a statement. */
+  --color-rule-strong: #b9c1cb;
+
+  /* Corners and lift. A card is lifted a hair off the ground and rounded at
+     8px; a panel that floats over the page (a menu, a tooltip, a dialog) is
+     lifted further. Two shadows, never a glow, never a colored one. */
+  --radius-card: 6px;
+  --radius-control: 6px;
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.04);
+  --shadow-pop: 0 8px 24px -4px rgb(16 24 40 / 0.12), 0 2px 6px rgb(16 24 40 / 0.06);
 
   /* State, and only state. These are never a series color on a chart: the
      chart hues below are for quantity, and a reader who has learned that red
@@ -37,17 +50,48 @@
   --color-warn: #8a5a00;
   --color-crit: #a11f2c;
 
-  /* The three names the app was built on, kept pointing at their replacements
-     so this landed in one pass instead of forty files. New code should reach
-     for the name that says which of the two rule weights, or which of the
-     three inks, it actually means. */
-  --color-muted: var(--color-ink-3);
-  --color-line: var(--color-rule);
-  --color-canvas: var(--color-surface-2);
+  /* Every color above is a Tailwind utility of its own name: `text-ink-3`,
+     `border-rule`, `bg-surface-2`, `bg-navy/5`. Write that, never
+     `text-[var(--color-ink-3)]`: the arbitrary form is the same color with
+     none of the checking, and 411 of them had grown across the app before
+     they were folded back (2026-10-07). The three old alias names (muted,
+     line, canvas) went with them; ink-3, rule and surface-2 are what they
+     meant. */
 
   /* One table row height, so a bill list and a payroll grid agree without
      either of them naming a number. */
   --row: 28px;
+
+  /* The type scale, and the only sizes a screen uses at md and up. Each is a
+     Tailwind utility of the same name (`text-caption`, `text-body`...), so a
+     component names what the text is rather than a pixel figure. Nine
+     hand-picked sizes between 10px and 15px had grown across the screens, and
+     the eye reads a 0.5px difference as a mistake rather than as a step.
+
+       caption  11px    a caps label, a column heading, a footnote
+       meta     12px    a hint, a date beside a name, a secondary line
+       body     12.5px  a table cell, a field, a list
+       heading  14px    a card or section heading
+       title    16px    the screen's title
+       number   20px    a document number at the head of its record, a tile
+       hero     24px    the one figure a record view leads with
+
+     Below md the controls are 16px whatever the scale says, because iOS
+     zooms a smaller field. That rule lives with the controls in ui.tsx. */
+  --text-caption: 11px;
+  --text-caption--line-height: 1.35;
+  --text-meta: 12px;
+  --text-meta--line-height: 1.4;
+  --text-body: 12.5px;
+  --text-body--line-height: 1.45;
+  --text-heading: 14px;
+  --text-heading--line-height: 1.35;
+  --text-title: 16px;
+  --text-title--line-height: 1.3;
+  --text-number: 20px;
+  --text-number--line-height: 1.2;
+  --text-hero: 24px;
+  --text-hero--line-height: 1.15;
 
   /* One family, for the screen and for the printed document alike. There is no
      mono companion on purpose: see src/app/layout.tsx.
@@ -84,6 +128,23 @@
   --color-chart-3: #4ca36c;
   --color-chart-4: #c99a1e;
   --color-chart-other: #7a7a85;
+
+  /* The comparison tone: a lighter, still saturated step of the first hue,
+     for the series a chart sets the main one against (cost beside billing).
+     Validated with chart-1 and chart-2 as a trio: lightness band, chroma
+     floor, CVD and normal-vision separation all pass; it is under 3:1 on
+     white, which the tooltip and the table view answer for. A paler steel
+     was tried first and fails the chroma floor: it reads as gray. */
+  --color-chart-compare: #5ea2e0;
+
+  /* One hue, light to dark, for a measure with an order rather than an
+     identity: the age of a receivable, the parts of one total ranked largest
+     first. Monotonic in lightness, so the order reads without the legend. */
+  --color-seq-1: #d6e2ef;
+  --color-seq-2: #a3bfdc;
+  --color-seq-3: #6693c2;
+  --color-seq-4: #2d65a0;
+  --color-seq-5: #163a5f;
 }
 
 /* ---------------------------------------------------------------------------
@@ -129,6 +190,13 @@
    its own input, so a pointer here would show over the text entry area, where
    the caret belongs. */
 @layer base {
+  /* A modal dialog centers itself in the browser's own stylesheet with
+     `margin: auto`, and the Tailwind reset sets every margin to zero, which
+     left every dialog in the app pinned to the top left corner. */
+  dialog:modal {
+    margin: auto;
+  }
+
   button:not(:disabled),
   [role='button'],
   summary,
@@ -178,6 +246,67 @@ body {
   letter-spacing: -0.01em;
 }
 
+/* The caps label: a section's name above its figures, a field group's name, a
+   column heading on a phone card. One letter-spacing and one ink, where five
+   spacings and three inks had been written out by hand. `eyebrow-strong` is the
+   same label where it heads a table and has to hold its own against the rows. */
+@utility eyebrow {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-ink-3);
+}
+
+@utility eyebrow-strong {
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-ink-2);
+}
+
+/* The surfaces, written once. Every card, tile, chart and table wrapper is a
+   `card`; every menu, tooltip, dropdown and dialog that floats over the page is
+   a `pop`. A component that draws its own border, corner and shadow is how
+   the app came to have four corner radii and three border colors. */
+@utility card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+@utility pop {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-rule);
+  border-radius: 8px;
+  box-shadow: var(--shadow-pop);
+}
+
+/* A link inside text or a table cell: the record number in a register, a
+   party's name, View All. Navy, underlined on hover and on keyboard focus so
+   it is plainly a link to someone not holding a mouse. A button-shaped link
+   is LinkButton in ui.tsx, not this. */
+@utility link {
+  color: var(--color-navy);
+  text-underline-offset: 2px;
+  &:hover,
+  &:focus-visible {
+    text-decoration-line: underline;
+  }
+}
+
+/* A record loading: the shape of what is coming, in the rule color, so the
+   screen holds its geometry instead of flashing blank. No shimmer: a sweep of
+   light across a ledger is the consumer-app look section 4 rules out. */
+@utility skeleton {
+  border-radius: 3px;
+  background: var(--color-surface-3);
+}
+
 /* A printed bill or statement is an A4 document: white, no screen furniture. */
 @media print {
   @page {
@@ -215,4 +344,27 @@ body {
   a[href]::after {
     content: '';
   }
+}
+
+/* Depth on chart marks (2026-10-07): a soft shadow under each bar, line, area
+   and donut slice, so the marks sit raised on the card. Shadow only: nothing
+   here moves or resizes a mark, and there is no perspective anywhere. See
+   src/components/charts/depth.tsx for the rule and the reason. */
+.chart-depth .recharts-bar-rectangle path,
+.chart-depth .recharts-bar-rectangle rect {
+  filter: drop-shadow(0 1px 1px rgb(20 43 64 / 0.18));
+}
+.chart-depth .recharts-line-curve,
+.chart-depth .recharts-area-curve {
+  filter: drop-shadow(0 1px 1.5px rgb(20 43 64 / 0.16));
+}
+.chart-depth .recharts-pie-sector path {
+  filter: drop-shadow(0 2px 2px rgb(20 43 64 / 0.18));
+}
+
+/* The recessed track a bar or strip runs in: the trough reads as cut into the
+   card, the bar as standing out of it. */
+@utility track {
+  background-color: var(--color-surface-3);
+  box-shadow: inset 0 1px 2px rgb(16 24 40 / 0.12);
 }

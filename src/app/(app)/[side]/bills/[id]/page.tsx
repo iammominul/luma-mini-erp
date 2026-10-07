@@ -8,6 +8,9 @@ import {
   DownloadButton,
   LinkButton,
   Notice,
+  DocLinks,
+  RecordHead,
+  Tag,
 } from '@/components/ui';
 import { formatQtyKg, formatRate, parseQtyKg, sumGrams } from '@/lib/amount';
 import { formatDate, todayInDhaka } from '@/lib/dates';
@@ -51,71 +54,125 @@ export default async function BillPage({
   );
 
   const isDraft = bill.status === 'draft';
-  const meta = [
-    bill.party.name,
-    formatDate(bill.billDate),
-    ...(bill.billNo
-      ? [`${copy.billNoIsOurs ? 'Paper Ref' : 'Their Bill No'} ${bill.billNo}`]
-      : []),
-  ];
 
+  // The trail back through the order chain, read off the lines' own refs
+  // ('SO-26-0001 / 2'), each document once.
+  const docNos = (refs: (string | null)[]) => [
+    ...new Set(
+      refs.flatMap((ref) => (ref ? [ref.split(' / ')[0]!.trim()] : [])),
+    ),
+  ];
+  const salesOrders = docNos(bill.lines.map((line) => line.orderRef));
+  const sources = docNos(bill.lines.map((line) => line.sourceRef));
+  const sourceHref = (docNo: string) =>
+    docNo.startsWith('PO-')
+      ? `/purchase-orders/${docNo}`
+      : `/work-orders/${docNo}`;
   return (
     <>
-      {/* The work area keeps no top padding, so a screen without a PageTitle
-          sets its own. See the comment on main in AppShell.tsx. */}
-      <div className="mb-4 md:pt-5">
-        <LinkButton
-          href={`/${side}/bills`}
-          variant="secondary"
-          icon="back"
-        >
-          Back to {copy.billTitle}
-        </LinkButton>
-      </div>
-
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-semibold">
-            {copy.billSingular} {billHandle(bill)}
-          </h1>
-          <p className="mt-0.5 text-sm text-[var(--color-muted)]">
-            {meta.join('  |  ')}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {isDraft ? (
-            <PostBillBox action={postBillAction} id={bill.id} side={side} />
-          ) : null}
-          {!isDraft && can(user.role, 'settlement:manage') ? (
-            <RecordPaymentDialog
+      <RecordHead
+        back={{ href: `/${side}/bills`, label: copy.billTitle }}
+        kind={copy.billSingular}
+        number={billHandle(bill)}
+        tags={
+          isDraft ? (
+            <Tag tone="active">Draft</Tag>
+          ) : bill.needsDetail ? (
+            <Tag tone="warn">Needs Detail</Tag>
+          ) : (
+            <Tag tone="done">Posted</Tag>
+          )
+        }
+        facts={[
+          { label: copy.partyWord, value: bill.party.name },
+          { label: 'Date', value: formatDate(bill.billDate) },
+          ...(bill.billNo
+            ? [
+                {
+                  label: copy.billNoIsOurs ? 'Paper Ref' : 'Their Bill No',
+                  value: bill.billNo,
+                },
+              ]
+            : []),
+          ...(sources.length > 0
+            ? [
+                {
+                  label: sources.every((no) => no.startsWith('PO-'))
+                    ? 'Purchase Order'
+                    : 'Work Order',
+                  value: (
+                    <DocLinks
+                      links={sources.map((no) => ({
+                        text: no,
+                        href: sourceHref(no),
+                      }))}
+                    />
+                  ),
+                },
+              ]
+            : []),
+          ...(salesOrders.length > 0
+            ? [
+                {
+                  label: 'Sales Order',
+                  value: (
+                    <DocLinks
+                      links={salesOrders.map((no) => ({
+                        text: no,
+                        href: `/orders/${no}`,
+                      }))}
+                    />
+                  ),
+                },
+              ]
+            : []),
+        ]}
+        figures={[
+          {
+            label: isYarn ? 'Yarn Kg' : 'Grey Kg',
+            value: formatQtyKg(totalGrey),
+          },
+          ...(isYarn
+            ? []
+            : [{ label: 'Finished Kg', value: formatQtyKg(totalFinished) }]),
+          { label: 'Bill Total', value: formatTaka(bill.total), strong: true },
+        ]}
+        actions={
+          <>
+            {isDraft ? (
+              <PostBillBox action={postBillAction} id={bill.id} side={side} />
+            ) : null}
+            {!isDraft && can(user.role, 'settlement:manage') ? (
+              <RecordPaymentDialog
+                side={side}
+                partyId={bill.partyId}
+                partyName={bill.party.name}
+                isReceipt={copy.paymentDirection === 'in'}
+                returnTo={`/${side}/bills/${handle}`}
+                today={todayInDhaka()}
+                suggestedAmount={bill.total.toDecimalString()}
+              />
+            ) : null}
+            <DownloadButton href={`/${side}/bills/${handle}/pdf`}>
+              Download PDF
+            </DownloadButton>
+            <LinkButton
+              href={`/${side}/bills/${handle}/edit`}
+              variant="secondary"
+              icon="edit"
+            >
+              Edit
+            </LinkButton>
+            <DeleteBox
+              action={deleteBillAction}
+              id={bill.id}
               side={side}
-              partyId={bill.partyId}
-              partyName={bill.party.name}
-              isReceipt={copy.paymentDirection === 'in'}
-              returnTo={`/${side}/bills/${handle}`}
-              today={todayInDhaka()}
-              suggestedAmount={bill.total.toDecimalString()}
+              title="Remove Bill"
+              confirmLabel="Remove This Bill"
             />
-          ) : null}
-          <DownloadButton href={`/${side}/bills/${handle}/pdf`}>
-            Download PDF
-          </DownloadButton>
-          <LinkButton
-            href={`/${side}/bills/${handle}/edit`}
-            variant="secondary"
-            icon="edit"
-          >
-            Edit
-          </LinkButton>
-          <DeleteBox
-            action={deleteBillAction}
-            id={bill.id}
-            side={side}
-            title="Remove Bill"
-            confirmLabel="Remove This Bill"
-          />
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {isDraft ? (
         <Notice>
@@ -133,10 +190,10 @@ export default async function BillPage({
               key: 'sl',
               head: 'SL',
               headClassName: 'w-10',
-              cellClassName: 'text-[var(--color-muted)]',
+              cellClassName: 'text-ink-3',
               // Leads the particulars rather than taking a line of its own.
               phone: 'title',
-              phoneClassName: 'text-[var(--color-muted)]',
+              phoneClassName: 'text-ink-3',
               cell: (line) => line.lineNo,
             },
             // The desktop keeps every column. A phone reads the same line as
@@ -224,7 +281,7 @@ export default async function BillPage({
               head: '',
               only: 'phone',
               phone: 'full',
-              phoneClassName: 'text-xs text-[var(--color-muted)]',
+              phoneClassName: 'text-xs text-ink-3',
               cell: (line) =>
                 [
                   line.color,
@@ -278,7 +335,7 @@ export default async function BillPage({
             {bill.notes}
           </div>
         ) : null}
-        <p className="mt-2 text-xs text-[var(--color-muted)]">
+        <p className="mt-2 text-xs text-ink-3">
           Download the PDF for the letterhead copy with the signature block.
         </p>
       </Card>

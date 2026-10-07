@@ -19,7 +19,7 @@ const orderColumns: Column<OrderMargin>[] = [
     cell: (order) => (
       <Link
         href={`/reports/orders/${encodeURIComponent(order.orderNo)}`}
-        className="text-[var(--color-navy)] hover:underline"
+        className="link"
       >
         {order.orderNo}
       </Link>
@@ -50,9 +50,9 @@ const orderColumns: Column<OrderMargin>[] = [
     cellClassName: '',
     phone: 'full',
     phoneClassName:
-      'border-t border-[var(--color-line)] pt-2 text-base font-semibold',
+      'border-t border-rule pt-2 text-title font-semibold',
     cell: (order) => (
-      <span className={order.contribution.isNegative() ? 'text-red-700' : ''}>
+      <span className={order.contribution.isNegative() ? 'text-crit' : ''}>
         {formatTaka(order.contribution)}
       </span>
     ),
@@ -61,7 +61,7 @@ const orderColumns: Column<OrderMargin>[] = [
     key: 'margin',
     head: 'Margin',
     numeric: true,
-    cellClassName: 'text-[var(--color-muted)]',
+    cellClassName: 'text-ink-3',
     phone: 'meta',
     cell: (order) => order.contributionPercent ?? '',
   },
@@ -141,10 +141,10 @@ export default async function OrderCostingPage({
           columns={orderColumns}
           rows={margins}
           rowKey={(order) => order.orderNo}
-          rowClassName="hover:bg-gray-50"
+          rowClassName="hover:bg-surface-2"
           empty="No order references recorded in this range"
         />
-        <div className="border-t border-[var(--color-line)] px-4 py-3 text-xs text-[var(--color-muted)]">
+        <div className="border-t border-rule px-4 py-3 text-xs text-ink-3">
           Contribution is billing less the direct and selling cost recorded
           against that order. Rent, salary and other overhead are never split
           across orders, because there is no basis here to split them on and a

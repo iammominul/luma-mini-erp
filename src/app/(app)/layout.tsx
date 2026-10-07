@@ -53,9 +53,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 function SetupNeeded({ message }: { message: string }) {
   return (
     <main className="min-h-screen space-y-3 px-4 py-4 md:px-6 md:py-6">
-      <h1 className="text-lg font-semibold">Setup Needed</h1>
+      <h1 className="text-title font-semibold">Setup Needed</h1>
       <Notice tone="error">{message}</Notice>
-      <p className="text-sm text-[var(--color-muted)]">
+      <p className="text-sm text-ink-3">
         The steps are listed in README.md.
       </p>
     </main>

@@ -19,6 +19,7 @@ import {
   workOrderFormSchema,
 } from '@/lib/schemas';
 import { ForbiddenError, actingUser, actorOf } from '@/lib/session';
+import { flash } from '@/lib/flash';
 
 /**
  * The actions behind Purchase Orders and Work Orders. One file for both,
@@ -110,6 +111,7 @@ export async function saveOrderDocAction(
 
   const docNo = await docNoOf(kind, savedId);
   revalidatePath('/', 'layout');
+  await flash('Order saved.');
   redirect(`${BASE[kind]}/${docNo}`);
 }
 
@@ -139,5 +141,6 @@ export async function setOrderDocStatusAction(
   }
   const docNo = await docNoOf(kind, parsed.data.id);
   revalidatePath('/', 'layout');
+  await flash('Order status changed.');
   redirect(`${BASE[kind]}/${docNo}`);
 }

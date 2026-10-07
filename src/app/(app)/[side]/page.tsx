@@ -24,12 +24,12 @@ function columnsFor(
         <>
           <Link
             href={`/${side}/statement/${row.party.code ?? row.party.id}`}
-            className="font-medium text-[var(--color-navy)] hover:underline"
+            className="font-medium link"
           >
             {row.party.name}
           </Link>
           {!row.party.active ? (
-            <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-xs text-[var(--color-muted)]">
+            <span className="ml-2 rounded bg-surface-3 px-1.5 py-0.5 text-xs text-ink-3">
               Inactive
             </span>
           ) : null}
@@ -69,13 +69,13 @@ function columnsFor(
       cellClassName: 'font-semibold',
       phone: 'full',
       phoneClassName:
-        'border-t border-[var(--color-line)] pt-2 text-base font-semibold',
+        'border-t border-rule pt-2 text-title font-semibold',
       cell: (row) => formatTaka(row.balance),
     },
     {
       key: 'lastActivity',
       head: 'Last Entry',
-      cellClassName: 'text-[var(--color-muted)]',
+      cellClassName: 'text-ink-3',
       phone: 'meta',
       cell: (row) => formatDate(row.lastActivity),
     },
@@ -88,7 +88,7 @@ function columnsFor(
       cell: (row) => (
         <Link
           href={`/${side}/statement/${row.party.code ?? row.party.id}`}
-          className="text-sm text-[var(--color-navy)] hover:underline"
+          className="text-sm link"
         >
           Statement
         </Link>

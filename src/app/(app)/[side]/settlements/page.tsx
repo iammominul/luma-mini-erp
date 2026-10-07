@@ -55,7 +55,7 @@ function columnsFor(
     {
       key: 'reference',
       head: 'Paper Ref / Cheque',
-      cellClassName: 'text-[var(--color-muted)]',
+      cellClassName: 'text-ink-3',
       cell: (payment) => payment.reference ?? '',
     },
     {
@@ -131,7 +131,7 @@ export default async function SettlementsPage({
             <select
               name="party"
               defaultValue={filters.party ?? ''}
-              className="min-h-11 w-full rounded border border-[var(--color-line)] bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
+              className="min-h-11 w-full rounded border border-rule bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
             >
               <option value="">All</option>
               {parties.map((party) => (
@@ -147,7 +147,7 @@ export default async function SettlementsPage({
               type="date"
               name="from"
               defaultValue={filters.from ?? ''}
-              className="min-h-11 w-full rounded border border-[var(--color-line)] bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
+              className="min-h-11 w-full rounded border border-rule bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
             />
           </label>
           <label className="block w-full sm:w-auto">
@@ -156,7 +156,7 @@ export default async function SettlementsPage({
               type="date"
               name="to"
               defaultValue={filters.to ?? ''}
-              className="min-h-11 w-full rounded border border-[var(--color-line)] bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
+              className="min-h-11 w-full rounded border border-rule bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
             />
           </label>
           <Button size="filter" block>

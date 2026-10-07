@@ -21,6 +21,7 @@ import {
   userStatusChangeSchema,
 } from '@/lib/schemas';
 import { ForbiddenError, actingUser, actorOf } from '@/lib/session';
+import { flash } from '@/lib/flash';
 
 /**
  * Every action here checks 'user:manage' for itself. The Users screen is only
@@ -66,6 +67,7 @@ export async function createUserAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('User added.');
   redirect('/users');
 }
 

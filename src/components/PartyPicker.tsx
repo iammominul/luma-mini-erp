@@ -110,11 +110,11 @@ export function PartyPicker({
       {canCreate ? (
         <dialog
           ref={dialog}
-          className="w-[min(28rem,calc(100vw-2rem))] rounded border border-[var(--color-rule)] bg-white p-0 backdrop:bg-black/30"
+          className="pop w-[min(28rem,calc(100vw-2rem))] p-0 backdrop:bg-navy-3/40"
           aria-label={`New ${label}`}
         >
-          <div className="border-b border-[var(--color-rule)] px-4 py-2.5">
-            <h2 className="text-sm font-semibold">New {label}</h2>
+          <div className="border-b border-rule px-4 py-2.5">
+            <h2 className="text-heading font-semibold">New {label}</h2>
           </div>
           <div className="space-y-3 p-4">
             <Field label="Name">
@@ -148,13 +148,13 @@ export function PartyPicker({
                 autoComplete="off"
               />
             </Field>
-            <p className="text-xs text-[var(--color-muted)]">
+            <p className="text-xs text-ink-3">
               Added as a {word}. Contact person and opening balance on the
               party screen.
             </p>
             {error ? <Notice tone="error">{error}</Notice> : null}
           </div>
-          <div className="flex justify-end gap-2 border-t border-[var(--color-rule)] px-4 py-2.5">
+          <div className="flex justify-end gap-2 border-t border-rule px-4 py-2.5">
             <Button
               type="button"
               variant="secondary"

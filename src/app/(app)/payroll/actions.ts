@@ -26,6 +26,7 @@ import {
   payrollRunFormSchema,
 } from '@/lib/schemas';
 import { ForbiddenError, actingUser, actorOf } from '@/lib/session';
+import { flash } from '@/lib/flash';
 
 export type PayrollFormState = { error?: string };
 
@@ -75,6 +76,7 @@ export async function createAdvanceAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Advance recorded.');
   redirect('/payroll/advances');
 }
 
@@ -94,6 +96,7 @@ export async function updateAdvanceAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Advance saved.');
   redirect('/payroll/advances');
 }
 
@@ -115,6 +118,7 @@ export async function deleteAdvanceAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Advance removed.');
   redirect('/payroll/advances');
 }
 
@@ -143,6 +147,7 @@ export async function generatePayrollRunAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Payroll generated.');
   redirect(`/payroll/${period}`);
 }
 
@@ -208,6 +213,7 @@ export async function savePayrollLinesAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Payroll lines saved.');
   redirect(`/payroll/${period}`);
 }
 
@@ -227,6 +233,7 @@ export async function addEmployeeToRunAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Employee added to the run.');
   redirect(`/payroll/${period}`);
 }
 
@@ -248,6 +255,7 @@ export async function approvePayrollRunAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Payroll approved.');
   redirect(`/payroll/${period}`);
 }
 
@@ -271,6 +279,7 @@ export async function markPayrollRunPaidAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Payroll marked paid.');
   redirect(`/payroll/${period}`);
 }
 
@@ -294,5 +303,6 @@ export async function reopenPayrollRunAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Payroll reopened.');
   redirect(`/payroll/${period}`);
 }

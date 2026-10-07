@@ -360,6 +360,41 @@ formatters. Do not "improve" them here. If one has a bug, fix it in both.
   strong one closes a heading or a total and the soft one separates two ordinary
   rows, and `good` / `warn` / `crit` are reserved for state and are never a
   series color on a chart.
+- **The design system is `globals.css` plus `ui.tsx`, and a screen reaches
+  for them rather than writing its own** (2026-10-07). Colors are `@theme`
+  tokens and every one is a Tailwind utility of its own name: write
+  `text-ink-3`, `border-rule`, `bg-navy/5`, never `text-[var(--color-ink-3)]`
+  (411 of those were folded back). Type is the scale in `globals.css`:
+  `text-caption`, `text-meta`, `text-body`, `text-heading`, `text-title`,
+  `text-number`, `text-hero`; a pixel size in brackets is a defect. Repeated
+  looks are utilities there too: `eyebrow` for a caps label, `link` for a link
+  in text, `skeleton` for a loading shape. A record's state is `Tag` with one
+  of five tones (neutral, active, done, warn, crit), never a hand-colored
+  span. Every record view (bill, receipt, order, PO, WO) opens with
+  `RecordHead`: the way back, what it is, the number as the largest text, its
+  tags, label-and-value facts, a `StageBar` where the record moves through
+  stages, and one strip of key figures. One `loading.tsx` at `(app)` covers
+  every screen. Surfaces are `card` and `pop` (a menu, tooltip or dialog);
+  nothing draws its own border, corner and shadow.
+- **Enterprise first, modern second, and never AI made** (owner, 2026-10-07).
+  The navy bar and rail and the dense SAP-style type stay: a light frame was
+  built and turned down. What modernizes is inside the work area: cards with a
+  navy top rule on the headline tiles, charts with a headline figure, a
+  segmented Chart / Table switch, a ranked list and an ageing strip in place of
+  plain bar charts. The tells of a generated dashboard are banned outright: a
+  colored icon in a tinted square on a tile, pill chips with shadows, glossy
+  or glowing marks, gradient backgrounds, and decoration with no figure
+  behind it.
+  **Charts carry depth, never perspective.** A mark may be shaded a little
+  lighter at its top edge and lifted by a one pixel shadow (`depth.tsx`,
+  `chart-depth` in `globals.css`), so it reads as solid. Nothing may change
+  what a mark measures: no 3D bars, no tilted pies, because a tilted pie draws
+  its front slices larger than their share and a screen somebody bills from
+  cannot show a wrong size. The shading is the one place a gradient is
+  allowed, and only within a mark's own hue.
+- **A save says so.** A server action calls `flash()` from `src/lib/flash.ts`
+  before it redirects, and `FlashNotice` shows the sentence once. Ctrl+S saves
+  the form the cursor is in and `/` jumps to search (`Shortcuts.tsx`).
 - **A downloaded file is named by its number** (2026-10-06): `CB-26-0113.pdf`,
   `MR-26-0042.pdf`. The number already says what the document is, and the
   document names the company and the party. A document with no number of its

@@ -11,6 +11,7 @@ import {
 } from '@/lib/mutations';
 import { deleteSchema, expenseFormSchema, firstError } from '@/lib/schemas';
 import { ForbiddenError, actingUser, actorOf } from '@/lib/session';
+import { flash } from '@/lib/flash';
 
 export type ExpenseFormState = { error?: string };
 
@@ -57,6 +58,7 @@ export async function createExpenseAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Expense recorded.');
   redirect('/expenses');
 }
 
@@ -79,6 +81,7 @@ export async function updateExpenseAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Expense saved.');
   redirect('/expenses');
 }
 
@@ -100,5 +103,6 @@ export async function deleteExpenseAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Expense removed.');
   redirect('/expenses');
 }

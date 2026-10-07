@@ -1,7 +1,13 @@
 import Link from 'next/link';
 import type { Column } from '@/components/DataTable';
 import { DataTable } from '@/components/DataTable';
-import { Card, LinkButton, PageTitle, StatTile } from '@/components/ui';
+import {
+  Card,
+  LinkButton,
+  PageTitle,
+  StatTile,
+  Tag,
+} from '@/components/ui';
 import { sumMoney } from '@/lib/amount';
 import { formatTaka } from '@/lib/format';
 import { listEmployeeBalances } from '@/lib/queries';
@@ -30,9 +36,9 @@ const columns: Column<Employee>[] = [
           {employee.name}
         </Link>
         {employee.active ? null : (
-          <span className="ml-2 text-xs text-[var(--color-muted)]">
+          <Tag tone="done" className="ml-2">
             Inactive
-          </span>
+          </Tag>
         )}
       </>
     ),
@@ -136,7 +142,7 @@ export default async function EmployeesPage() {
           columns={columns}
           rows={employees}
           rowKey={(employee) => employee.id}
-          rowClassName="hover:bg-gray-50"
+          rowClassName="hover:bg-surface-2"
           empty={
             <>
               No employees yet.{' '}

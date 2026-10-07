@@ -83,7 +83,7 @@ export default async function OwnerPage() {
         <CardHeader
           title="Entries"
           action={
-            <span className="text-sm text-[var(--color-muted)]">
+            <span className="text-sm text-ink-3">
               {movements.length}{' '}
               {movements.length === 1 ? 'entry' : 'entries'}
             </span>
@@ -112,7 +112,7 @@ export default async function OwnerPage() {
                   </Td>
                   <Td className="whitespace-nowrap">{movement.docNo ?? ''}</Td>
                   <Td>{fundCategoryLabel(movement.category)}</Td>
-                  <Td className="whitespace-nowrap text-[var(--color-muted)]">
+                  <Td className="whitespace-nowrap text-ink-3">
                     {paymentModeLabel(movement.mode)}
                   </Td>
                   <Td>{movement.notes ?? ''}</Td>

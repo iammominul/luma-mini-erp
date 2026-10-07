@@ -348,7 +348,7 @@ export function BillForm({
           five fields belonged together. */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="p-4">
-          <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">
+          <h3 className="mb-3 eyebrow">
             Party and Date
           </h3>
           <div className="space-y-3">
@@ -375,7 +375,7 @@ export function BillForm({
         </Card>
 
         <Card className="p-4">
-          <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">
+          <h3 className="mb-3 eyebrow">
             Bill Number
           </h3>
           <div className="space-y-3">
@@ -392,7 +392,7 @@ export function BillForm({
                     : 'Issued on save; the next free number if another is saved first'
                 }
               >
-                <div className="figure rounded border border-[var(--color-line)] bg-[var(--color-canvas)] px-3 py-2 text-sm text-[var(--color-muted)]">
+                <div className="figure rounded border border-rule bg-surface-2 px-3 py-2 text-sm text-ink-3">
                   {systemBillNo}
                 </div>
               </Field>
@@ -415,7 +415,7 @@ export function BillForm({
               {/* Under the field it is about. A repeated number used to be
                   found only when the whole bill was submitted. */}
               {duplicate ? (
-                <span className="mt-1 block text-xs font-medium text-[var(--color-crit)]">
+                <span className="mt-1 block text-xs font-medium text-crit">
                   {duplicate}
                 </span>
               ) : null}
@@ -423,7 +423,7 @@ export function BillForm({
 
             {!copy.billNoIsOurs && systemBillNo ? (
               <Field label="Bill No">
-                <div className="figure rounded border border-[var(--color-line)] bg-[var(--color-canvas)] px-3 py-2 text-sm text-[var(--color-muted)]">
+                <div className="figure rounded border border-rule bg-surface-2 px-3 py-2 text-sm text-ink-3">
                   {systemBillNo}
                 </div>
               </Field>
@@ -432,13 +432,13 @@ export function BillForm({
         </Card>
 
         <Card className="p-4">
-          <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">
+          <h3 className="mb-3 eyebrow">
             Work
           </h3>
           {/* A supplier's bill is yarn, set on the server and never chosen. */}
           {isYarn ? (
             <Field label="Nature of Work">
-              <div className="rounded border border-[var(--color-line)] bg-[var(--color-canvas)] px-3 py-2 text-sm text-[var(--color-muted)]">
+              <div className="rounded border border-rule bg-surface-2 px-3 py-2 text-sm text-ink-3">
                 Yarn
               </div>
             </Field>
@@ -513,7 +513,7 @@ export function BillForm({
             <tbody>
               {lines.map((line, index) => (
                 <tr key={index}>
-                  <Td className="text-[var(--color-muted)]">{index + 1}</Td>
+                  <Td className="text-ink-3">{index + 1}</Td>
                   {/* Plain text fields, and deliberately no placeholders: what
                       goes in a bill line is whatever the paper bill says, and an
                       example sitting in an empty cell reads as a rule about the
@@ -613,7 +613,7 @@ export function BillForm({
                         onClick={() =>
                           setLines((c) => c.filter((_, i) => i !== index))
                         }
-                        className="text-sm text-red-700 hover:underline"
+                        className="text-sm text-crit hover:underline"
                       >
                         Remove
                       </button>
@@ -623,7 +623,7 @@ export function BillForm({
               ))}
             </tbody>
             <tfoot>
-              <tr className="bg-[var(--color-canvas)] font-semibold">
+              <tr className="bg-surface-2 font-semibold">
                 <Td colSpan={isYarn ? 5 : 6}>Total</Td>
                 {isYarn ? null : (
                   <Td numeric>
@@ -644,21 +644,21 @@ export function BillForm({
             wrong one; ten fields all open at once is a bill you scroll for
             a minute and a half to reach the bottom of. A finished line closes
             to what it is worth, which is what you check it by. */}
-        <div className="divide-y divide-[var(--color-line)] md:hidden">
+        <div className="divide-y divide-rule md:hidden">
           {lines.map((line, index) =>
             index !== openLine ? (
               <button
                 key={index}
                 type="button"
                 onClick={() => setOpenLine(index)}
-                className="flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left active:bg-[var(--color-canvas)]"
+                className="flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left active:bg-surface-2"
               >
-                <span className="w-5 shrink-0 text-sm text-[var(--color-muted)]">
+                <span className="w-5 shrink-0 text-sm text-ink-3">
                   {index + 1}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-sm">
                   {line.description || (
-                    <span className="text-[var(--color-muted)]">
+                    <span className="text-ink-3">
                       Line {index + 1}
                     </span>
                   )}
@@ -670,7 +670,7 @@ export function BillForm({
             ) : (
               <div key={index} className="space-y-3 p-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-ink-3">
                     Line {index + 1}
                   </span>
                   {lines.length > 1 ? (
@@ -682,7 +682,7 @@ export function BillForm({
                         // card is never left with nothing expanded.
                         setOpenLine(Math.max(0, index - 1));
                       }}
-                      className="-mr-2 inline-flex min-h-11 items-center px-2 text-sm text-red-700"
+                      className="-mr-2 inline-flex min-h-11 items-center px-2 text-sm text-crit"
                     >
                       Remove
                     </button>
@@ -780,7 +780,7 @@ export function BillForm({
                     <span className="mb-1 block text-sm font-medium">
                       Amount
                     </span>
-                    <div className="whitespace-nowrap py-2.5 text-right text-base font-semibold">
+                    <div className="whitespace-nowrap py-2.5 text-right text-title font-semibold">
                       {amounts[index] ? formatTaka(amounts[index]!) : '-'}
                     </div>
                   </div>
@@ -797,13 +797,13 @@ export function BillForm({
               setLines((c) => [...c, { ...EMPTY_LINE }]);
               setOpenLine(lines.length);
             }}
-            className="flex min-h-14 w-full items-center justify-center gap-1.5 px-3 py-3 text-sm font-medium text-[var(--color-navy)] active:bg-[var(--color-canvas)]"
+            className="flex min-h-14 w-full items-center justify-center gap-1.5 px-3 py-3 text-sm font-medium text-navy active:bg-surface-2"
           >
             Add Line
           </button>
         </div>
 
-        <p className="border-t border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-muted)]">
+        <p className="border-t border-rule px-4 py-2 text-xs text-ink-3">
           {isYarn
             ? 'Amount is rate per kg of yarn.'
             : 'Amount is rate per kg on the grey weight. Finished weight is recorded, not billed on.'}
@@ -818,7 +818,7 @@ export function BillForm({
         <div className="p-4">
           <dl className="grid gap-3 sm:grid-cols-3">
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
+              <dt className="eyebrow">
                 {isYarn ? 'Yarn Weight' : 'Grey Weight'}
               </dt>
               <dd className="figure mt-0.5 text-sm">
@@ -827,7 +827,7 @@ export function BillForm({
             </div>
             {isYarn ? null : (
               <div>
-                <dt className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
+                <dt className="eyebrow">
                   Finished Weight
                 </dt>
                 <dd className="figure mt-0.5 text-sm">
@@ -836,15 +836,15 @@ export function BillForm({
               </div>
             )}
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
+              <dt className="eyebrow">
                 Bill Amount
               </dt>
-              <dd className="figure mt-0.5 text-base font-semibold">
+              <dd className="figure mt-0.5 text-title font-semibold">
                 {formatTaka(total)}
               </dd>
             </div>
           </dl>
-          <div className="mt-3 border-t border-[var(--color-line)] pt-3 text-sm">
+          <div className="mt-3 border-t border-rule pt-3 text-sm">
             <span className="font-medium">In Words (BDT): </span>
             {amountInWords(total)}
           </div>
@@ -880,12 +880,12 @@ export function BillForm({
 
         {/* Narration is a control on what the ledger prints, not a note, and
             most bills never need one. It stays reachable and out of the way. */}
-        <div className="mt-4 border-t border-[var(--color-line)] pt-3">
+        <div className="mt-4 border-t border-rule pt-3">
           <button
             type="button"
             onClick={() => setShowMore((was) => !was)}
             aria-expanded={showMore}
-            className="text-sm font-medium text-[var(--color-navy)] hover:underline"
+            className="text-sm font-medium link"
           >
             {showMore ? 'Hide More Options' : 'More Options'}
           </button>
@@ -922,7 +922,7 @@ export function BillForm({
 
       {/* Pinned to the foot of the work area. A bill with twenty lines had its
           Save two screens below the line being keyed. */}
-      <div className="sticky bottom-0 -mx-4 border-t border-[var(--color-rule)] bg-[var(--color-surface-2)] px-4 py-3 md:-mx-6 md:px-6">
+      <div className="sticky bottom-0 -mx-4 border-t border-rule bg-surface-2 px-4 py-3 md:-mx-6 md:px-6">
         <FormActions>
           <Button
             type="submit"

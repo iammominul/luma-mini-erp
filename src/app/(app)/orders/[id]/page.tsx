@@ -1,11 +1,13 @@
 import Link from 'next/link';
 import { notFound, permanentRedirect } from 'next/navigation';
-import { StageTag, StatusTag } from '@/components/OrderTags';
+import { StatusTag } from '@/components/OrderTags';
 import { StatusBox } from '@/components/StatusBox';
 import {
   Card,
   CardHeader,
+  DocLinks,
   LinkButton,
+  RecordHead,
   Table,
   Td,
   Th,
@@ -15,7 +17,7 @@ import { formatDate } from '@/lib/dates';
 import { formatTaka } from '@/lib/format';
 import { isUuid } from '@/lib/ids';
 import { Money } from '@/lib/money';
-import { orderCosting } from '@/lib/order-costing';
+import { ORDER_STAGES, orderCosting } from '@/lib/order-costing';
 import { can } from '@/lib/permissions';
 import {
   findSalesOrder,
@@ -35,6 +37,12 @@ import { setSalesOrderStatusAction } from '../actions';
 
 /** A figure, or blank where it is nothing, so a column reads as what is there. */
 const cell = (value: Money) => (value.isZero() ? '' : formatTaka(value));
+
+/**
+ * The path an order walks, in order, for the stage bar. Cancelled is not a
+ * step on it: a cancelled order has left the path, and the bar says so.
+ */
+const PATH = ORDER_STAGES.filter((step) => step.value !== 'cancelled');
 
 export default async function SalesOrderPage({
   params,
@@ -63,47 +71,78 @@ export default async function SalesOrderPage({
 
   return (
     <>
-      <div className="mb-4 md:pt-5">
-        <LinkButton href="/orders" variant="secondary" icon="back">
-          Back to Sales Orders
-        </LinkButton>
-      </div>
-
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="flex flex-wrap items-center gap-2 text-lg font-semibold">
-            Sales Order {order.docNo} <StageTag stage={stage} />
-            <StatusTag status={order.status} />
-          </h1>
-          <p className="mt-0.5 text-sm text-[var(--color-muted)]">
-            {[
-              order.partyName,
-              formatDate(order.orderDate),
-              order.customerRef ? `Customer PO / WO ${order.customerRef}` : null,
-            ]
-              .filter(Boolean)
-              .join('  |  ')}
-          </p>
-        </div>
-        {mayEdit ? (
-          <div className="flex flex-wrap items-center gap-2">
-            {isOpen ? (
-              <>
-                <LinkButton href={`/purchase-orders/new?order=${order.docNo}`} variant="secondary" icon="plus">
-                  New PO
-                </LinkButton>
-                <LinkButton href={`/work-orders/new?order=${order.docNo}`} variant="secondary" icon="plus">
-                  New WO
-                </LinkButton>
-                <LinkButton href={`/orders/${order.docNo}/edit`} variant="secondary" icon="edit">
-                  Edit
-                </LinkButton>
-              </>
-            ) : null}
-            <StatusBox action={setSalesOrderStatusAction} id={order.id} status={order.status} />
-          </div>
-        ) : null}
-      </div>
+      <RecordHead
+        back={{ href: '/orders', label: 'Sales Orders' }}
+        kind="Sales Order"
+        number={order.docNo}
+        tags={<StatusTag status={order.status} />}
+        facts={[
+          { label: 'Customer', value: order.partyName },
+          { label: 'Date', value: formatDate(order.orderDate) },
+          ...(order.customerRef
+            ? [{ label: 'Customer PO / WO', value: order.customerRef }]
+            : []),
+          {
+            label: 'Documents',
+            value: (
+              <DocLinks
+                links={[
+                  {
+                    text: `${docs.purchaseOrders.length} PO, ${docs.workOrders.length} WO`,
+                    href: '#orders-issued',
+                  },
+                  {
+                    text: `${docs.bills.length} ${docs.bills.length === 1 ? 'bill' : 'bills'}, ${docs.expenses.length} ${docs.expenses.length === 1 ? 'expense' : 'expenses'}`,
+                    href: '#bills-and-expenses',
+                  },
+                ]}
+              />
+            ),
+          },
+        ]}
+        stages={{
+          steps: PATH.map((step) => step.label),
+          current: PATH.findIndex((step) => step.value === stage),
+          void: stage === 'cancelled' ? 'Cancelled' : undefined,
+        }}
+        figures={[
+          { label: 'Booked', value: formatTaka(result.bookedValue) },
+          { label: 'Billed', value: formatTaka(result.billed) },
+          {
+            label: 'Direct Cost',
+            value: formatTaka(result.directCost),
+          },
+          {
+            label: 'Contribution',
+            value: `${formatTaka(result.contribution)}${
+              result.contributionPercent
+                ? `  (${result.contributionPercent})`
+                : ''
+            }`,
+            strong: true,
+          },
+        ]}
+        actions={
+          mayEdit ? (
+            <>
+              {isOpen ? (
+                <>
+                  <LinkButton href={`/purchase-orders/new?order=${order.docNo}`} variant="secondary" icon="plus">
+                    New PO
+                  </LinkButton>
+                  <LinkButton href={`/work-orders/new?order=${order.docNo}`} variant="secondary" icon="plus">
+                    New WO
+                  </LinkButton>
+                  <LinkButton href={`/orders/${order.docNo}/edit`} variant="secondary" icon="edit">
+                    Edit
+                  </LinkButton>
+                </>
+              ) : null}
+              <StatusBox action={setSalesOrderStatusAction} id={order.id} status={order.status} />
+            </>
+          ) : undefined
+        }
+      />
 
       {/* What each line earned and cost, from the documents filed against it.
           Ordered beside Billed for the work sent out, so work done and not yet
@@ -132,10 +171,10 @@ export default async function SalesOrderPage({
             <tbody>
               {result.lines.map((line) => (
                 <tr key={line.lineId}>
-                  <Td className="text-[var(--color-muted)]">{line.lineNo}</Td>
+                  <Td className="text-ink-3">{line.lineNo}</Td>
                   <Td>
                     <div>{line.description}</div>
-                    <div className="text-xs text-[var(--color-muted)]">
+                    <div className="text-xs text-ink-3">
                       {[
                         orderCategoryLabel(line.category),
                         line.color,
@@ -162,7 +201,7 @@ export default async function SalesOrderPage({
               !result.orderLevel.selling.isZero() ? (
                 <tr>
                   <Td />
-                  <Td className="text-[var(--color-muted)]">Order Level</Td>
+                  <Td className="text-ink-3">Order Level</Td>
                   <Td />
                   <Td />
                   <Td />
@@ -182,11 +221,11 @@ export default async function SalesOrderPage({
               ) : null}
             </tbody>
             <tfoot>
-              <tr className="bg-[var(--color-canvas)] font-semibold">
+              <tr className="bg-surface-2 font-semibold">
                 <Td colSpan={2}>Total</Td>
                 <Td numeric>{formatTaka(result.bookedValue)}</Td>
                 <Td numeric>{formatTaka(result.billed)}</Td>
-                <Td colSpan={5} numeric className="text-[var(--color-muted)]">
+                <Td colSpan={5} numeric className="text-ink-3">
                   Direct cost {formatTaka(result.directCost)}
                   {result.sellingCost.isZero()
                     ? ''
@@ -199,7 +238,7 @@ export default async function SalesOrderPage({
           </Table>
         </div>
         {!result.unbilledCommitment.isZero() ? (
-          <p className="border-t border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-muted)]">
+          <p className="border-t border-rule px-4 py-2 text-xs text-ink-3">
             Ordered on a PO or WO and not yet billed:{' '}
             {formatTaka(result.unbilledCommitment)}. Contribution falls by up to
             that much when it is.
@@ -208,26 +247,26 @@ export default async function SalesOrderPage({
       </Card>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <Card>
+        <Card id="orders-issued">
           <CardHeader title="Purchase and Work Orders" />
           <Table>
             <tbody>
               {docs.purchaseOrders.map((doc) => (
                 <tr key={doc.docNo}>
                   <Td className="w-28">
-                    <Link href={`/purchase-orders/${doc.docNo}`} className="text-[var(--color-navy)] hover:underline">
+                    <Link href={`/purchase-orders/${doc.docNo}`} className="link">
                       {doc.docNo}
                     </Link>
                   </Td>
                   <Td>Yarn, {doc.partyName}</Td>
                   <Td className="w-28">{formatDate(doc.date)}</Td>
-                  <Td className="w-24 text-[var(--color-muted)]">{orderStatusLabel(doc.status)}</Td>
+                  <Td className="w-24 text-ink-3">{orderStatusLabel(doc.status)}</Td>
                 </tr>
               ))}
               {docs.workOrders.map((doc) => (
                 <tr key={doc.docNo}>
                   <Td className="w-28">
-                    <Link href={`/work-orders/${doc.docNo}`} className="text-[var(--color-navy)] hover:underline">
+                    <Link href={`/work-orders/${doc.docNo}`} className="link">
                       {doc.docNo}
                     </Link>
                   </Td>
@@ -235,19 +274,19 @@ export default async function SalesOrderPage({
                     {workProcessLabel(doc.process)}, {doc.partyName}
                   </Td>
                   <Td className="w-28">{formatDate(doc.date)}</Td>
-                  <Td className="w-24 text-[var(--color-muted)]">{orderStatusLabel(doc.status)}</Td>
+                  <Td className="w-24 text-ink-3">{orderStatusLabel(doc.status)}</Td>
                 </tr>
               ))}
               {docs.purchaseOrders.length + docs.workOrders.length === 0 ? (
                 <tr>
-                  <Td className="text-[var(--color-muted)]">None issued</Td>
+                  <Td className="text-ink-3">None issued</Td>
                 </tr>
               ) : null}
             </tbody>
           </Table>
         </Card>
 
-        <Card>
+        <Card id="bills-and-expenses">
           <CardHeader title="Bills and Expenses" />
           <Table>
             <tbody>
@@ -256,7 +295,7 @@ export default async function SalesOrderPage({
                   <Td className="w-28">
                     <Link
                       href={`/${sideForRole(bill.partyRole)}/bills/${bill.docNo ?? bill.id}`}
-                      className="text-[var(--color-navy)] hover:underline"
+                      className="link"
                     >
                       {bill.docNo ?? bill.billNo}
                     </Link>
@@ -283,7 +322,7 @@ export default async function SalesOrderPage({
               ))}
               {docs.bills.length + docs.expenses.length === 0 ? (
                 <tr>
-                  <Td className="text-[var(--color-muted)]">Nothing billed yet</Td>
+                  <Td className="text-ink-3">Nothing billed yet</Td>
                 </tr>
               ) : null}
             </tbody>
