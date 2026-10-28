@@ -22,6 +22,12 @@ dyeing trader, until the full ERP reaches its billing stage. It does two things:
 It answers "who owes what", nothing else. It is temporary by design: when the ERP
 takes over, the JSON export is imported there and this repository is archived.
 
+**Since 2026-10-29 it is also the full ERP's proving ground** (owner). The 22
+modules planned for the full ERP are built here first, in waves, so they are
+seen working on real orders and the full ERP is built from real cases. The book
+stays intact while that happens: see the fifth exception in section 7 and
+`docs/plans/2026-10-29-full-erp-modules.md`.
+
 **Scale:** about 15 to 20 customers, 5 to 10 subcontractors, a few internal
 users. Do not build for more.
 
@@ -432,7 +438,9 @@ formatters. Do not "improve" them here. If one has a bug, fix it in both.
 
 `db:pull` is read only against production and is how a change gets built against
 the real book. It restores production's schema rather than `db/schema.sql`, so
-running `db:setup` straight after it rehearses exactly what the deploy will do.
+running `db:setup` straight after it rehearses exactly what the deploy will do,
+book check included: it ends with "Book check: N figures read before and after,
+none moved", or names each figure that did.
 See rule 15 before writing the migration it is rehearsing.
 
 Run the full suite, including every SQL statement and server action, against a
@@ -603,6 +611,25 @@ order costed end to end. The plan, with every decision behind it, is
    challans and kilos through the chain with process loss (phase 2), pre-cost
    and budget against actual (phase 3), and chemicals, which may be a separate
    company and would then run its own copy of this app.
+
+**The full ERP's modules are the fifth exception, and the widest** (owner,
+2026-10-29). Every module planned for the full ERP is built here in waves, each
+in the place the plan gives it: Live, Live in the book, Shadow, or Lab. The plan,
+the data shape every new table follows, and the waves are
+`docs/plans/2026-10-29-full-erp-modules.md`. The warning at the top of this
+section still applies to anything outside that plan. Four limits hold it:
+
+1. **The book stays intact.** `db:setup` and the deploy run the book check
+   (`scripts/book-check.mjs`): every bill, line, receipt, payment, expense,
+   advance, payroll line, fund movement, party balance and counter is read
+   before the schema is applied and again after, and a figure that moved fails
+   the run. The rehearsal on a pulled copy is where that is meant to happen.
+2. **New modules read the book and do not write it,** except the changes the
+   plan marks Live in the book, and those pass the book check first.
+3. **The shape is the full ERP's,** so data and test cases move across without
+   translation: the order line as the unit, one movement ledger, generic
+   process steps, dated settings.
+4. **A question goes into the full ERP's register,** not into a file here.
 
 **HR and payroll are separate.** HR holds the people: the personnel file and the
 salary structure on the `employee` row. Payroll works out the money, a month at
