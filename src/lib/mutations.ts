@@ -37,11 +37,13 @@ import {
   referencedSourceLines,
   salesOrderInUse,
   listEmployees,
+  listModuleSwitches,
   listPayrollLines,
   otherActiveOwners,
   partyNameExists,
   userEmailExists,
 } from './queries';
+import { audienceLabel, findModule, type Audience } from './modules';
 import { roleLabel, type Role } from './permissions';
 import type {
   AdvanceFormInput,
@@ -2156,6 +2158,43 @@ export async function setUserRole(
         ${`Changed ${before.name} from ${roleLabel(before.role)} to ${roleLabel(role)}`}::text,
         ${actor.id}::text, ${actor.name}::text,
         ${asJson({ role: before.role })}::jsonb, ${asJson({ role })}::jsonb)
+    `,
+  ]);
+}
+
+/**
+ * Who is offered one of the full ERP's modules (modules.ts). Only a module
+ * whose screens exist can be offered; a planned one stays off, so nobody is
+ * shown a screen that opens onto nothing.
+ */
+export async function setModuleSwitch(
+  code: string,
+  audience: Audience,
+  actor: Actor,
+): Promise<void> {
+  const module = findModule(code);
+  if (!module) throw new InputError(`There is no module ${code}.`);
+  if (!module.built && audience !== 'off') {
+    throw new InputError(`${module.name} is not built yet, so it cannot be switched on.`);
+  }
+
+  const before = (await listModuleSwitches())[code] ?? 'off';
+  if (before === audience) return;
+
+  const sql = db();
+  await sql.transaction([
+    sql`
+      INSERT INTO module_switch (module, audience) VALUES (${code}::text, ${audience}::text)
+      ON CONFLICT (module) DO UPDATE SET audience = EXCLUDED.audience, updated_at = now()
+    `,
+    sql`
+      INSERT INTO activity_log (action, entity, entity_id, summary,
+        actor_user_id, actor_name, before_json, after_json)
+      VALUES ('update', 'module', ${code}::text,
+        ${`${module.name} offered to ${audienceLabel(audience)}`}::text,
+        ${actor.id}::text, ${actor.name}::text,
+        ${asJson({ audience: before })}::jsonb,
+        ${asJson({ audience })}::jsonb)
     `,
   ]);
 }

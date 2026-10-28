@@ -6,6 +6,7 @@ import { useState } from 'react';
 import type { Ref } from 'react';
 import { Icon } from './Icon';
 import { PINNED, groupHolding, groupsFor, isActive } from './nav-items';
+import type { Audience } from '@/lib/modules';
 
 /**
  * The left rail. What is in it, and which entries a role is offered, live in
@@ -42,6 +43,7 @@ const OFF = 'border-transparent text-white/75 hover:bg-white/5 hover:text-white'
 export function AppNav({
   companyName,
   role,
+  modules,
   drawerOpen,
   isWide,
   collapsed,
@@ -51,6 +53,7 @@ export function AppNav({
 }: {
   companyName: string;
   role: string;
+  modules: Record<string, Audience>;
   /** Whether the drawer is showing. Means nothing at `md` and up. */
   drawerOpen: boolean;
   isWide: boolean;
@@ -61,7 +64,7 @@ export function AppNav({
   panelRef: Ref<HTMLElement>;
 }) {
   const pathname = usePathname();
-  const groups = groupsFor(role);
+  const groups = groupsFor(role, modules);
   const current = groupHolding(groups, pathname);
 
   // Which group the pointer is over while the rail is collapsed.

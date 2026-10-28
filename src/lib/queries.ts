@@ -3,6 +3,7 @@ import { formatTaka } from './format';
 import type { BookSpan } from './dashboard';
 import { db } from './db';
 import { isDocNo, isUuid } from './ids';
+import { isAudience, type Audience } from './modules';
 import { can } from './permissions';
 import { sideForRole } from './side';
 import { formatQtyKg, lineAmount, parseQtyKg, sumMoney } from './amount';
@@ -976,6 +977,21 @@ export async function schemaReady(): Promise<boolean> {
     SELECT to_regclass('public.party') IS NOT NULL AS ready
   `) as Row[];
   return Boolean(rows[0]?.ready);
+}
+
+/**
+ * Who is offered each of the full ERP's modules (modules.ts). A module with no
+ * row is off, so the map holds only what has been switched.
+ */
+export async function listModuleSwitches(): Promise<Record<string, Audience>> {
+  const sql = db();
+  const rows = (await sql`SELECT module, audience FROM module_switch`) as Row[];
+  const switches: Record<string, Audience> = {};
+  for (const row of rows) {
+    const audience = String(row.audience);
+    if (isAudience(audience)) switches[String(row.module)] = audience;
+  }
+  return switches;
 }
 // HR and payroll -------------------------------------------------
 //

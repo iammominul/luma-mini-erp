@@ -873,6 +873,19 @@ CREATE TABLE IF NOT EXISTS activity_log (
 
 CREATE INDEX IF NOT EXISTS activity_log_at_idx ON activity_log (at DESC);
 
+-- Which of the full ERP's modules each person is offered (2026-10-29). The
+-- codes are the full ERP's (src/lib/modules.ts holds the list); no row means
+-- off. A module is shown to the owner first and to everyone once it has been
+-- tried. This holds a setting, never a figure, so it is outside the book check.
+CREATE TABLE IF NOT EXISTS module_switch (
+  module     text PRIMARY KEY
+             CONSTRAINT module_switch_module_check CHECK (module ~ '^[A-Z]{3}$'),
+  audience   text NOT NULL DEFAULT 'off'
+             CONSTRAINT module_switch_audience_check
+             CHECK (audience IN ('off', 'owner', 'everyone')),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 -- Users, sessions and credentials -------------------------------------------
 --
 -- Named accounts replaced the single shared password on 2026-08-14. These four

@@ -11,6 +11,7 @@ import { RecentChanges } from './RecentChanges';
 import { SearchBox } from './SearchBox';
 import { Shortcuts } from './Shortcuts';
 import { useIsWide } from './use-is-wide';
+import type { Audience } from '@/lib/modules';
 import type { ActivityEntry } from '@/lib/types';
 
 /**
@@ -47,6 +48,7 @@ export function AppShell({
   userName,
   userEmail,
   role,
+  modules,
   recent,
   children,
 }: {
@@ -55,6 +57,8 @@ export function AppShell({
   userName: string;
   userEmail: string;
   role: string;
+  /** Who is offered each full ERP module, for the rail (modules.ts). */
+  modules: Record<string, Audience>;
   /** The newest activity rows, or null for a role that may not read the log. */
   recent: ActivityEntry[] | null;
   children: ReactNode;
@@ -246,6 +250,7 @@ export function AppShell({
       <AppNav
         companyName={companyName}
         role={role}
+        modules={modules}
         drawerOpen={open}
         isWide={isWide}
         collapsed={collapsed}

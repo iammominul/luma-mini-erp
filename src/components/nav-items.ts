@@ -1,3 +1,4 @@
+import { canSee, type Audience } from '@/lib/modules';
 import { can, type Permission } from '@/lib/permissions';
 import type { IconName } from './Icon';
 
@@ -33,6 +34,12 @@ export type NavItem = {
   label: string;
   exact?: boolean;
   needs?: Permission;
+  /**
+   * One of the full ERP's modules (src/lib/modules.ts). The entry is offered
+   * only while that module is switched on for the signed-in role, so a module
+   * still being tried by the owner is not in front of staff.
+   */
+  module?: string;
 };
 
 export type NavGroup = {
@@ -204,6 +211,7 @@ export const GROUPS: NavGroup[] = [
     icon: 'admin',
     items: [
       { href: '/users', label: 'Users', needs: 'user:manage' },
+      { href: '/modules', label: 'Modules', needs: 'module:manage' },
       { href: '/audit', label: 'Audit Trail', needs: 'activity:read' },
       { href: '/backup', label: 'Backup' },
     ],
@@ -215,11 +223,20 @@ export function isActive(pathname: string, item: NavItem): boolean {
 }
 
 /** The groups this role can use, with the entries it cannot dropped. A group
- *  left with nothing in it is dropped too, rather than opening onto blank. */
-export function groupsFor(role: string): NavGroup[] {
+ *  left with nothing in it is dropped too, rather than opening onto blank.
+ *  An entry belonging to a full ERP module is kept only while that module is
+ *  switched on for this role; with no switches given, every module is off. */
+export function groupsFor(
+  role: string,
+  modules: Record<string, Audience> = {},
+): NavGroup[] {
   return GROUPS.map((group) => ({
     ...group,
-    items: group.items.filter((item) => !item.needs || can(role, item.needs)),
+    items: group.items.filter(
+      (item) =>
+        (!item.needs || can(role, item.needs)) &&
+        (!item.module || canSee(modules[item.module], role)),
+    ),
   })).filter((group) => group.items.length > 0);
 }
 
