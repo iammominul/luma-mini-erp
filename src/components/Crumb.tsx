@@ -18,7 +18,7 @@ export function Crumb() {
   const label = groupLabelFor(usePathname());
   if (!label) return null;
   return (
-    <div className="mb-0.5 text-[10.5px] font-semibold uppercase tracking-[0.1em] text-[var(--color-ink-3)]">
+    <div className="mb-0.5 eyebrow">
       {label}
     </div>
   );

@@ -20,7 +20,7 @@ import { NATURE_OF_WORK } from '@/lib/types';
 // field row. The touch height and the 16px text below md are the same reasoning
 // as the shared CONTROL in ui.tsx: under 16px, iOS zooms the page on focus.
 const CONTROL =
-  'min-h-11 rounded border border-[var(--color-line)] bg-white px-3 py-2.5 text-base md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm';
+  'min-h-11 rounded border border-rule bg-white px-3 py-2.5 text-base md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm';
 
 export function BillFilters({
   partyWord,
@@ -108,7 +108,7 @@ export function BillFilters({
         <button
           type="button"
           onClick={() => setOpen((was) => !was)}
-          className={`w-full sm:w-auto ${CONTROL} font-medium hover:bg-gray-50`}
+          className={`w-full sm:w-auto ${CONTROL} font-medium hover:bg-surface-2`}
         >
           More Filters{tucked > 0 ? ` (${tucked})` : ''}
         </button>
@@ -121,7 +121,7 @@ export function BillFilters({
               setTerm('');
               router.replace(pathname, { scroll: false });
             }}
-            className="inline-flex min-h-11 items-center px-1 text-sm text-[var(--color-navy)] hover:underline md:min-h-0"
+            className="inline-flex min-h-11 items-center px-1 text-sm link md:min-h-0"
           >
             Clear
           </button>
@@ -129,7 +129,7 @@ export function BillFilters({
       </div>
 
       {open ? (
-        <div className="flex flex-wrap items-end gap-3 border-t border-[var(--color-line)] pt-3">
+        <div className="flex flex-wrap items-end gap-3 border-t border-rule pt-3">
           <label className="block w-full sm:w-auto">
             <span className="mb-1 block text-xs font-medium">{partyWord}</span>
             <select

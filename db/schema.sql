@@ -76,25 +76,161 @@ CREATE TABLE IF NOT EXISTS party (
 -- One company, one party record, whatever roles it holds.
 CREATE UNIQUE INDEX IF NOT EXISTS party_name_key ON party (lower(name));
 
--- Customer bills carry two numbers, and both matter.
+-- Every document LUMA issues is numbered from a counter row, TYPE-YY-SERIAL.
 --
--- LUMA still writes every bill by hand from a serial-numbered bill book and
--- sends that paper to the customer, so the hand-written number (bill_no, with
--- the book it came from) is what the customer recognizes and what a statement
--- quotes. Alongside it the system issues its own gapless series in doc_no. The
--- counter is bumped inside the same transaction as the insert, so two people
--- billing at the same moment queue on the row lock and the series has no gaps
--- and no duplicates. A bill series with holes in it is the kind of thing an
--- auditor asks about, which is why this is a counter row and not a sequence.
+-- The counter is bumped inside the same transaction as the insert, so two people
+-- saving at the same moment queue on the row lock and the series has no gaps
+-- and no duplicates. A series with holes in it is the kind of thing an auditor
+-- asks about, which is why this is a counter row and not a sequence. No series
+-- ever resets (owner, 2026-10-06): YY is the document date's year, for reading.
 --
--- A subcontractor bill has no system number: their own paper number is its
--- identity, so doc_no stays null on that side.
+-- Since 2026-10-06 the system number is the number printed on what LUMA sends
+-- out. The paper bill book and receipt book are still written, and their serial
+-- is kept beside it as Paper Ref (bill.bill_no, payment.reference). A bill
+-- received keeps the party's own number in bill_no, and takes a BR number
+-- beside it as its handle in the book.
 CREATE TABLE IF NOT EXISTS counter (
   name  text PRIMARY KEY,
   value bigint NOT NULL DEFAULT 0
 );
 
-INSERT INTO counter (name, value) VALUES ('customer_bill', 0)
+INSERT INTO counter (name, value) VALUES
+  ('customer_bill', 0), ('bill_received', 0),
+  ('money_receipt', 0), ('payment_voucher', 0)
+  ON CONFLICT (name) DO NOTHING;
+
+-- Orders (2026-10-06) ---------------------------------------------------------
+--
+-- LUMA now sells finished fabric as well as dyeing customers' own, so a job is a
+-- record and not only a free text reference on a bill line. Three documents:
+--
+--   sales_order     what the customer booked: SO-26-0001
+--   purchase_order  yarn LUMA buys against it from a supplier: PO-26-0001
+--   work_order      knitting or dyeing LUMA sends to a subcontractor: WO-26-0001
+--
+-- Every bill line and expense points back at an order line, which is what lets
+-- an order be costed end to end. Nothing here holds a total or a status worked
+-- out from the others: booked value, what was billed, what it cost and the
+-- stage an order is at are all computed on read (rule 2). The status column is
+-- only what a person decides: open, closed or cancelled.
+--
+-- An order is never deleted. It is cancelled with a reason, and only while no
+-- document points at it, so a cost can never lose the order it was filed under.
+-- Yarn is bought per order, never held, which is why there is no stock table
+-- and no valuation here (CLAUDE.md section 7).
+
+CREATE TABLE IF NOT EXISTS sales_order (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- Issued on save from the counter, in the same transaction. There is no
+  -- draft order, so nothing can leave a hole in the series.
+  doc_no         text NOT NULL,
+  party_id       uuid NOT NULL REFERENCES party (id),
+  order_date     date NOT NULL,
+  -- The customer's own order or work order number, as their paper says it.
+  customer_ref   text,
+  status         text NOT NULL DEFAULT 'open'
+                 CONSTRAINT sales_order_status_check
+                 CHECK (status IN ('open', 'closed', 'cancelled')),
+  notes          text,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS sales_order_doc_no_key ON sales_order (doc_no);
+CREATE INDEX IF NOT EXISTS sales_order_party_idx ON sales_order (party_id, order_date);
+
+CREATE TABLE IF NOT EXISTS sales_order_line (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  order_id       uuid NOT NULL REFERENCES sales_order (id),
+  line_no        integer NOT NULL,
+  -- What is sold. A new kind is a wider CHECK, never a new table.
+  category       text NOT NULL
+                 CONSTRAINT sales_order_line_category_check
+                 CHECK (category IN ('fabric', 'dyeing_service')),
+  description    text NOT NULL,
+  color          text,
+  -- Fabric and a dyeing service are both sold by grey kg; the unit list is
+  -- there for a category that is not, and nothing offers it until one exists.
+  unit           text NOT NULL DEFAULT 'kg'
+                 CONSTRAINT sales_order_line_unit_check
+                 CHECK (unit IN ('kg', 'pcs', 'dozen', 'gross', 'yard', 'meter')),
+  quantity       numeric(12, 3) NOT NULL CHECK (quantity > 0),
+  rate           numeric(12, 6) NOT NULL CHECK (rate >= 0),
+  CONSTRAINT sales_order_line_no_key UNIQUE (order_id, line_no),
+  -- The target of the expense's composite key, which stops a line being filed
+  -- under an order it does not belong to.
+  CONSTRAINT sales_order_line_order_key UNIQUE (id, order_id)
+);
+
+CREATE TABLE IF NOT EXISTS purchase_order (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  doc_no         text NOT NULL,
+  party_id       uuid NOT NULL REFERENCES party (id),
+  order_date     date NOT NULL,
+  -- Where the spinner delivers: a knitter direct, or LUMA itself when null.
+  deliver_to_id  uuid REFERENCES party (id),
+  delivery_by    date,
+  status         text NOT NULL DEFAULT 'open'
+                 CONSTRAINT purchase_order_status_check
+                 CHECK (status IN ('open', 'closed', 'cancelled')),
+  -- Payment and delivery terms, printed on the order.
+  terms          text,
+  notes          text,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS purchase_order_doc_no_key ON purchase_order (doc_no);
+
+CREATE TABLE IF NOT EXISTS purchase_order_line (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  po_id          uuid NOT NULL REFERENCES purchase_order (id),
+  line_no        integer NOT NULL,
+  -- Yarn is bought against one order, so every line names the order line.
+  order_line_id  uuid NOT NULL REFERENCES sales_order_line (id),
+  description    text NOT NULL,
+  quantity_kg    numeric(12, 3) NOT NULL CHECK (quantity_kg > 0),
+  rate           numeric(12, 6) NOT NULL CHECK (rate >= 0),
+  CONSTRAINT purchase_order_line_no_key UNIQUE (po_id, line_no)
+);
+
+CREATE TABLE IF NOT EXISTS work_order (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  doc_no         text NOT NULL,
+  party_id       uuid NOT NULL REFERENCES party (id),
+  process        text NOT NULL
+                 CONSTRAINT work_order_process_check
+                 CHECK (process IN ('knitting', 'dyeing_finishing')),
+  order_date     date NOT NULL,
+  -- Where the work goes next: another subcontractor, the customer, or LUMA
+  -- itself when null.
+  deliver_to_id  uuid REFERENCES party (id),
+  delivery_by    date,
+  status         text NOT NULL DEFAULT 'open'
+                 CONSTRAINT work_order_status_check
+                 CHECK (status IN ('open', 'closed', 'cancelled')),
+  terms          text,
+  notes          text,
+  created_at     timestamptz NOT NULL DEFAULT now(),
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS work_order_doc_no_key ON work_order (doc_no);
+
+CREATE TABLE IF NOT EXISTS work_order_line (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  wo_id          uuid NOT NULL REFERENCES work_order (id),
+  line_no        integer NOT NULL,
+  order_line_id  uuid NOT NULL REFERENCES sales_order_line (id),
+  description    text NOT NULL,
+  color          text,
+  -- As the program writes them, which is often a range: "160-170", "30 Open".
+  gsm            text,
+  dia            text,
+  quantity_kg    numeric(12, 3) NOT NULL CHECK (quantity_kg > 0),
+  rate           numeric(12, 6) NOT NULL CHECK (rate >= 0),
+  CONSTRAINT work_order_line_no_key UNIQUE (wo_id, line_no)
+);
+
+INSERT INTO counter (name, value) VALUES
+  ('sales_order', 0), ('purchase_order', 0), ('work_order', 0)
   ON CONFLICT (name) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS bill (
@@ -106,14 +242,23 @@ CREATE TABLE IF NOT EXISTS bill (
   direction   text NOT NULL DEFAULT 'issued'
               CONSTRAINT bill_direction_check
               CHECK (direction IN ('issued', 'received')),
-  -- The hand-written number: LUMA's own bill book on the customer side, the
-  -- subcontractor's paper bill on the other. On the customer side it is unique
-  -- across every customer bill. It used to be unique only within its book_no,
-  -- which is gone: see the migration at the end for why.
-  bill_no     text NOT NULL,
-  -- The system's own gapless series, 'CB-26-0001'. Null on a bill received, and
-  -- null on a draft: a draft that was abandoned must not leave a hole in the
-  -- series, so the number is issued when the bill is posted and not before.
+  -- Which role the party was acting in. direction says which way the money
+  -- runs and cannot also say this: a supplier's bill and a subcontractor's bill
+  -- are both received. Null only on a row old code wrote during a deploy, which
+  -- reads as its direction implies (see the migration of 2026-10-06).
+  party_role  text
+              CONSTRAINT bill_party_role_check
+              CHECK (party_role IN ('customer', 'subcontractor', 'supplier')),
+  -- The number written on the paper. On a bill received it is the party's own
+  -- number and is required: it is how they know the bill, unique within that
+  -- party. On a customer bill it is the Paper Ref from LUMA's bill book, which is
+  -- still written, and is optional: the document number LUMA prints is doc_no
+  -- (2026-10-06). Unique across customer bills when present.
+  bill_no     text,
+  -- The system's own gapless series. 'CB-26-0001' on a customer bill, issued
+  -- when it is posted and not before, because an abandoned draft must not leave
+  -- a hole. 'BR-26-0001' on a bill received, issued when it is saved. A series
+  -- never resets; the year is the bill date's, for reading only.
   doc_no      text,
   -- A draft is entered but not yet part of the book: it is left out of every
   -- balance and off every statement until it is posted. Posted is the default,
@@ -127,10 +272,11 @@ CREATE TABLE IF NOT EXISTS bill (
   -- ledger and the bill both need to say which of those a given bill is for.
   -- Named for how a bill in this trade words it, and deliberately not "process",
   -- which in the full ERP means a per-line add-on charge (Enzyme, Compacting).
+  -- 'yarn' is a supplier's bill, and is set by the action rather than offered.
   nature_of_work text NOT NULL DEFAULT 'dyeing_finishing'
                 CONSTRAINT bill_nature_of_work_check CHECK (nature_of_work IN
                   ('dyeing_finishing', 'knitting', 'knitting_dyeing_finishing',
-                   'full_package', 'other')),
+                   'full_package', 'yarn', 'other')),
   -- What the ledger prints in Particulars for this bill. Blank means the ledger
   -- composes it from the bill and its lines, which is the normal case. It is a
   -- control and not a note, which is why it survived the merge that folded the
@@ -178,7 +324,15 @@ CREATE TABLE IF NOT EXISTS bill_line (
   -- of them; rounded to the poisha it stops reproducing the amount the party
   -- was shown. The amount below is still exact poisha.
   rate        numeric(12, 6) NOT NULL CHECK (rate >= 0),
-  amount      numeric(14, 2) NOT NULL CHECK (amount >= 0)
+  amount      numeric(14, 2) NOT NULL CHECK (amount >= 0),
+  -- The order line this line was billed or charged against (2026-10-06). On a
+  -- supplier's bill it comes through the PO line, on a subcontractor's through
+  -- the WO line, so both are kept: the order line for costing, the PO or WO
+  -- line for what was ordered against what was billed. Null on a line keyed
+  -- before orders existed, which is costed by its free text order_no instead.
+  order_line_id uuid REFERENCES sales_order_line (id),
+  po_line_id    uuid REFERENCES purchase_order_line (id),
+  wo_line_id    uuid REFERENCES work_order_line (id)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS bill_line_no_key ON bill_line (bill_id, line_no);
@@ -193,6 +347,15 @@ CREATE TABLE IF NOT EXISTS payment (
   direction   text NOT NULL DEFAULT 'in'
               CONSTRAINT payment_direction_check
               CHECK (direction IN ('in', 'out')),
+  -- As on bill: which role the party was paid or received from in.
+  party_role  text
+              CONSTRAINT payment_party_role_check
+              CHECK (party_role IN ('customer', 'subcontractor', 'supplier')),
+  -- The system's gapless voucher number, issued on save: 'MR-26-0001' for a
+  -- Money Receipt, 'PV-26-0001' for a Payment Voucher. It is the number printed
+  -- on the document. The paper receipt book's serial, a cheque number or a bank
+  -- reference goes in reference below.
+  doc_no      text,
   paid_on     date NOT NULL,
   amount      numeric(14, 2) NOT NULL CHECK (amount > 0),
   -- The methods the full ERP records, so a payment exports without translation.
@@ -298,6 +461,12 @@ CREATE TABLE IF NOT EXISTS expense (
   -- already carries. It is what lets one order be costed end to end. Null is
   -- ordinary and means the cost is not attributable to a single order.
   order_no    text,
+  -- The order record itself (2026-10-06): a whole order (freight or a lab
+  -- test for all of it) or one line of it (a transport trip for one fabric).
+  -- The composite key in the migrations below stops a line being filed under
+  -- an order it does not belong to.
+  sales_order_id uuid REFERENCES sales_order (id),
+  order_line_id  uuid,
   notes       text,
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()
@@ -704,6 +873,19 @@ CREATE TABLE IF NOT EXISTS activity_log (
 
 CREATE INDEX IF NOT EXISTS activity_log_at_idx ON activity_log (at DESC);
 
+-- Which of the full ERP's modules each person is offered (2026-10-29). The
+-- codes are the full ERP's (src/lib/modules.ts holds the list); no row means
+-- off. A module is shown to the owner first and to everyone once it has been
+-- tried. This holds a setting, never a figure, so it is outside the book check.
+CREATE TABLE IF NOT EXISTS module_switch (
+  module     text PRIMARY KEY
+             CONSTRAINT module_switch_module_check CHECK (module ~ '^[A-Z]{3}$'),
+  audience   text NOT NULL DEFAULT 'off'
+             CONSTRAINT module_switch_audience_check
+             CHECK (audience IN ('off', 'owner', 'everyone')),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 -- Users, sessions and credentials -------------------------------------------
 --
 -- Named accounts replaced the single shared password on 2026-08-14. These four
@@ -937,10 +1119,12 @@ ALTER TABLE bill ADD COLUMN IF NOT EXISTS nature_of_work text NOT NULL
   DEFAULT 'dyeing_finishing';
 ALTER TABLE bill DROP CONSTRAINT IF EXISTS bill_service_type_check;
 ALTER TABLE bill DROP CONSTRAINT IF EXISTS bill_nature_of_work_check;
+-- 'yarn' added 2026-10-06 for a supplier's bill. This pair runs on every apply,
+-- so the list here must always match the definition above.
 ALTER TABLE bill ADD CONSTRAINT bill_nature_of_work_check
   CHECK (nature_of_work IN
     ('dyeing_finishing', 'knitting', 'knitting_dyeing_finishing',
-     'full_package', 'other'));
+     'full_package', 'yarn', 'other'));
 
 -- Statements are identified by the party and the period, the way a ledger always
 -- has been, so the numbering introduced earlier the same day is withdrawn.
@@ -989,7 +1173,7 @@ UPDATE party SET code = split_part(code, '-', 1) || '-' ||
     GREATEST(4, length((split_part(code, '-', 2))::bigint::text)),
     '0'
   )
-WHERE code ~ '^(CUS|SUB)-[0-9]+$';
+WHERE code ~ '^(CUS|SUB|SUP)-[0-9]+$';
 
 CREATE UNIQUE INDEX IF NOT EXISTS party_code_key ON party (lower(code))
   WHERE code IS NOT NULL;
@@ -1437,3 +1621,158 @@ CREATE INDEX IF NOT EXISTS loan_lender_trgm_idx
   ON loan USING gin (lender public.gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS fund_movement_description_trgm_idx
   ON fund_movement USING gin (description public.gin_trgm_ops);
+
+
+-- Suppliers, voucher numbers, and the system number printed (2026-10-06).
+--
+-- Expand only, per CLAUDE.md rule 15: nothing here drops or renames a column,
+-- so the code still serving while this deploy builds keeps working. Every
+-- statement is safe to run again, and the backfills only ever touch rows that
+-- still lack what they add, so a row old code writes during the build window is
+-- picked up by the next apply.
+
+-- Which role a document's party was acting in. Every row before today is a
+-- customer's (issued, in) or a subcontractor's (received, out): the supplier
+-- side did not exist, so there is nothing to guess.
+ALTER TABLE bill ADD COLUMN IF NOT EXISTS party_role text;
+ALTER TABLE payment ADD COLUMN IF NOT EXISTS party_role text;
+ALTER TABLE bill DROP CONSTRAINT IF EXISTS bill_party_role_check;
+ALTER TABLE bill ADD CONSTRAINT bill_party_role_check
+  CHECK (party_role IN ('customer', 'subcontractor', 'supplier'));
+ALTER TABLE payment DROP CONSTRAINT IF EXISTS payment_party_role_check;
+ALTER TABLE payment ADD CONSTRAINT payment_party_role_check
+  CHECK (party_role IN ('customer', 'subcontractor', 'supplier'));
+
+UPDATE bill SET party_role =
+  CASE WHEN direction = 'issued' THEN 'customer' ELSE 'subcontractor' END
+  WHERE party_role IS NULL;
+UPDATE payment SET party_role =
+  CASE WHEN direction = 'in' THEN 'customer' ELSE 'subcontractor' END
+  WHERE party_role IS NULL;
+
+CREATE INDEX IF NOT EXISTS bill_role_date_idx ON bill (party_role, bill_date);
+CREATE INDEX IF NOT EXISTS payment_role_date_idx
+  ON payment (party_role, paid_on);
+
+-- The paper number becomes optional on a customer bill, because the printed
+-- number is now the system's. Relaxing NOT NULL is the safe direction: old code
+-- still writes a value, and reads a null as an empty string.
+ALTER TABLE bill ALTER COLUMN bill_no DROP NOT NULL;
+
+-- Supplier codes, SUP-0001, on their own counter.
+INSERT INTO counter (name, value) VALUES ('party_supplier', 0)
+  ON CONFLICT (name) DO NOTHING;
+UPDATE counter c SET value = GREATEST(c.value, (
+  SELECT COALESCE(MAX(NULLIF(regexp_replace(p.code, '\D', '', 'g'), '')::bigint), 0)
+  FROM party p WHERE p.code ~ '^SUP-\d+$'
+))
+WHERE c.name = 'party_supplier';
+
+-- Voucher numbers for receipts and payments, and BR numbers for bills received.
+--
+-- Nothing of either kind ever had a system number, so nobody has been shown one
+-- and numbering the existing rows changes no paper anybody holds. They are
+-- numbered in date order after whatever the counter has already issued, then
+-- the counter is moved up to the highest number in use.
+INSERT INTO counter (name, value) VALUES
+  ('bill_received', 0), ('money_receipt', 0), ('payment_voucher', 0)
+  ON CONFLICT (name) DO NOTHING;
+
+ALTER TABLE payment ADD COLUMN IF NOT EXISTS doc_no text;
+CREATE UNIQUE INDEX IF NOT EXISTS payment_doc_no_key
+  ON payment (doc_no) WHERE doc_no IS NOT NULL;
+CREATE INDEX IF NOT EXISTS payment_doc_no_lower_idx ON payment (lower(doc_no));
+
+WITH base AS (
+  SELECT value FROM counter WHERE name = 'money_receipt'
+), numbered AS (
+  SELECT id, paid_on,
+    row_number() OVER (ORDER BY paid_on, created_at, id) AS seq
+  FROM payment WHERE direction = 'in' AND doc_no IS NULL
+)
+UPDATE payment p SET doc_no = 'MR-' || to_char(n.paid_on, 'YY') || '-' ||
+  lpad((base.value + n.seq)::text,
+    GREATEST(4, length((base.value + n.seq)::text)), '0')
+FROM numbered n, base WHERE p.id = n.id;
+
+WITH base AS (
+  SELECT value FROM counter WHERE name = 'payment_voucher'
+), numbered AS (
+  SELECT id, paid_on,
+    row_number() OVER (ORDER BY paid_on, created_at, id) AS seq
+  FROM payment WHERE direction = 'out' AND doc_no IS NULL
+)
+UPDATE payment p SET doc_no = 'PV-' || to_char(n.paid_on, 'YY') || '-' ||
+  lpad((base.value + n.seq)::text,
+    GREATEST(4, length((base.value + n.seq)::text)), '0')
+FROM numbered n, base WHERE p.id = n.id;
+
+WITH base AS (
+  SELECT value FROM counter WHERE name = 'bill_received'
+), numbered AS (
+  SELECT id, bill_date,
+    row_number() OVER (ORDER BY bill_date, created_at, id) AS seq
+  FROM bill WHERE direction = 'received' AND doc_no IS NULL
+)
+UPDATE bill b SET doc_no = 'BR-' || to_char(n.bill_date, 'YY') || '-' ||
+  lpad((base.value + n.seq)::text,
+    GREATEST(4, length((base.value + n.seq)::text)), '0')
+FROM numbered n, base WHERE b.id = n.id;
+
+-- Each counter catches up to the highest serial of its prefix, so the next
+-- save cannot reissue a number the backfill just used.
+UPDATE counter c SET value = GREATEST(c.value, (
+  SELECT COALESCE(MAX(split_part(p.doc_no, '-', 3)::bigint), 0)
+  FROM payment p
+  WHERE p.doc_no ~ ('^' || CASE c.name WHEN 'money_receipt' THEN 'MR'
+                                       ELSE 'PV' END || '-\d+-\d+$')
+))
+WHERE c.name IN ('money_receipt', 'payment_voucher');
+
+UPDATE counter c SET value = GREATEST(c.value, (
+  SELECT COALESCE(MAX(split_part(b.doc_no, '-', 3)::bigint), 0)
+  FROM bill b WHERE b.doc_no ~ '^BR-\d+-\d+$'
+))
+WHERE c.name = 'bill_received';
+
+
+-- Orders, and every cost and sale tied to one (2026-10-06).
+--
+-- The order tables are new and declared above, so CREATE TABLE IF NOT EXISTS
+-- covers an existing database too. What follows adds the links to the tables
+-- that already exist. Expand only (rule 15): the free text order_no stays and
+-- is still written, so the code serving during the build keeps working.
+ALTER TABLE bill_line ADD COLUMN IF NOT EXISTS order_line_id uuid
+  REFERENCES sales_order_line (id);
+ALTER TABLE bill_line ADD COLUMN IF NOT EXISTS po_line_id uuid
+  REFERENCES purchase_order_line (id);
+ALTER TABLE bill_line ADD COLUMN IF NOT EXISTS wo_line_id uuid
+  REFERENCES work_order_line (id);
+CREATE INDEX IF NOT EXISTS bill_line_order_line_idx ON bill_line (order_line_id)
+  WHERE order_line_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS bill_line_po_line_idx ON bill_line (po_line_id)
+  WHERE po_line_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS bill_line_wo_line_idx ON bill_line (wo_line_id)
+  WHERE wo_line_id IS NOT NULL;
+
+ALTER TABLE expense ADD COLUMN IF NOT EXISTS sales_order_id uuid
+  REFERENCES sales_order (id);
+ALTER TABLE expense ADD COLUMN IF NOT EXISTS order_line_id uuid;
+ALTER TABLE expense DROP CONSTRAINT IF EXISTS expense_order_line_fk;
+ALTER TABLE expense ADD CONSTRAINT expense_order_line_fk
+  FOREIGN KEY (order_line_id, sales_order_id)
+  REFERENCES sales_order_line (id, order_id);
+-- A line without its order would slip past the composite key, which only
+-- checks when both halves are present.
+ALTER TABLE expense DROP CONSTRAINT IF EXISTS expense_order_line_needs_order;
+ALTER TABLE expense ADD CONSTRAINT expense_order_line_needs_order
+  CHECK (order_line_id IS NULL OR sales_order_id IS NOT NULL);
+CREATE INDEX IF NOT EXISTS expense_sales_order_idx ON expense (sales_order_id)
+  WHERE sales_order_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS purchase_order_line_order_idx
+  ON purchase_order_line (order_line_id);
+CREATE INDEX IF NOT EXISTS work_order_line_order_idx
+  ON work_order_line (order_line_id);
+CREATE INDEX IF NOT EXISTS sales_order_customer_ref_lower_idx
+  ON sales_order (lower(customer_ref));

@@ -173,7 +173,7 @@ export function EmployeeForm({
 
       <Card>
         <CardHeader title="Salary Structure" />
-        <p className="border-b border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-muted)]">
+        <p className="border-b border-rule px-4 py-2 text-xs text-ink-3">
           Set once and edited when it changes. Each month&apos;s payroll copies
           these figures, so a later raise never restates a payslip already
           handed out.
@@ -240,11 +240,11 @@ export function EmployeeForm({
             />
           </Field>
         </div>
-        <div className="flex items-baseline justify-between border-t border-[var(--color-line)] px-4 py-3">
-          <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-muted)]">
+        <div className="flex items-baseline justify-between border-t border-rule px-4 py-3">
+          <span className="text-xs font-medium uppercase tracking-wide text-ink-3">
             Gross Salary
           </span>
-          <span className="numeric text-xl font-semibold">
+          <span className="numeric text-number font-semibold">
             {gross ? formatTaka(gross) : ''}
           </span>
         </div>

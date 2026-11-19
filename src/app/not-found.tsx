@@ -8,8 +8,8 @@ import { LinkButton } from '@/components/ui';
 export default function NotFound() {
   return (
     <main className="mx-auto max-w-lg px-4 py-16">
-      <h1 className="text-lg font-semibold">Page Not Found</h1>
-      <p className="mt-2 text-sm text-[var(--color-muted)]">
+      <h1 className="text-title font-semibold">Page Not Found</h1>
+      <p className="mt-2 text-sm text-ink-3">
         There is nothing at this address. The record may have been removed, or
         the number in the link may be wrong. Check the number against the
         register before entering it again.

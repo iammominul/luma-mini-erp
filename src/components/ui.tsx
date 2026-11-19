@@ -35,22 +35,24 @@ type ButtonVariant = 'primary' | 'secondary' | 'danger';
 type ButtonSize = 'default' | 'filter';
 
 const BUTTON_STYLES: Record<ButtonVariant, string> = {
-  primary: 'bg-[var(--color-navy)] text-white hover:bg-[var(--color-navy-600)]',
+  primary:
+    'bg-navy text-white shadow-[0_1px_2px_rgb(16_24_40/0.12)] hover:bg-navy-600',
   secondary:
-    'bg-white text-[var(--color-ink)] border border-[var(--color-line)] hover:bg-gray-50',
-  danger: 'bg-white text-red-700 border border-red-300 hover:bg-red-50',
+    'bg-white text-ink border border-rule shadow-[0_1px_2px_rgb(16_24_40/0.05)] hover:bg-surface-2 hover:border-rule-strong',
+  danger:
+    'bg-white text-crit border border-crit/30 shadow-[0_1px_2px_rgb(16_24_40/0.05)] hover:bg-crit/5',
 };
 
 // 44px is the smallest a control should be to be tapped reliably. Written once
 // because a button, a download and a cancel link all have to agree on it.
 const BUTTON_SIZES: Record<ButtonSize, string> = {
   default:
-    'min-h-11 px-4 py-2.5 text-sm md:min-h-0 md:h-[26px] md:px-2.5 md:py-0 md:text-[12px]',
+    'min-h-11 px-4 py-2.5 text-sm md:min-h-0 md:h-[26px] md:px-2.5 md:py-0 md:text-meta',
   filter: 'min-h-11 px-4 py-2.5 text-sm md:min-h-0 md:px-3 md:py-1.5',
 };
 
 const BUTTON_BASE =
-  'inline-flex items-center justify-center gap-1.5 rounded font-medium transition-colors';
+  'inline-flex items-center justify-center gap-1.5 rounded-control font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-navy/20';
 
 /** Full width on a phone, its own width from `sm` up. */
 const BLOCK = 'w-full sm:w-auto';
@@ -60,7 +62,7 @@ const BLOCK = 'w-full sm:w-auto';
  * 26px with a 12px label there and a full 16px glyph beside that reads as an
  * icon with a word stuck to it.
  */
-function ButtonIcon({ name }: { name: IconName }) {
+export function ButtonIcon({ name }: { name: IconName }) {
   return <Icon name={name} className="h-4 w-4 md:h-3.5 md:w-3.5" />;
 }
 
@@ -73,7 +75,12 @@ type ButtonLook = {
   icon?: IconName;
 };
 
-function look({
+/**
+ * A button's classes, for an element that has to look like one and cannot be
+ * one of the components here: the `summary` of a disclosure, which must be a
+ * summary to open its details.
+ */
+export function look({
   variant = 'primary',
   size = 'default',
   block = false,
@@ -219,7 +226,7 @@ export function DownloadIcon({
       href={href}
       title={label}
       aria-label={label}
-      className="inline-flex h-10 w-10 items-center justify-center rounded border border-[var(--color-line)] bg-white text-[var(--color-navy)] hover:bg-gray-50 md:h-7 md:w-7"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-control border border-rule bg-white text-ink-2 hover:border-rule-strong hover:bg-surface-2 hover:text-navy md:h-7 md:w-7"
     >
       <ButtonIcon name="download" />
     </a>
@@ -232,7 +239,7 @@ export function DownloadIcon({
 // padding and line height clear 44px on their own, so there is no min-height
 // here: setting one fights Safari's own sizing of a date field.
 const CONTROL =
-  'w-full rounded border border-[var(--color-rule)] bg-white px-3 py-2.5 text-base outline-none focus:border-[var(--color-navy)] focus:ring-1 focus:ring-[var(--color-navy)] md:px-2 md:py-1 md:text-[12.5px]';
+  'w-full rounded-control border border-rule bg-white px-3 py-2.5 text-base shadow-[0_1px_2px_rgb(16_24_40/0.04)] outline-none transition-[border-color,box-shadow] placeholder:text-ink-3 hover:border-rule-strong focus:border-navy focus:ring-3 focus:ring-navy/15 md:px-2 md:py-1 md:text-body';
 
 // These take a ref, which a select needs: React resets a form once an action
 // returns, and a controlled select has to be put back by hand afterwards. See
@@ -273,7 +280,7 @@ export function Field({
       <span className="mb-1 block text-sm font-medium">{label}</span>
       {children}
       {hint ? (
-        <span className="mt-1 block text-xs text-[var(--color-muted)]">
+        <span className="mt-1 block text-xs text-ink-3">
           {hint}
         </span>
       ) : null}
@@ -294,7 +301,7 @@ export function Card({
   return (
     <div
       id={id}
-      className={`rounded border border-[var(--color-rule)] bg-white ${className}`}
+      className={`card ${className}`}
     >
       {children}
     </div>
@@ -309,8 +316,8 @@ export function CardHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-rule)] px-4 py-2.5 md:py-2">
-      <h2 className="text-sm font-semibold">{title}</h2>
+    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule-soft px-4 py-2.5 md:py-2">
+      <h2 className="text-heading font-semibold">{title}</h2>
       {action}
     </div>
   );
@@ -373,22 +380,22 @@ export function PageTitle({
     // of column headings was showing straight through the head while the rest
     // of its card was correctly hidden behind it. The scale is written out in
     // globals.css.
-    <div className="mb-4 border-b border-[var(--color-rule)] bg-[var(--color-canvas)] pb-2.5 md:sticky md:top-0 md:z-20 md:pb-2 md:pt-5">
-      <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between lg:gap-4">
+    <div className="mb-4 border-b border-rule bg-surface-2 pb-2.5 md:sticky md:top-0 md:z-20 md:pb-2 md:pt-5">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between lg:gap-4">
         <div className="min-w-0">
           <Crumb />
-          <h1 className="text-base font-semibold tracking-[-0.01em]">
+          <h1 className="text-title font-semibold tracking-[-0.015em] text-ink">
             {title}
           </h1>
           {subtitle ? (
-            <p className="mt-0.5 text-sm text-[var(--color-ink-3)] md:text-[12px]">
+            <p className="mt-0.5 text-sm text-ink-3 md:text-meta">
               {subtitle}
             </p>
           ) : null}
         </div>
         <div className="flex flex-wrap items-end gap-x-3 gap-y-2 lg:shrink-0 lg:justify-end">
           {asOf ? (
-            <span className="hidden self-center text-[11.5px] text-[var(--color-ink-3)] sm:block">
+            <span className="hidden self-center text-meta text-ink-3 sm:block">
               {asOf}
             </span>
           ) : null}
@@ -397,6 +404,208 @@ export function PageTitle({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * The head of one record: a bill, a receipt, an order, a PO or WO.
+ *
+ * Every record view had built its own: a Back button on a row of its own, an
+ * h1, and the facts run together in one gray line with pipes between them, so
+ * the date, the party and the paper number all read as one string. This is
+ * the one shape for all of them, the way an ERP's object page is laid out:
+ *
+ *   Customer Bills                                      (the way back)
+ *   CUSTOMER BILL                                       (what it is)
+ *   CB-26-0113  [Posted]               [Record Receipt] [PDF] [Edit] ...
+ *   Party Rongdhonu Fabrics   Date 02 Oct 2026   Paper Ref 4471
+ *   [stage bar, for a record that moves through stages]
+ *   [the key figures, one strip]
+ *
+ * The number is the largest text on the screen, because it is what somebody
+ * reads aloud on the phone and what is printed on the paper in their hand.
+ * Facts are label and value, so each one can be found by its label.
+ */
+export function RecordHead({
+  back,
+  kind,
+  number,
+  tags,
+  facts,
+  actions,
+  stages,
+  figures,
+}: {
+  back: { href: string; label: string };
+  /** What the record is: Customer Bill, Money Receipt, Sales Order. */
+  kind: string;
+  /** Its number, or a stand-in such as Draft for one not yet numbered. */
+  number: string;
+  tags?: ReactNode;
+  facts: { label: string; value: ReactNode }[];
+  actions?: ReactNode;
+  stages?: { steps: string[]; current: number; void?: string };
+  figures?: { label: string; value: string; strong?: boolean }[];
+}) {
+  return (
+    <div className="mb-4 md:pt-4">
+      <Link
+        href={back.href}
+        className="link inline-flex min-h-11 items-center gap-1 text-meta md:min-h-0"
+      >
+        <ButtonIcon name="back" />
+        {back.label}
+      </Link>
+
+      <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0">
+          <div className="eyebrow">{kind}</div>
+          <h1 className="mt-0.5 flex flex-wrap items-center gap-2">
+            <span className="figure text-number font-semibold text-ink">
+              {number}
+            </span>
+            {tags}
+          </h1>
+        </div>
+        {actions ? (
+          <div className="flex flex-wrap items-center gap-2 lg:shrink-0 lg:justify-end">
+            {actions}
+          </div>
+        ) : null}
+      </div>
+
+      <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-body">
+        {facts.map((fact) => (
+          <div key={fact.label} className="flex items-baseline gap-1.5">
+            <dt className="text-ink-3">{fact.label}</dt>
+            <dd className="font-medium text-ink">{fact.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {stages ? <StageBar {...stages} /> : null}
+
+      {figures && figures.length > 0 ? (
+        <div className="card mt-4 grid grid-cols-2 overflow-hidden sm:flex">
+          {figures.map((figure) => (
+            <div
+              key={figure.label}
+              className="border-b border-r border-rule-soft px-4 py-2 sm:flex-1 sm:border-b-0 sm:last:border-r-0"
+            >
+              <div className="eyebrow">{figure.label}</div>
+              <div
+                className={`figure mt-0.5 text-heading ${
+                  figure.strong ? 'font-semibold' : 'font-medium'
+                }`}
+              >
+                {figure.value}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The documents a record is tied to, as a run of plain links: the trail from
+ * a bill back to its Sales Order and the Work Order it came through. Given to
+ * RecordHead as the value of a fact, so the trail reads as one more labeled
+ * detail of the record rather than as a widget of its own. Plain links, not
+ * chips: a row of pill chips is the generated-dashboard look.
+ */
+export function DocLinks({
+  links,
+}: {
+  links: { text: string; href: string }[];
+}) {
+  return (
+    <span className="inline-flex flex-wrap gap-x-2">
+      {links.map((link, index) => (
+        <span key={link.href}>
+          <Link href={link.href} className="link font-medium">
+            {link.text}
+          </Link>
+          {index < links.length - 1 ? ',' : ''}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/**
+ * How far a record has come, as a row of steps: done, the current one, still
+ * to come. The step is read off the documents and passed in; nothing here
+ * decides it. A record that has left the path, a cancelled order, shows the
+ * path greyed with its state named beside it, rather than a step it never
+ * reached.
+ */
+export function StageBar({
+  steps,
+  current,
+  void: voided,
+}: {
+  steps: string[];
+  current: number;
+  void?: string;
+}) {
+  return (
+    <ol
+      aria-label="Stage"
+      className="mt-3 flex flex-wrap items-center gap-y-1 text-meta"
+    >
+      {steps.map((step, index) => {
+        const state = voided
+          ? 'void'
+          : index < current
+            ? 'done'
+            : index === current
+              ? 'current'
+              : 'todo';
+        return (
+          <li key={step} className="flex items-center">
+            {index > 0 ? (
+              <span
+                aria-hidden
+                className={`mx-1.5 h-px w-5 ${
+                  state === 'done' || state === 'current'
+                    ? 'bg-navy'
+                    : 'bg-rule'
+                }`}
+              />
+            ) : null}
+            <span
+              aria-current={state === 'current' ? 'step' : undefined}
+              className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 ${
+                state === 'current'
+                  ? 'bg-navy font-semibold text-white'
+                  : state === 'done'
+                    ? 'text-navy'
+                    : 'text-ink-3'
+              }`}
+            >
+              <span
+                aria-hidden
+                className={`h-1.5 w-1.5 rounded-full ${
+                  state === 'current'
+                    ? 'bg-white'
+                    : state === 'done'
+                      ? 'bg-navy'
+                      : 'border border-rule bg-white'
+                }`}
+              />
+              {step}
+            </span>
+          </li>
+        );
+      })}
+      {voided ? (
+        <li className="ml-3">
+          <Tag tone="crit">{voided}</Tag>
+        </li>
+      ) : null}
+    </ol>
   );
 }
 
@@ -421,11 +630,11 @@ export function Band({
 }) {
   return (
     <section
-      className={`border-b border-[var(--color-rule-soft)] py-3 last:border-b-0 ${className}`}
+      className={`pt-6 ${className}`}
     >
       {title ? (
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.09em] text-[var(--color-ink-3)]">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="eyebrow">
             {title}
           </h2>
           {action}
@@ -456,24 +665,24 @@ export function FigureRows({
   }[];
 }) {
   return (
-    <dl className="text-sm md:text-[12.5px]">
+    <dl className="text-sm md:text-body">
       {rows.map((row) => (
         <div
           key={row.label}
-          className={`flex items-baseline justify-between gap-4 border-b border-[var(--color-rule-soft)] py-1.5 last:border-b-0 ${
+          className={`flex items-baseline justify-between gap-4 border-b border-rule-soft py-1.5 last:border-b-0 ${
             row.strong ? 'font-semibold' : ''
           }`}
         >
           <dt
             className={
               row.muted
-                ? 'text-[var(--color-ink-3)]'
-                : 'text-[var(--color-ink)]'
+                ? 'text-ink-3'
+                : 'text-ink'
             }
           >
             {row.label}
             {row.note ? (
-              <span className="ml-2 text-[11px] text-[var(--color-ink-3)]">
+              <span className="ml-2 text-caption text-ink-3">
                 {row.note}
               </span>
             ) : null}
@@ -502,7 +711,7 @@ export function Table({
 }) {
   return (
     <div className={sticky ? 'max-h-[70vh] overflow-auto' : 'overflow-x-auto'}>
-      <table className="w-full border-collapse text-sm md:text-[12.5px]">
+      <table className="w-full border-collapse text-sm md:text-body">
         {children}
       </table>
     </div>
@@ -524,7 +733,7 @@ export function Th({
   return (
     <th
       aria-sort={sorted}
-      className={`sticky top-0 z-10 whitespace-nowrap border-b border-[var(--color-rule)] bg-[var(--color-surface-2)] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-ink-2)] md:h-[26px] md:px-[9px] md:py-0 md:text-[11px] ${
+      className={`sticky top-0 z-10 whitespace-nowrap border-b border-rule bg-surface-2 px-3 py-2 text-xs font-semibold uppercase tracking-[0.05em] text-ink-2 md:h-[26px] md:px-[9px] md:py-0 md:text-caption ${
         numeric ? 'text-right' : 'text-left'
       } ${className}`}
     >
@@ -547,7 +756,7 @@ export function Td({
   return (
     <td
       colSpan={colSpan}
-      className={`border-b border-[var(--color-rule-soft)] px-3 py-2 align-top md:h-[var(--row)] md:px-[9px] md:py-1 ${
+      className={`border-b border-rule-soft px-3 py-2 align-middle md:h-(--row) md:px-[9px] md:py-1 ${
         numeric ? 'numeric' : ''
       } ${className}`}
     >
@@ -565,7 +774,7 @@ export function EmptyRow({
 }) {
   return (
     <tr>
-      <Td colSpan={columns} className="text-center text-[var(--color-muted)]">
+      <Td colSpan={columns} className="text-center text-ink-3">
         {children}
       </Td>
     </tr>
@@ -587,17 +796,65 @@ export function Notice({
   // matters is legible as one before it is read.
   const TONES = {
     error:
-      'border-[var(--color-crit)]/40 bg-[var(--color-crit)]/5 text-[var(--color-crit)]',
+      'border-crit/40 bg-crit/5 text-crit',
     warning:
-      'border-[var(--color-warn)]/40 bg-[var(--color-warn)]/5 text-[var(--color-warn)]',
-    info: 'border-[var(--color-rule)] bg-white text-[var(--color-ink)]',
+      'border-warn/40 bg-warn/5 text-warn',
+    info: 'border-rule bg-white text-ink',
   };
   return (
     <div
-      className={`rounded border px-3 py-2 text-sm ${TONES[tone]} ${className}`}
+      className={`rounded-control border px-3.5 py-2.5 text-sm md:text-body ${TONES[tone]} ${className}`}
     >
       {children}
     </div>
+  );
+}
+
+/**
+ * The state a record is in, as a small bordered mark: Draft, Posted, Open,
+ * Closed, Cancelled, Paid, Inactive.
+ *
+ * Seven screens had drawn this seven ways, from plain gray text to a green
+ * pill, so the same idea read differently on each. There is now one mark and
+ * five tones, and the tone says what the reader should do about it, not what
+ * the word is:
+ *
+ *   neutral  in progress, nothing to do         Open, Booked, In Dyeing
+ *   active   in progress and in someone's hands  Draft, Approved
+ *   done     finished, out of the way            Posted, Paid, Closed, Settled
+ *   warn     needs a person to act               Needs Detail
+ *   crit     refused or void                     Cancelled, Disabled
+ *
+ * `good` is deliberately not a tone. A Paid run is not an achievement on an
+ * accounts screen, it is the ordinary end of a month, and painting every
+ * finished row green leaves no color for the row that is actually wrong.
+ */
+export type TagTone = 'neutral' | 'active' | 'done' | 'warn' | 'crit';
+
+const TAG_TONES: Record<TagTone, string> = {
+  neutral: 'border-rule bg-white text-ink',
+  active:
+    'border-navy/35 bg-navy/[0.06] text-navy',
+  done: 'border-rule-soft bg-surface-2 text-ink-3',
+  warn: 'border-warn/35 bg-warn/[0.06] text-warn',
+  crit: 'border-crit/35 bg-crit/[0.06] text-crit',
+};
+
+export function Tag({
+  tone = 'neutral',
+  children,
+  className = '',
+}: {
+  tone?: TagTone;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center whitespace-nowrap rounded-md border px-2 py-0.5 text-caption font-medium ${TAG_TONES[tone]} ${className}`}
+    >
+      {children}
+    </span>
   );
 }
 
@@ -623,18 +880,26 @@ function DeltaChip({ delta }: { delta: StatDelta }) {
   const negative = delta.text.startsWith('-');
   const color =
     delta.tone === 'neutral'
-      ? 'text-[var(--color-ink-3)]'
+      ? 'text-ink-3'
       : negative
-        ? 'text-[var(--color-crit)]'
-        : 'text-[var(--color-good)]';
+        ? 'text-crit'
+        : 'text-good';
   // The sign carries the direction. No arrow glyph and no emoji, per the house
   // style; this is a ledger, not a trading terminal.
   return (
-    <span className="text-xs">
-      <span className={`figure font-medium ${color}`}>{delta.text}</span>
-      {delta.label ? (
-        <span className="text-[var(--color-ink-3)]"> {delta.label}</span>
-      ) : null}
+    <span className="inline-flex items-center gap-1.5">
+      <span
+        className={`figure rounded-md px-1.5 py-px font-semibold ${color} ${
+          delta.tone === 'neutral'
+            ? 'bg-surface-3'
+            : negative
+              ? 'bg-crit/[0.07]'
+              : 'bg-good/[0.08]'
+        }`}
+      >
+        {delta.text}
+      </span>
+      {delta.label ? <span className="text-ink-3">{delta.label}</span> : null}
     </span>
   );
 }
@@ -644,27 +909,40 @@ export function StatTile({
   value,
   note,
   delta,
+  href,
 }: {
   label: string;
   value: string;
   note?: string;
   delta?: StatDelta;
+  /** The screen that explains the figure. The whole tile is the link. */
+  href?: string;
 }) {
-  return (
-    <Card className="px-4 py-3">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-ink-2)]">
-        {label}
-      </div>
+  const body = (
+    <>
+      {/* No icon in a tinted square beside the label: that is the stock
+          generated-dashboard tile, and the label already says what it is. */}
+      <div className="eyebrow-strong">{label}</div>
       {/* A tile is the one place a figure is read on its own rather than down a
           column, and it is still a figure, so it is set in the same face. */}
-      <div className="mt-1 flex flex-wrap items-baseline gap-2">
-        <span className="figure text-xl font-medium">{value}</span>
-        {delta ? <DeltaChip delta={delta} /> : null}
+      <div className="figure mt-1.5 text-number font-semibold tracking-[-0.01em] text-ink">
+        {value}
       </div>
-      {note ? (
-        <div className="mt-1 text-xs text-[var(--color-ink-3)]">{note}</div>
-      ) : null}
-    </Card>
+      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-meta">
+        {delta ? <DeltaChip delta={delta} /> : null}
+        {note ? <span className="text-ink-3">{note}</span> : null}
+      </div>
+    </>
+  );
+  return href ? (
+    <Link
+      href={href}
+      className="card block border-t-[3px] border-t-navy px-4 py-3 transition-[border-color] hover:border-rule-strong hover:border-t-navy"
+    >
+      {body}
+    </Link>
+  ) : (
+    <div className="card border-t-[3px] border-t-navy px-4 py-3">{body}</div>
   );
 }
 
@@ -685,10 +963,10 @@ export function StatStrip({
   items: { label: string; value: string; note?: string; delta?: StatDelta }[];
 }) {
   return (
-    <Card className="divide-y divide-[var(--color-rule-soft)] sm:flex sm:divide-x sm:divide-y-0">
+    <Card className="divide-y divide-rule-soft sm:flex sm:divide-x sm:divide-y-0">
       {items.map((item) => (
         <div key={item.label} className="flex-1 px-4 py-2.5">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-[var(--color-ink-2)]">
+          <div className="eyebrow-strong">
             {item.label}
           </div>
           <div className="mt-0.5 flex flex-wrap items-baseline gap-2">
@@ -696,7 +974,7 @@ export function StatStrip({
             {item.delta ? <DeltaChip delta={item.delta} /> : null}
           </div>
           {item.note ? (
-            <div className="mt-0.5 text-xs text-[var(--color-ink-3)]">
+            <div className="mt-0.5 text-xs text-ink-3">
               {item.note}
             </div>
           ) : null}

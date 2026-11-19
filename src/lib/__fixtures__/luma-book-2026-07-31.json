@@ -1,0 +1,3459 @@
+{
+  "bills": [
+    {
+      "id": "a6efae39-4f3d-4b11-8491-d8542dd59785",
+      "docNo": "CB-26-0001",
+      "lines": [
+        {
+          "rate": "30.00",
+          "color": null,
+          "amount": "199110.00",
+          "greyKg": "6637.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "6487.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "199110.00",
+      "billNo": "7",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-04-06",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "13f6481d-5e5d-4de4-a617-04f782cb753e",
+      "docNo": "CB-26-0002",
+      "lines": [
+        {
+          "rate": "105.07",
+          "color": null,
+          "amount": "7880.25",
+          "greyKg": "75.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "72.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "7880.25",
+      "billNo": "16",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-04-07",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "0380269e-65ea-4aef-b907-bd40eb0df30c",
+      "docNo": "CB-26-0004",
+      "lines": [
+        {
+          "rate": "59.00",
+          "color": null,
+          "amount": "82895.00",
+          "greyKg": "1405.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "1304.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "82895.00",
+      "billNo": "12",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-04-12",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "7e185105-d4ce-48b4-980a-e95fbaff5e05",
+      "docNo": "CB-26-0005",
+      "lines": [
+        {
+          "rate": "85.00",
+          "color": null,
+          "amount": "130475.00",
+          "greyKg": "1535.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "1408.600",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "130475.00",
+      "billNo": "13",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-04-12",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "9cf1ffea-db9e-40c8-b569-521262a26872",
+      "docNo": "CB-26-0006",
+      "lines": [
+        {
+          "rate": "123.55",
+          "color": null,
+          "amount": "7660.10",
+          "greyKg": "62.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "57.400",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "7660.10",
+      "billNo": "14",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-04-12",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "34ad901f-907a-4207-a328-e34695072e89",
+      "docNo": "CB-26-0003",
+      "lines": [
+        {
+          "rate": "118.87",
+          "color": null,
+          "amount": "8202.03",
+          "greyKg": "69.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "68.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "8202.03",
+      "billNo": "17",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-04-12",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "437594a5-c3d6-4b22-8137-b68acf21cb1e",
+      "docNo": "CB-26-0007",
+      "lines": [
+        {
+          "rate": "150.70",
+          "color": null,
+          "amount": "6480.10",
+          "greyKg": "43.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "41.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "6480.10",
+      "billNo": "15",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-04-16",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "5d7222dd-2c5a-41f3-b886-6eb1f9bfb5b4",
+      "docNo": "CB-26-0009",
+      "lines": [
+        {
+          "rate": "164.01",
+          "color": null,
+          "amount": "108902.64",
+          "greyKg": "664.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "590.600",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "108902.64",
+      "billNo": "20",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-04-19",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "1f2a5e0d-1534-443f-baf5-77695c5c9efe",
+      "docNo": "CB-26-0008",
+      "lines": [
+        {
+          "rate": "74.00",
+          "color": null,
+          "amount": "38776.00",
+          "greyKg": "524.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "475.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "38776.00",
+      "billNo": "21",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-04-19",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "ce64b406-0893-4cb9-976d-a1b20c84e9d3",
+      "docNo": "CB-26-0010",
+      "lines": [
+        {
+          "rate": "148.42",
+          "color": null,
+          "amount": "75248.94",
+          "greyKg": "507.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "489.600",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "75248.94",
+      "billNo": "22",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-04-19",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "0417b4e6-42f6-468a-bb86-c70268d3d89e",
+      "docNo": "CB-26-0011",
+      "lines": [
+        {
+          "rate": "122.60",
+          "color": null,
+          "amount": "6375.20",
+          "greyKg": "52.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "51.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "6375.20",
+      "billNo": "24",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-04-21",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "98151317-531c-4614-9615-a9d20114732b",
+      "docNo": "CB-26-0012",
+      "lines": [
+        {
+          "rate": "183.00",
+          "color": null,
+          "amount": "1464.00",
+          "greyKg": "8.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "7.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "1464.00",
+      "billNo": "26",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-04-23",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "8a8838bc-fb24-4692-bf3f-ddb29cd779ac",
+      "docNo": "CB-26-0013",
+      "lines": [
+        {
+          "rate": "142.05",
+          "color": null,
+          "amount": "37217.10",
+          "greyKg": "262.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "238.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "37217.10",
+      "billNo": "27",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-04-24",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "7d4b7e80-111a-476f-a9d5-af7b42e6055e",
+      "docNo": "CB-26-0014",
+      "lines": [
+        {
+          "rate": "148.41",
+          "color": null,
+          "amount": "46749.15",
+          "greyKg": "315.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "310.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "46749.15",
+      "billNo": "29",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-04-25",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "34fb9dd5-267b-46fc-aa8f-48e127ca12a2",
+      "docNo": "CB-26-0015",
+      "lines": [
+        {
+          "rate": "108.00",
+          "color": null,
+          "amount": "76896.00",
+          "greyKg": "712.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "670.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "76896.00",
+      "billNo": "30",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-04-25",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "6d956b67-a1aa-4d51-ab6d-14d70d7d884b",
+      "docNo": "CB-26-0016",
+      "lines": [
+        {
+          "rate": "123.60",
+          "color": null,
+          "amount": "86520.00",
+          "greyKg": "700.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "668.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "86520.00",
+      "billNo": "31",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-04-26",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "7c22de34-58a5-4d01-a8b3-6819a11bc5b0",
+      "docNo": "CB-26-0017",
+      "lines": [
+        {
+          "rate": "80.00",
+          "color": null,
+          "amount": "800.00",
+          "greyKg": "10.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "9.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "800.00",
+      "billNo": "32",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-04-28",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "1b50a742-34b0-43e3-ace0-4c204f99c93c",
+      "docNo": "CB-26-0019",
+      "lines": [
+        {
+          "rate": "101.76",
+          "color": null,
+          "amount": "130761.60",
+          "greyKg": "1285.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "1285.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "130761.60",
+      "billNo": "104",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-04",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "6459706a-0ce6-4395-8757-c453b47d5bd5",
+      "docNo": "CB-26-0020",
+      "lines": [
+        {
+          "rate": "51.00",
+          "color": null,
+          "amount": "20247.00",
+          "greyKg": "397.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "361.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "20247.00",
+      "billNo": "120",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-04",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "425c55e7-fa8a-4a1e-8204-92e9e540b4ee",
+      "docNo": "CB-26-0021",
+      "lines": [
+        {
+          "rate": "142.00",
+          "color": null,
+          "amount": "94288.00",
+          "greyKg": "664.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "623.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "94288.00",
+      "billNo": "121",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-04",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "6335602a-5268-4025-a8aa-fb66601e7b1d",
+      "docNo": "CB-26-0022",
+      "lines": [
+        {
+          "rate": "143.00",
+          "color": null,
+          "amount": "45760.00",
+          "greyKg": "320.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "280.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "45760.00",
+      "billNo": "122",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-04",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "018d0f20-b771-4808-8c4b-cd031db60dbd",
+      "docNo": "CB-26-0023",
+      "lines": [
+        {
+          "rate": "65.94",
+          "color": null,
+          "amount": "32046.84",
+          "greyKg": "486.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "458.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "32046.84",
+      "billNo": "123",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-04",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "07c6fb01-dc8e-44fa-b36d-3fe9cf11e591",
+      "docNo": "CB-26-0024",
+      "lines": [
+        {
+          "rate": "143.00",
+          "color": null,
+          "amount": "38324.00",
+          "greyKg": "268.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "250.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "38324.00",
+      "billNo": "124",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-04",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "dc063d16-eaae-4418-8c4d-fff819041bd9",
+      "docNo": "CB-26-0025",
+      "lines": [
+        {
+          "rate": "190.00",
+          "color": null,
+          "amount": "7220.00",
+          "greyKg": "38.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "37.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "7220.00",
+      "billNo": "126",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-04",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "71768014-84da-4acc-a4d7-2024cb360198",
+      "docNo": "CB-26-0026",
+      "lines": [
+        {
+          "rate": "140.00",
+          "color": null,
+          "amount": "1960.00",
+          "greyKg": "14.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "14.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "1960.00",
+      "billNo": "127",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-04",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "90b322ba-fa73-4ef8-b9e4-a4dc4200fada",
+      "docNo": "CB-26-0027",
+      "lines": [
+        {
+          "rate": "118.65",
+          "color": null,
+          "amount": "30967.65",
+          "greyKg": "261.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "252.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "30967.65",
+      "billNo": "128",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-04",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "ddb87123-588b-4a93-851e-f23bf52a1174",
+      "docNo": "CB-26-0018",
+      "lines": [
+        {
+          "rate": "68.91",
+          "color": null,
+          "amount": "43068.75",
+          "greyKg": "625.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "580.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "43068.75",
+      "billNo": "34",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-04",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "f6f54a01-c5f0-43a4-a375-42ce08b5367d",
+      "docNo": "CB-26-0028",
+      "lines": [
+        {
+          "rate": "92.67",
+          "color": null,
+          "amount": "2780.10",
+          "greyKg": "30.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "29.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "2780.10",
+      "billNo": "39",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-06",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "da878250-0b46-49ab-8227-9e73c90d420e",
+      "docNo": "CB-26-0029",
+      "lines": [
+        {
+          "rate": "74.00",
+          "color": null,
+          "amount": "2442.00",
+          "greyKg": "33.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "33.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "2442.00",
+      "billNo": "112",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-10",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "421e2f0d-3607-4eb6-ac11-9fd302e026c4",
+      "docNo": "CB-26-0030",
+      "lines": [
+        {
+          "rate": "144.56",
+          "color": null,
+          "amount": "279579.04",
+          "greyKg": "1934.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "1739.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "279579.04",
+      "billNo": "132",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-10",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "cee9eb79-1b26-4922-9ab4-8c787e3fd16c",
+      "docNo": "CB-26-0031",
+      "lines": [
+        {
+          "rate": "116.87",
+          "color": null,
+          "amount": "154852.75",
+          "greyKg": "1325.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "1232.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "154852.75",
+      "billNo": "133",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-10",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "52cd7f23-7f0d-4a8f-a748-3014183cfbff",
+      "docNo": "CB-26-0032",
+      "lines": [
+        {
+          "rate": "118.00",
+          "color": null,
+          "amount": "19588.00",
+          "greyKg": "166.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "159.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "19588.00",
+      "billNo": "134",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-10",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "8709fbb1-349d-4e8a-af7d-18cf0082ba1c",
+      "docNo": "CB-26-0033",
+      "lines": [
+        {
+          "rate": "111.59",
+          "color": null,
+          "amount": "31914.74",
+          "greyKg": "286.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "275.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "31914.74",
+      "billNo": "135",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-10",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "1887954e-8347-4300-abc7-a818eeeb636c",
+      "docNo": "CB-26-0035",
+      "lines": [
+        {
+          "rate": "156.76",
+          "color": null,
+          "amount": "109026.58",
+          "greyKg": "695.500",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "641.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "109026.58",
+      "billNo": "129",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-12",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "cf584596-7385-48ac-9d17-9a70cc53ab24",
+      "docNo": "CB-26-0034",
+      "lines": [
+        {
+          "rate": "168.01",
+          "color": null,
+          "amount": "34274.04",
+          "greyKg": "204.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "187.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "34274.04",
+      "billNo": "130",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-12",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "22bad140-41a8-4294-8776-1548e430c192",
+      "docNo": "CB-26-0036",
+      "lines": [
+        {
+          "rate": "168.00",
+          "color": null,
+          "amount": "840.00",
+          "greyKg": "5.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "5.600",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "840.00",
+      "billNo": "131",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-12",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "e0e2287d-1fb3-4ba8-af9a-ae00176dc6d7",
+      "docNo": "CB-26-0037",
+      "lines": [
+        {
+          "rate": "170.00",
+          "color": null,
+          "amount": "172380.00",
+          "greyKg": "1014.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "915.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "172380.00",
+      "billNo": "136",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-13",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "470e50a9-da54-42c8-b976-e54438718912",
+      "docNo": "CB-26-0038",
+      "lines": [
+        {
+          "rate": "76.43",
+          "color": null,
+          "amount": "22393.99",
+          "greyKg": "293.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "275.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "22393.99",
+      "billNo": "137",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-13",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "42acc6c5-bd7b-4972-b2a7-96f720812641",
+      "docNo": "CB-26-0039",
+      "lines": [
+        {
+          "rate": "145.00",
+          "color": null,
+          "amount": "2030.00",
+          "greyKg": "14.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "13.800",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "2030.00",
+      "billNo": "138",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-13",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "a71bfdd6-5ca0-4c8f-8060-ca3cddf4e159",
+      "docNo": "CB-26-0040",
+      "lines": [
+        {
+          "rate": "78.00",
+          "color": null,
+          "amount": "227526.00",
+          "greyKg": "2917.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "2644.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "227526.00",
+      "billNo": "141",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-17",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "1edd5fef-71ec-4adb-b386-bdafd0dd221f",
+      "docNo": "CB-26-0041",
+      "lines": [
+        {
+          "rate": "114.73",
+          "color": null,
+          "amount": "64478.26",
+          "greyKg": "562.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "512.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "64478.26",
+      "billNo": "149",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-18",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "c89247eb-a855-49bf-bf7d-cb5aad667ab0",
+      "docNo": "CB-26-0042",
+      "lines": [
+        {
+          "rate": "108.00",
+          "color": null,
+          "amount": "1620.00",
+          "greyKg": "15.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "14.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "1620.00",
+      "billNo": "150",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-18",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "51026012-2add-4768-bd0b-e8b0cc37de73",
+      "docNo": "CB-26-0043",
+      "lines": [
+        {
+          "rate": "120.00",
+          "color": null,
+          "amount": "32640.00",
+          "greyKg": "272.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "268.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "32640.00",
+      "billNo": "151",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-18",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "28c9c5dc-0698-47e4-87ff-d979579da34a",
+      "docNo": "CB-26-0044",
+      "lines": [
+        {
+          "rate": "66.00",
+          "color": null,
+          "amount": "10560.00",
+          "greyKg": "160.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "157.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "10560.00",
+      "billNo": "152",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-18",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "836c18bb-0437-4537-9433-01fd136a8ac9",
+      "docNo": "CB-26-0045",
+      "lines": [
+        {
+          "rate": "74.00",
+          "color": null,
+          "amount": "7770.00",
+          "greyKg": "105.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "96.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "7770.00",
+      "billNo": "153",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-18",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "65d8cf80-3411-4dec-94a2-b7334030dbc7",
+      "docNo": "CB-26-0046",
+      "lines": [
+        {
+          "rate": "117.20",
+          "color": null,
+          "amount": "2930.00",
+          "greyKg": "25.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "20.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "2930.00",
+      "billNo": "154",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-19",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "ddab5af5-84c1-4c61-9dc5-d171aca7c102",
+      "docNo": "CB-26-0047",
+      "lines": [
+        {
+          "rate": "170.00",
+          "color": null,
+          "amount": "7140.00",
+          "greyKg": "42.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "38.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "7140.00",
+      "billNo": "155",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-19",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "d9d2199a-ae01-4c01-923e-8d014a124747",
+      "docNo": "CB-26-0048",
+      "lines": [
+        {
+          "rate": "177.46",
+          "color": null,
+          "amount": "161666.06",
+          "greyKg": "911.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "844.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "161666.06",
+      "billNo": "158",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-21",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "0c3b84cd-7112-41d0-a6b1-aed1928bd359",
+      "docNo": "CB-26-0049",
+      "lines": [
+        {
+          "rate": "66.00",
+          "color": null,
+          "amount": "3300.00",
+          "greyKg": "50.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "46.700",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "3300.00",
+      "billNo": "159",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-21",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "b7339870-1458-424c-b898-69eb152dc686",
+      "docNo": "CB-26-0050",
+      "lines": [
+        {
+          "rate": "74.00",
+          "color": null,
+          "amount": "7770.00",
+          "greyKg": "105.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "92.600",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "7770.00",
+      "billNo": "160",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-21",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "1ffcbf58-2a23-47a1-aaee-ef543178b3bb",
+      "docNo": "CB-26-0051",
+      "lines": [
+        {
+          "rate": "108.00",
+          "color": null,
+          "amount": "756.00",
+          "greyKg": "7.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "6.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "756.00",
+      "billNo": "161",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-21",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "0ed3f01c-6b52-48f9-a0c3-27610f794348",
+      "docNo": "CB-26-0052",
+      "lines": [
+        {
+          "rate": "179.07",
+          "color": null,
+          "amount": "71628.00",
+          "greyKg": "400.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "360.600",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "71628.00",
+      "billNo": "156",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-23",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "76dde1b4-d4fb-4029-a299-2487698539e5",
+      "docNo": "CB-26-0053",
+      "lines": [
+        {
+          "rate": "147.11",
+          "color": null,
+          "amount": "43838.78",
+          "greyKg": "298.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "269.600",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "43838.78",
+      "billNo": "157",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-23",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "673a619b-5d49-4947-b95c-8318daa99a81",
+      "docNo": "CB-26-0054",
+      "lines": [
+        {
+          "rate": "63.78",
+          "color": null,
+          "amount": "116972.52",
+          "greyKg": "1834.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "1686.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "116972.52",
+      "billNo": "162",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-24",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "0558989a-827b-42d5-abcb-e6fc99238765",
+      "docNo": "CB-26-0055",
+      "lines": [
+        {
+          "rate": "123.30",
+          "color": null,
+          "amount": "137232.90",
+          "greyKg": "1113.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "1011.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "137232.90",
+      "billNo": "163",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-24",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "483d0a4a-9122-438d-9101-8c2004f47d70",
+      "docNo": "CB-26-0056",
+      "lines": [
+        {
+          "rate": "51.00",
+          "color": null,
+          "amount": "5559.00",
+          "greyKg": "109.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "106.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "5559.00",
+      "billNo": "164",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-24",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "8610f705-dd46-4e5d-9fc3-989949026207",
+      "docNo": "CB-26-0057",
+      "lines": [
+        {
+          "rate": "151.00",
+          "color": null,
+          "amount": "6040.00",
+          "greyKg": "40.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "36.700",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "6040.00",
+      "billNo": "165",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-05-24",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "38b72f7d-ed6d-43e8-a112-bd0a3c82b212",
+      "docNo": "CB-26-0084",
+      "lines": [
+        {
+          "rate": "78.96",
+          "color": null,
+          "amount": "116939.76",
+          "greyKg": "1481.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "289",
+          "fabricType": null,
+          "finishedKg": "1428.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "116939.76",
+      "billNo": "197",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-04",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "98df7da4-5ebc-4b47-a54b-0de98056b66b",
+      "docNo": "CB-26-0058",
+      "lines": [
+        {
+          "rate": "131.41",
+          "color": null,
+          "amount": "173855.43",
+          "greyKg": "1323.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "1245.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "173855.43",
+      "billNo": "166",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-08",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "34f65593-8888-4505-b98e-a0b0ccc6f602",
+      "docNo": "CB-26-0059",
+      "lines": [
+        {
+          "rate": "55.00",
+          "color": null,
+          "amount": "18700.00",
+          "greyKg": "340.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "314.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "18700.00",
+      "billNo": "167",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-08",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "d0c710a6-a2e1-4ded-8fa9-8e557b637ac8",
+      "docNo": "CB-26-0060",
+      "lines": [
+        {
+          "rate": "78.00",
+          "color": null,
+          "amount": "46800.00",
+          "greyKg": "600.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "534.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "46800.00",
+      "billNo": "168",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-08",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "55b9a25a-533e-44e2-8b81-bd0972035409",
+      "docNo": "CB-26-0061",
+      "lines": [
+        {
+          "rate": "74.00",
+          "color": null,
+          "amount": "121878.00",
+          "greyKg": "1647.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "1500.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "121878.00",
+      "billNo": "169",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-10",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "24d4581e-57b2-4d3d-937a-5ded0b9ba70a",
+      "docNo": "CB-26-0062",
+      "lines": [
+        {
+          "rate": "74.00",
+          "color": null,
+          "amount": "98790.00",
+          "greyKg": "1335.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "1211.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "98790.00",
+      "billNo": "170",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-10",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "f53d464c-4d63-4b91-b5a9-fc1e950db69b",
+      "docNo": "CB-26-0063",
+      "lines": [
+        {
+          "rate": "78.00",
+          "color": null,
+          "amount": "49920.00",
+          "greyKg": "640.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "579.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "49920.00",
+      "billNo": "171",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-10",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "14e741de-1207-4ade-9b95-c0117efac1b2",
+      "docNo": "CB-26-0064",
+      "lines": [
+        {
+          "rate": "163.27",
+          "color": null,
+          "amount": "33470.35",
+          "greyKg": "205.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "185.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "33470.35",
+      "billNo": "172",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-13",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "d6a303e5-b380-444e-b6ca-2a63a58362b2",
+      "docNo": "CB-26-0065",
+      "lines": [
+        {
+          "rate": "108.08",
+          "color": null,
+          "amount": "67982.32",
+          "greyKg": "629.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "564.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "67982.32",
+      "billNo": "174",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-13",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "8147c8d2-d3ec-4857-b953-a8aa94464dee",
+      "docNo": "CB-26-0066",
+      "lines": [
+        {
+          "rate": "166.00",
+          "color": null,
+          "amount": "148736.00",
+          "greyKg": "896.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "814.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "148736.00",
+      "billNo": "175",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-13",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "72c43e0d-44c9-4de4-8c2b-a946a07e70f1",
+      "docNo": "CB-26-0067",
+      "lines": [
+        {
+          "rate": "106.74",
+          "color": null,
+          "amount": "41948.82",
+          "greyKg": "393.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "347.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "41948.82",
+      "billNo": "176",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-13",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "8f7aa359-e483-4b3e-aab8-e15b035f5b2d",
+      "docNo": "CB-26-0068",
+      "lines": [
+        {
+          "rate": "74.00",
+          "color": null,
+          "amount": "90428.00",
+          "greyKg": "1222.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "1122.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "90428.00",
+      "billNo": "177",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-13",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "280844b1-44c8-41d0-93a8-1c1ecb75b5a3",
+      "docNo": "CB-26-0094",
+      "lines": [
+        {
+          "rate": "66.00",
+          "color": null,
+          "amount": "45210.00",
+          "greyKg": "685.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "320",
+          "fabricType": null,
+          "finishedKg": "647.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "45210.00",
+      "billNo": "58",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-13",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "59e3e2aa-adda-4273-a169-db9f2bfe0806",
+      "docNo": "CB-26-0069",
+      "lines": [
+        {
+          "rate": "150.75",
+          "color": null,
+          "amount": "20200.50",
+          "greyKg": "134.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "130.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "20200.50",
+      "billNo": "179",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-20",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "8ec5506b-47ef-45b0-9651-83d19f6a950e",
+      "docNo": "CB-26-0070",
+      "lines": [
+        {
+          "rate": "140.00",
+          "color": null,
+          "amount": "1960.00",
+          "greyKg": "14.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "13.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "1960.00",
+      "billNo": "180",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-20",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "adb2af07-6ecc-4a0f-add0-572ae4da3a00",
+      "docNo": "CB-26-0071",
+      "lines": [
+        {
+          "rate": "156.09",
+          "color": null,
+          "amount": "17950.35",
+          "greyKg": "115.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "110.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "17950.35",
+      "billNo": "181",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-20",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "dddc1067-7e1e-4dda-892b-e6abfa5e2100",
+      "docNo": "CB-26-0072",
+      "lines": [
+        {
+          "rate": "81.12",
+          "color": null,
+          "amount": "99372.00",
+          "greyKg": "1225.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "1116.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "99372.00",
+      "billNo": "182",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-20",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "9d080d30-b24c-4a5f-a808-d6386822b96c",
+      "docNo": "CB-26-0073",
+      "lines": [
+        {
+          "rate": "130.85",
+          "color": null,
+          "amount": "87800.35",
+          "greyKg": "671.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "598.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "87800.35",
+      "billNo": "183",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-20",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "97e76334-f237-4d77-bc62-54707dc207a6",
+      "docNo": "CB-26-0074",
+      "lines": [
+        {
+          "rate": "140.00",
+          "color": null,
+          "amount": "3220.00",
+          "greyKg": "23.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "21.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "3220.00",
+      "billNo": "184",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-22",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "e5426c64-aa71-4e8d-8834-f3359b52f0ff",
+      "docNo": "CB-26-0075",
+      "lines": [
+        {
+          "rate": "66.60",
+          "color": null,
+          "amount": "152181.00",
+          "greyKg": "2285.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "2190.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "152181.00",
+      "billNo": "195",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-22",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "f1d908be-6e45-44a1-83fa-a44747df1882",
+      "docNo": "CB-26-0076",
+      "lines": [
+        {
+          "rate": "150.50",
+          "color": null,
+          "amount": "21070.00",
+          "greyKg": "140.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "137.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "21070.00",
+      "billNo": "188",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-23",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "3d7153ca-df73-4017-9b28-240b5a3c811d",
+      "docNo": "CB-26-0077",
+      "lines": [
+        {
+          "rate": "160.00",
+          "color": null,
+          "amount": "3200.00",
+          "greyKg": "20.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "19.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "3200.00",
+      "billNo": "189",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-27",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "3c988032-567f-43f7-a7e4-0b734c89c457",
+      "docNo": "CB-26-0078",
+      "lines": [
+        {
+          "rate": "161.60",
+          "color": null,
+          "amount": "40400.00",
+          "greyKg": "250.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "240.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "40400.00",
+      "billNo": "190",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-27",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "90e5fc71-85a7-45e0-a53b-0bbe4471965f",
+      "docNo": "CB-26-0079",
+      "lines": [
+        {
+          "rate": "164.27",
+          "color": null,
+          "amount": "112196.41",
+          "greyKg": "683.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "651.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "112196.41",
+      "billNo": "191",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-27",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "7d3366f3-961e-4312-b382-147c5746458e",
+      "docNo": "CB-26-0080",
+      "lines": [
+        {
+          "rate": "128.63",
+          "color": null,
+          "amount": "4887.94",
+          "greyKg": "38.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "33.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "4887.94",
+      "billNo": "192",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-27",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "89b73ca9-8917-42b8-9ad3-a475818d60d1",
+      "docNo": "CB-26-0081",
+      "lines": [
+        {
+          "rate": "127.91",
+          "color": null,
+          "amount": "35047.34",
+          "greyKg": "274.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "243.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "35047.34",
+      "billNo": "193",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-27",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "54c312a7-87f2-45eb-b1c9-585e0abcbb44",
+      "docNo": "CB-26-0082",
+      "lines": [
+        {
+          "rate": "165.14",
+          "color": null,
+          "amount": "11559.80",
+          "greyKg": "70.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": null,
+          "fabricType": null,
+          "finishedKg": "60.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "11559.80",
+      "billNo": "194",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-27",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "a3913de0-8e66-4df9-b9e0-3214fa981aa0",
+      "docNo": "CB-26-0088",
+      "lines": [
+        {
+          "rate": "71.72",
+          "color": null,
+          "amount": "2079.88",
+          "greyKg": "29.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "304",
+          "fabricType": null,
+          "finishedKg": "28.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "2079.88",
+      "billNo": "54",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-27",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "9bbc28ff-b82f-4bd5-b4c8-072d946736c8",
+      "docNo": "CB-26-0083",
+      "lines": [
+        {
+          "rate": "65.15",
+          "color": null,
+          "amount": "131016.65",
+          "greyKg": "2011.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "284",
+          "fabricType": null,
+          "finishedKg": "1947.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "131016.65",
+      "billNo": "196",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-06-30",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "76667330-b5bf-4fb2-8edc-f0ef3d060657",
+      "docNo": "CB-26-0085",
+      "lines": [
+        {
+          "rate": "130.00",
+          "color": null,
+          "amount": "3120.00",
+          "greyKg": "24.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "290",
+          "fabricType": null,
+          "finishedKg": "24.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "3120.00",
+      "billNo": "198",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-04",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "2aaaf28f-3344-4883-bf82-af0e63a53d79",
+      "docNo": "CB-26-0086",
+      "lines": [
+        {
+          "rate": "116.94",
+          "color": null,
+          "amount": "21984.72",
+          "greyKg": "188.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "291",
+          "fabricType": null,
+          "finishedKg": "177.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "21984.72",
+      "billNo": "199",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-04",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "fac9401b-52aa-4e4b-9ab6-588ab7dbe566",
+      "docNo": "CB-26-0087",
+      "lines": [
+        {
+          "rate": "60.00",
+          "color": null,
+          "amount": "125520.00",
+          "greyKg": "2092.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "293",
+          "fabricType": null,
+          "finishedKg": "1993.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "125520.00",
+      "billNo": "200",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-04",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "383a5711-d0a8-49b7-b21b-9fbd2f270d9f",
+      "docNo": "CB-26-0089",
+      "lines": [
+        {
+          "rate": "65.57",
+          "color": null,
+          "amount": "134418.50",
+          "greyKg": "2050.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "295",
+          "fabricType": null,
+          "finishedKg": "1933.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "134418.50",
+      "billNo": "51",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-07",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "246963f4-6944-4977-b113-4a214c4c9d83",
+      "docNo": "CB-26-0090",
+      "lines": [
+        {
+          "rate": "178.00",
+          "color": null,
+          "amount": "58740.00",
+          "greyKg": "330.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "296",
+          "fabricType": null,
+          "finishedKg": "299.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "58740.00",
+      "billNo": "52",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-07",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "5e1eab85-04f5-42ad-a7e3-72e1e41b341a",
+      "docNo": "CB-26-0091",
+      "lines": [
+        {
+          "rate": "108.29",
+          "color": null,
+          "amount": "23282.35",
+          "greyKg": "215.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "297,98,99",
+          "fabricType": null,
+          "finishedKg": "196.500",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "23282.35",
+      "billNo": "53",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-07",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "d77413f2-c369-4494-9019-65383f07e1b4",
+      "docNo": "CB-26-0092",
+      "lines": [
+        {
+          "rate": "108.35",
+          "color": null,
+          "amount": "18961.25",
+          "greyKg": "175.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "317",
+          "fabricType": null,
+          "finishedKg": "154.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "18961.25",
+      "billNo": "56",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-13",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "41617114-eb19-4b14-9b6e-ef2e2ca37ebf",
+      "docNo": "CB-26-0093",
+      "lines": [
+        {
+          "rate": "125.36",
+          "color": null,
+          "amount": "8775.20",
+          "greyKg": "70.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "319",
+          "fabricType": null,
+          "finishedKg": "60.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "8775.20",
+      "billNo": "57",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-13",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "0b43c9cb-2c02-4283-a404-0a79d6d88691",
+      "docNo": "CB-26-0095",
+      "lines": [
+        {
+          "rate": "73.25",
+          "color": null,
+          "amount": "36258.75",
+          "greyKg": "495.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "321",
+          "fabricType": null,
+          "finishedKg": "456.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "36258.75",
+      "billNo": "59",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-13",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "21fc07d4-8a49-4379-ae32-9d353ad92298",
+      "docNo": "CB-26-0096",
+      "lines": [
+        {
+          "rate": "131.00",
+          "color": null,
+          "amount": "31309.00",
+          "greyKg": "239.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "322",
+          "fabricType": null,
+          "finishedKg": "221.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "31309.00",
+      "billNo": "60",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-13",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "d59d0e21-3b37-4358-9424-3f44c255d349",
+      "docNo": "CB-26-0097",
+      "lines": [
+        {
+          "rate": "143.00",
+          "color": null,
+          "amount": "28314.00",
+          "greyKg": "198.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "323",
+          "fabricType": null,
+          "finishedKg": "180.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "28314.00",
+      "billNo": "61",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-13",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "678c1204-c217-425c-993a-33465862c5ef",
+      "docNo": "CB-26-0099",
+      "lines": [
+        {
+          "rate": "125.15",
+          "color": null,
+          "amount": "37795.30",
+          "greyKg": "302.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "316",
+          "fabricType": null,
+          "finishedKg": "281.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "37795.30",
+      "billNo": "62",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-13",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "ff6104ed-a9a4-4e5a-a07c-189eeaaa0273",
+      "docNo": "CB-26-0098",
+      "lines": [
+        {
+          "rate": "141.92",
+          "color": null,
+          "amount": "106581.92",
+          "greyKg": "751.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "373",
+          "fabricType": null,
+          "finishedKg": "683.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "106581.92",
+      "billNo": "74",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-13",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "1e6428dd-c451-496f-9271-51a1dc940e87",
+      "docNo": "CB-26-0100",
+      "lines": [
+        {
+          "rate": "53.14",
+          "color": null,
+          "amount": "67434.66",
+          "greyKg": "1269.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "374",
+          "fabricType": null,
+          "finishedKg": "1188.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "67434.66",
+      "billNo": "75",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-13",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "a8d0d077-0989-4514-892f-01b75c24e98a",
+      "docNo": "CB-26-0101",
+      "lines": [
+        {
+          "rate": "108.82",
+          "color": null,
+          "amount": "297622.70",
+          "greyKg": "2735.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "324,25",
+          "fabricType": null,
+          "finishedKg": "2563.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "297622.70",
+      "billNo": "64",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-18",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "af61e530-db71-43ac-92c8-9e6f055ca05b",
+      "docNo": "CB-26-0102",
+      "lines": [
+        {
+          "rate": "121.09",
+          "color": null,
+          "amount": "20585.30",
+          "greyKg": "170.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "328",
+          "fabricType": null,
+          "finishedKg": "147.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "20585.30",
+      "billNo": "66",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-18",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "5a47d286-403b-44b0-bf9a-9eb2735c5fea",
+      "docNo": "CB-26-0103",
+      "lines": [
+        {
+          "rate": "123.00",
+          "color": null,
+          "amount": "2214.00",
+          "greyKg": "18.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "329",
+          "fabricType": null,
+          "finishedKg": "17.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "2214.00",
+      "billNo": "67",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-18",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "9d83fccd-3390-4fc5-9c55-72b915530024",
+      "docNo": "CB-26-0104",
+      "lines": [
+        {
+          "rate": "125.00",
+          "color": null,
+          "amount": "145000.00",
+          "greyKg": "1160.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "330",
+          "fabricType": null,
+          "finishedKg": "1049.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "145000.00",
+      "billNo": "68",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-18",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "b171e396-1475-49d3-969b-11eca5a1575e",
+      "docNo": "CB-26-0105",
+      "lines": [
+        {
+          "rate": "144.21",
+          "color": null,
+          "amount": "151708.92",
+          "greyKg": "1052.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "326,27",
+          "fabricType": null,
+          "finishedKg": "970.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "151708.92",
+      "billNo": "69",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-18",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "88e87981-ebbc-4702-8ce1-210684c5c0ff",
+      "docNo": "CB-26-0106",
+      "lines": [
+        {
+          "rate": "141.42",
+          "color": null,
+          "amount": "22627.20",
+          "greyKg": "160.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "336",
+          "fabricType": null,
+          "finishedKg": "149.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "22627.20",
+      "billNo": "71",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-22",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "1f7ac2a6-2ee3-4fcd-828e-aeb3d8df5bdc",
+      "docNo": "CB-26-0108",
+      "lines": [
+        {
+          "rate": "135.37",
+          "color": null,
+          "amount": "297814.00",
+          "greyKg": "2200.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "339,40",
+          "fabricType": null,
+          "finishedKg": "2080.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "297814.00",
+      "billNo": "73",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-22",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "91aa7af1-e533-4376-a170-3b4015a71b5e",
+      "docNo": "CB-26-0107",
+      "lines": [
+        {
+          "rate": "151.00",
+          "color": null,
+          "amount": "55115.00",
+          "greyKg": "365.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "338",
+          "fabricType": null,
+          "finishedKg": "343.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "55115.00",
+      "billNo": "77",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-22",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "ee59ed29-ced8-47ba-b27b-c320152da1a8",
+      "docNo": "CB-26-0109",
+      "lines": [
+        {
+          "rate": "125.23",
+          "color": null,
+          "amount": "643807.43",
+          "greyKg": "5141.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "334,35",
+          "fabricType": null,
+          "finishedKg": "4638.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "643807.43",
+      "billNo": "78",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-22",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "68e9b286-8402-432e-8f59-9545f73749a0",
+      "docNo": "CB-26-0110",
+      "lines": [
+        {
+          "rate": "155.32",
+          "color": null,
+          "amount": "56847.12",
+          "greyKg": "366.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "347",
+          "fabricType": null,
+          "finishedKg": "352.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "56847.12",
+      "billNo": "81",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-28",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "b13787cc-8b0f-46f9-9081-eca0caf35be9",
+      "docNo": "CB-26-0111",
+      "lines": [
+        {
+          "rate": "10.00",
+          "color": null,
+          "amount": "350.00",
+          "greyKg": "35.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "348",
+          "fabricType": null,
+          "finishedKg": "34.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "350.00",
+      "billNo": "82",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-28",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "d6f5d874-ad5a-4ba7-8614-7482dbe99ed9",
+      "docNo": "CB-26-0112",
+      "lines": [
+        {
+          "rate": "70.36",
+          "color": null,
+          "amount": "106806.48",
+          "greyKg": "1518.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "349,50",
+          "fabricType": null,
+          "finishedKg": "1449.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "106806.48",
+      "billNo": "83",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-28",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    },
+    {
+      "id": "d8538317-4573-4c48-b2e0-aea35eb861cb",
+      "docNo": "CB-26-0113",
+      "lines": [
+        {
+          "rate": "115.74",
+          "color": null,
+          "amount": "528816.06",
+          "greyKg": "4569.000",
+          "lineNo": 1,
+          "orderNo": null,
+          "challanNo": "346",
+          "fabricType": null,
+          "finishedKg": "4191.000",
+          "description": "As per bill register"
+        }
+      ],
+      "notes": null,
+      "total": "528816.06",
+      "billNo": "85",
+      "bookNo": null,
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "billDate": "2026-07-28",
+      "direction": "issued",
+      "narration": null,
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": null
+    }
+  ],
+  "parties": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "code": "CUS-0001",
+      "name": "Bangla Japan Trading Ltd.",
+      "phone": "+880 1768-980184",
+      "active": true,
+      "address": "Gazirchat, Madrasha Road, Ashulia, Savar, Dhaka, Bangladesh",
+      "isCustomer": true,
+      "isSupplier": false,
+      "openingAsOf": "2026-04-01",
+      "contactPerson": "Mr. Ariful Islam",
+      "openingBalance": "0.00",
+      "isSubcontractor": false
+    },
+    {
+      "id": "22222222-2222-2222-2222-222222222222",
+      "code": "SUB-0001",
+      "name": "Bhuiyan Fabrics Ltd.",
+      "phone": "01800000000",
+      "active": true,
+      "address": "Narayanganj",
+      "isCustomer": false,
+      "isSupplier": false,
+      "openingAsOf": "2026-06-30",
+      "contactPerson": "Mr Karim",
+      "openingBalance": "0.00",
+      "isSubcontractor": true
+    }
+  ],
+  "payments": [
+    {
+      "id": "a49a5808-5ad5-4b96-b71e-12b400354324",
+      "mode": "lc",
+      "notes": null,
+      "amount": "2425915.00",
+      "paidOn": "2026-05-23",
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "direction": "in",
+      "narration": "UCB",
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": "1884260300061"
+    },
+    {
+      "id": "915edfd3-0272-4d60-818d-ce0f993a9185",
+      "mode": "bank_transfer",
+      "notes": null,
+      "amount": "2185459.00",
+      "paidOn": "2026-07-20",
+      "partyId": "11111111-1111-1111-1111-111111111111",
+      "direction": "in",
+      "narration": "UCB",
+      "partyName": "Bangla Japan Trading Ltd.",
+      "reference": "1884260300075"
+    }
+  ],
+  "exportedAt": "2026-07-31T13:22:07",
+  "activityLog": [
+    {
+      "at": "2026-07-31T11:14:28",
+      "id": "14",
+      "after": null,
+      "action": "create",
+      "before": null,
+      "entity": "bill",
+      "reason": "Opening the book: register held bill totals and weights, so each rate is derived as amount divided by greige weight",
+      "summary": "Imported 113 customer bills for Bangla Japan Trading Ltd. from the bill register",
+      "entityId": "import"
+    },
+    {
+      "at": "2026-07-31T11:20:26",
+      "id": "15",
+      "after": {
+        "id": "a49a5808-5ad5-4b96-b71e-12b400354324",
+        "mode": "lc",
+        "notes": null,
+        "amount": 2425915,
+        "paid_on": "2026-05-23",
+        "party_id": "11111111-1111-1111-1111-111111111111",
+        "direction": "in",
+        "narration": "UCB",
+        "reference": "1884260300061",
+        "created_at": "2026-07-31T05:20:26.553762+00:00",
+        "updated_at": "2026-07-31T05:20:26.553762+00:00"
+      },
+      "action": "create",
+      "before": null,
+      "entity": "payment",
+      "reason": null,
+      "summary": "Receipt of Tk 24,25,915.00 from Bangla Japan Trading Ltd. by LC on 23 May 2026",
+      "entityId": "a49a5808-5ad5-4b96-b71e-12b400354324"
+    },
+    {
+      "at": "2026-07-31T11:22:42",
+      "id": "16",
+      "after": {
+        "id": "915edfd3-0272-4d60-818d-ce0f993a9185",
+        "mode": "lc",
+        "notes": null,
+        "amount": 2185459,
+        "paid_on": "2026-07-20",
+        "party_id": "11111111-1111-1111-1111-111111111111",
+        "direction": "in",
+        "narration": "UCB",
+        "reference": "1884260300075",
+        "created_at": "2026-07-31T05:22:42.534215+00:00",
+        "updated_at": "2026-07-31T05:22:42.534215+00:00"
+      },
+      "action": "create",
+      "before": null,
+      "entity": "payment",
+      "reason": null,
+      "summary": "Receipt of Tk 21,85,459.00 from Bangla Japan Trading Ltd. by LC on 20 Jul 2026",
+      "entityId": "915edfd3-0272-4d60-818d-ce0f993a9185"
+    },
+    {
+      "at": "2026-07-31T11:25:01",
+      "id": "17",
+      "after": {
+        "id": "915edfd3-0272-4d60-818d-ce0f993a9185",
+        "mode": "lc",
+        "notes": null,
+        "amount": 2185459,
+        "paid_on": "2026-07-20",
+        "party_id": "11111111-1111-1111-1111-111111111111",
+        "direction": "in",
+        "narration": "UCB / BTB LC",
+        "reference": "1884260300075",
+        "created_at": "2026-07-31T05:22:42.534215+00:00",
+        "updated_at": "2026-07-31T05:25:01.747026+00:00"
+      },
+      "action": "update",
+      "before": {
+        "id": "915edfd3-0272-4d60-818d-ce0f993a9185",
+        "mode": "lc",
+        "notes": null,
+        "amount": 2185459,
+        "paid_on": "2026-07-20",
+        "party_id": "11111111-1111-1111-1111-111111111111",
+        "direction": "in",
+        "narration": "UCB",
+        "reference": "1884260300075",
+        "created_at": "2026-07-31T05:22:42.534215+00:00",
+        "updated_at": "2026-07-31T05:22:42.534215+00:00"
+      },
+      "entity": "payment",
+      "reason": "Update",
+      "summary": "Edited receipt for Bangla Japan Trading Ltd., now Tk 21,85,459.00",
+      "entityId": "915edfd3-0272-4d60-818d-ce0f993a9185"
+    },
+    {
+      "at": "2026-07-31T11:25:20",
+      "id": "18",
+      "after": {
+        "id": "a49a5808-5ad5-4b96-b71e-12b400354324",
+        "mode": "lc",
+        "notes": null,
+        "amount": 2425915,
+        "paid_on": "2026-05-23",
+        "party_id": "11111111-1111-1111-1111-111111111111",
+        "direction": "in",
+        "narration": "UCB / BTB LC",
+        "reference": "1884260300061",
+        "created_at": "2026-07-31T05:20:26.553762+00:00",
+        "updated_at": "2026-07-31T05:25:20.194551+00:00"
+      },
+      "action": "update",
+      "before": {
+        "id": "a49a5808-5ad5-4b96-b71e-12b400354324",
+        "mode": "lc",
+        "notes": null,
+        "amount": 2425915,
+        "paid_on": "2026-05-23",
+        "party_id": "11111111-1111-1111-1111-111111111111",
+        "direction": "in",
+        "narration": "UCB",
+        "reference": "1884260300061",
+        "created_at": "2026-07-31T05:20:26.553762+00:00",
+        "updated_at": "2026-07-31T05:20:26.553762+00:00"
+      },
+      "entity": "payment",
+      "reason": "Update",
+      "summary": "Edited receipt for Bangla Japan Trading Ltd., now Tk 24,25,915.00",
+      "entityId": "a49a5808-5ad5-4b96-b71e-12b400354324"
+    },
+    {
+      "at": "2026-07-31T12:05:50",
+      "id": "19",
+      "after": {
+        "id": "915edfd3-0272-4d60-818d-ce0f993a9185",
+        "mode": "lc",
+        "notes": null,
+        "amount": 2185459,
+        "paid_on": "2026-07-20",
+        "party_id": "11111111-1111-1111-1111-111111111111",
+        "direction": "in",
+        "narration": "UCB",
+        "reference": "1884260300075",
+        "created_at": "2026-07-31T05:22:42.534215+00:00",
+        "updated_at": "2026-07-31T06:05:50.428357+00:00"
+      },
+      "action": "update",
+      "before": {
+        "id": "915edfd3-0272-4d60-818d-ce0f993a9185",
+        "mode": "lc",
+        "notes": null,
+        "amount": 2185459,
+        "paid_on": "2026-07-20",
+        "party_id": "11111111-1111-1111-1111-111111111111",
+        "direction": "in",
+        "narration": "UCB / BTB LC",
+        "reference": "1884260300075",
+        "created_at": "2026-07-31T05:22:42.534215+00:00",
+        "updated_at": "2026-07-31T05:25:01.747026+00:00"
+      },
+      "entity": "payment",
+      "reason": "Update",
+      "summary": "Edited receipt for Bangla Japan Trading Ltd., now Tk 21,85,459.00",
+      "entityId": "915edfd3-0272-4d60-818d-ce0f993a9185"
+    },
+    {
+      "at": "2026-07-31T12:05:59",
+      "id": "20",
+      "after": {
+        "id": "a49a5808-5ad5-4b96-b71e-12b400354324",
+        "mode": "lc",
+        "notes": null,
+        "amount": 2425915,
+        "paid_on": "2026-05-23",
+        "party_id": "11111111-1111-1111-1111-111111111111",
+        "direction": "in",
+        "narration": "UCB",
+        "reference": "1884260300061",
+        "created_at": "2026-07-31T05:20:26.553762+00:00",
+        "updated_at": "2026-07-31T06:05:59.671333+00:00"
+      },
+      "action": "update",
+      "before": {
+        "id": "a49a5808-5ad5-4b96-b71e-12b400354324",
+        "mode": "lc",
+        "notes": null,
+        "amount": 2425915,
+        "paid_on": "2026-05-23",
+        "party_id": "11111111-1111-1111-1111-111111111111",
+        "direction": "in",
+        "narration": "UCB / BTB LC",
+        "reference": "1884260300061",
+        "created_at": "2026-07-31T05:20:26.553762+00:00",
+        "updated_at": "2026-07-31T05:25:20.194551+00:00"
+      },
+      "entity": "payment",
+      "reason": "Update",
+      "summary": "Edited receipt for Bangla Japan Trading Ltd., now Tk 24,25,915.00",
+      "entityId": "a49a5808-5ad5-4b96-b71e-12b400354324"
+    },
+    {
+      "at": "2026-07-31T13:16:27",
+      "id": "21",
+      "after": {
+        "id": "915edfd3-0272-4d60-818d-ce0f993a9185",
+        "mode": "bank_transfer",
+        "notes": null,
+        "amount": 2185459,
+        "paid_on": "2026-07-20",
+        "party_id": "11111111-1111-1111-1111-111111111111",
+        "direction": "in",
+        "narration": "UCB",
+        "reference": "1884260300075",
+        "created_at": "2026-07-31T05:22:42.534215+00:00",
+        "updated_at": "2026-07-31T07:16:27.026736+00:00"
+      },
+      "action": "update",
+      "before": {
+        "id": "915edfd3-0272-4d60-818d-ce0f993a9185",
+        "mode": "lc",
+        "notes": null,
+        "amount": 2185459,
+        "paid_on": "2026-07-20",
+        "party_id": "11111111-1111-1111-1111-111111111111",
+        "direction": "in",
+        "narration": "UCB",
+        "reference": "1884260300075",
+        "created_at": "2026-07-31T05:22:42.534215+00:00",
+        "updated_at": "2026-07-31T06:05:50.428357+00:00"
+      },
+      "entity": "payment",
+      "reason": "Update",
+      "summary": "Edited receipt for Bangla Japan Trading Ltd., now Tk 21,85,459.00",
+      "entityId": "915edfd3-0272-4d60-818d-ce0f993a9185"
+    }
+  ]
+}

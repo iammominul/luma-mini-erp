@@ -84,7 +84,7 @@ export default async function CashBookPage({
         <div className="mb-4">
           <Link
             href={`/reports/cash-book?${base}`}
-            className="inline-block rounded border border-[var(--color-line)] bg-[var(--color-canvas)] px-3 py-1 text-sm hover:bg-white"
+            className="inline-block rounded border border-rule bg-surface-2 px-3 py-1 text-sm hover:bg-white"
           >
             {CASH_SOURCES[source].label} only, clear
           </Link>
@@ -105,7 +105,7 @@ export default async function CashBookPage({
         <CardHeader
           title="Cash and Bank"
           action={
-            <span className="text-sm text-[var(--color-muted)]">
+            <span className="text-sm text-ink-3">
               {book.rows.length} {book.rows.length === 1 ? 'entry' : 'entries'}
             </span>
           }
@@ -134,7 +134,7 @@ export default async function CashBookPage({
                 <tr key={row.id}>
                   <Td className="whitespace-nowrap">{formatDate(row.date)}</Td>
                   <Td>
-                    <span className="text-[var(--color-muted)]">
+                    <span className="text-ink-3">
                       {CASH_SOURCES[row.source].label}
                     </span>
                     {row.particulars ? `, ${row.particulars}` : ''}
@@ -148,7 +148,7 @@ export default async function CashBookPage({
                       (row.reference ?? '')
                     )}
                   </Td>
-                  <Td className="whitespace-nowrap text-[var(--color-muted)]">
+                  <Td className="whitespace-nowrap text-ink-3">
                     {paymentModeLabel(row.mode)}
                   </Td>
                   <Td numeric>{row.moneyIn ? formatTaka(row.moneyIn) : ''}</Td>
@@ -167,7 +167,7 @@ export default async function CashBookPage({
             </tr>
           </tbody>
         </Table>
-        <p className="border-t border-[var(--color-rule-soft)] px-4 py-2 text-[11px] text-[var(--color-ink-3)]">
+        <p className="border-t border-rule-soft px-4 py-2 text-caption text-ink-3">
           As keyed. Not a bank reconciliation.
         </p>
       </Card>

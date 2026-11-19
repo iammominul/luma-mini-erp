@@ -96,40 +96,44 @@ describe('isActive and groupHolding', () => {
   it('finds the group holding the current screen', () => {
     const groups = groupsFor('owner');
     expect(groupHolding(groups, '/users')).toBe('admin');
-    expect(groupHolding(groups, '/customers/bills')).toBe('receivables');
+    expect(groupHolding(groups, '/customers/bills')).toBe('sales');
+    expect(groupHolding(groups, '/orders/SO-26-0001')).toBe('sales');
+    expect(groupHolding(groups, '/purchase-orders/PO-26-0001')).toBe('purchase');
+    expect(groupHolding(groups, '/work-orders')).toBe('work');
     expect(groupHolding(groups, '/parties')).toBe('masters');
     expect(groupHolding(groups, '/nowhere')).toBeNull();
   });
 
-  // The two Outstanding entries share a label, so the only thing telling them
-  // apart is the group. That has to hold, or the short label is a bug.
-  it('keeps the two Outstanding entries distinguishable by their group', () => {
+  // The three Outstanding entries share a label, so the only thing telling
+  // them apart is the group. That has to hold, or the short label is a bug.
+  it('keeps the three Outstanding entries distinguishable by their group', () => {
     const groups = groupsFor('owner');
-    expect(groupHolding(groups, '/customers')).toBe('receivables');
-    expect(groupHolding(groups, '/subcontractors')).toBe('payables');
-    expect(groupLabelFor('/customers')).toBe('Receivables');
-    expect(groupLabelFor('/subcontractors')).toBe('Payables');
+    expect(groupHolding(groups, '/customers')).toBe('sales');
+    expect(groupHolding(groups, '/suppliers')).toBe('purchase');
+    expect(groupHolding(groups, '/subcontractors')).toBe('work');
+    expect(groupLabelFor('/customers')).toBe('Sales');
+    expect(groupLabelFor('/suppliers')).toBe('Purchase');
+    expect(groupLabelFor('/subcontractors')).toBe('Work Orders');
   });
 
-  // The two sides are the first thing the menu separates, so a screen must
-  // never land in the group for the other direction of money.
-  it('keeps each side of the book in its own group', () => {
+  // One side of the book never spreads across groups (2026-10-06): Sales is
+  // the whole receivable side, and each payable lens lives whole in its own.
+  it('keeps each side of the book in one group', () => {
     const groups = groupsFor('owner');
-    for (const path of [
-      '/customers/bills',
-      '/customers/settlements',
-      '/customers/statement',
-      '/customers',
-    ]) {
-      expect(groupHolding(groups, path), path).toBe('receivables');
-    }
-    for (const path of [
-      '/subcontractors/bills',
-      '/subcontractors/settlements',
-      '/subcontractors/statement',
-      '/subcontractors',
-    ]) {
-      expect(groupHolding(groups, path), path).toBe('payables');
+    const sides: [string, string][] = [
+      ['customers', 'sales'],
+      ['suppliers', 'purchase'],
+      ['subcontractors', 'work'],
+    ];
+    for (const [lens, group] of sides) {
+      for (const path of [
+        `/${lens}/bills`,
+        `/${lens}/settlements`,
+        `/${lens}/statement`,
+        `/${lens}`,
+      ]) {
+        expect(groupHolding(groups, path), path).toBe(group);
+      }
     }
   });
 
@@ -140,9 +144,10 @@ describe('isActive and groupHolding', () => {
 
 describe('groupLabelFor', () => {
   it('names the group a screen lives in, for the crumb above its title', () => {
-    expect(groupLabelFor('/customers/bills')).toBe('Receivables');
-    expect(groupLabelFor('/customers/bills/CB-26-0113')).toBe('Receivables');
-    expect(groupLabelFor('/subcontractors/bills')).toBe('Payables');
+    expect(groupLabelFor('/customers/bills')).toBe('Sales');
+    expect(groupLabelFor('/customers/bills/CB-26-0113')).toBe('Sales');
+    expect(groupLabelFor('/subcontractors/bills')).toBe('Work Orders');
+    expect(groupLabelFor('/suppliers/bills/BR-26-0031')).toBe('Purchase');
     expect(groupLabelFor('/payroll/advances')).toBe('HR and Payroll');
     expect(groupLabelFor('/expenses')).toBe('Cash and Funds');
     expect(groupLabelFor('/loans')).toBe('Cash and Funds');

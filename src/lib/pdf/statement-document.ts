@@ -24,7 +24,7 @@ import {
   rule,
   sectionLabel,
 } from './document';
-import { documentFileName } from './file-name';
+import { describedFileName } from './file-name';
 
 /**
  * The Statement of Account: the document a party is shown when balances are
@@ -141,8 +141,10 @@ export function buildStatementDocument({
     layout: ledgerLayout,
   };
 
+  // No party code. CUS-0001 is the book's own key for telling two similar
+  // names apart, and it means nothing to the party reading the statement, who
+  // knows themselves by name (owner, 2026-10-06).
   const meta: MetaPair[] = [
-    ...(party.code ? [{ label: 'Party Code', value: party.code }] : []),
     { label: 'Print Date', value: formatDate(todayInDhaka()) },
     { label: 'Period', value: periodText(from, to, coversFrom, asOf) },
     { label: 'Party Type', value: rolesLabel(party.roles) },
@@ -236,7 +238,7 @@ function advanceNote(party: Party, statement: Statement): Content[] {
       text:
         party.roles.customer
           ? 'This closing balance is an advance held from the customer.'
-          : 'This closing balance is an advance held with the subcontractor.',
+          : `This closing balance is an advance held with the ${party.roles.subcontractor ? 'subcontractor' : 'supplier'}.`,
       style: 'note',
       margin: [0, 5, 0, 0] as [number, number, number, number],
     },
@@ -261,16 +263,15 @@ function periodText(
   return `${formatDate(start)} to ${formatDate(end)}`;
 }
 
+/** A statement has no number: it is named for the party and the period. */
 export function statementFileName(
   party: Party,
-  company: Company,
   from: string | null,
   to: string | null,
 ): string {
-  return documentFileName({
-    company: company.name,
-    documentType: 'Statement-of-Account',
-    party: party.code ?? party.name,
-    identifiers: from && to ? [from, 'to', to] : [to ?? todayInDhaka()],
-  });
+  return describedFileName([
+    'Statement',
+    party.name,
+    ...(from && to ? [from, 'to', to] : ['to', to ?? todayInDhaka()]),
+  ]);
 }

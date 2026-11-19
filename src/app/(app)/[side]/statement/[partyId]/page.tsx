@@ -14,6 +14,10 @@ import { formatDate, todayInDhaka } from '@/lib/dates';
 import { isUuid } from '@/lib/ids';
 import { findParty, listMovements } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
+import { RecordPaymentDialog } from '@/components/RecordPaymentDialog';
+import { Money } from '@/lib/money';
+import { can } from '@/lib/permissions';
+import { requireUser } from '@/lib/session';
 import {
   buildStatement,
   closingLabel,
@@ -40,6 +44,7 @@ export default async function StatementPage({
   params: Promise<{ side: string; partyId: string }>;
   searchParams: Promise<Search>;
 }) {
+  const user = await requireUser();
   const { side, partyId } = await params;
   if (!isSide(side)) notFound();
   const copy = copyFor(side);
@@ -73,6 +78,17 @@ export default async function StatementPage({
     to,
   });
   const labels = statementLabels(copy.role);
+  // What is owed in the direction this lens settles, offered as the amount on
+  // Record Receipt or Record Payment. Nothing is offered when the balance
+  // runs the other way, because then nothing is owed on this side.
+  const owed =
+    copy.paymentDirection === 'in'
+      ? statement.closing.isNegative() || statement.closing.isZero()
+        ? null
+        : statement.closing
+      : statement.closing.isNegative()
+        ? Money.ZERO.subtract(statement.closing)
+        : null;
 
   const period =
     from && to
@@ -145,7 +161,7 @@ export default async function StatementPage({
       key: 'reference',
       head: 'Reference',
       headClassName: 'w-32',
-      cellClassName: 'text-[var(--color-muted)]',
+      cellClassName: 'text-ink-3',
       phone: 'meta',
       cell: (row) => row.reference,
     },
@@ -179,7 +195,7 @@ export default async function StatementPage({
       headClassName: 'w-36',
       phone: 'full',
       phoneClassName:
-        'border-t border-[var(--color-line)] pt-2 text-base font-semibold',
+        'border-t border-rule pt-2 text-title font-semibold',
       cell: (row) => row.balance,
     },
   ];
@@ -190,8 +206,8 @@ export default async function StatementPage({
           sets its own. See the comment on main in AppShell.tsx. */}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3 md:pt-5">
         <div>
-          <h1 className="text-lg font-semibold">Party Ledger: {party.name}</h1>
-          <p className="mt-0.5 text-sm text-[var(--color-muted)]">
+          <h1 className="text-title font-semibold">Party Ledger: {party.name}</h1>
+          <p className="mt-0.5 text-sm text-ink-3">
             {copy.partyWord} | {period} | As of {formatDate(todayInDhaka())}{' '}
             (Asia/Dhaka)
           </p>
@@ -204,13 +220,20 @@ export default async function StatementPage({
           >
             New {copy.billSingular}
           </LinkButton>
-          <LinkButton
-            href={`/${side}/settlements/new?party=${party.id}`}
-            variant="secondary"
-            icon="plus"
-          >
-            New {copy.settlementSingular}
-          </LinkButton>
+          {/* Recorded here in a dialog, with the party already chosen and the
+              balance offered as the amount, because the statement is where
+              somebody is when the cheque arrives. */}
+          {can(user.role, 'settlement:manage') ? (
+            <RecordPaymentDialog
+              side={side}
+              partyId={party.id}
+              partyName={party.name}
+              isReceipt={copy.paymentDirection === 'in'}
+              returnTo={`/${side}/statement/${party.code ?? party.id}`}
+              today={todayInDhaka()}
+              suggestedAmount={owed?.toDecimalString()}
+            />
+          ) : null}
           <DownloadButton href={pdfHref}>Party Ledger PDF</DownloadButton>
         </div>
       </div>
@@ -258,7 +281,7 @@ export default async function StatementPage({
               type="date"
               name="from"
               defaultValue={from ?? ''}
-              className="min-h-11 w-full rounded border border-[var(--color-line)] bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
+              className="min-h-11 w-full rounded border border-rule bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
             />
           </label>
           <label className="block w-full sm:w-auto">
@@ -267,7 +290,7 @@ export default async function StatementPage({
               type="date"
               name="to"
               defaultValue={to ?? ''}
-              className="min-h-11 w-full rounded border border-[var(--color-line)] bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
+              className="min-h-11 w-full rounded border border-rule bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:px-2.5 md:py-1.5 md:text-sm"
             />
           </label>
           <Button size="filter" block>
@@ -301,17 +324,17 @@ export default async function StatementPage({
           }}
         />
         {statement.rows.length === 0 ? (
-          <p className="border-t border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-muted)]">
+          <p className="border-t border-rule px-4 py-2 text-xs text-ink-3">
             No entries in this period. The balance above is the one brought
             forward.
           </p>
         ) : null}
         {statement.closing.isNegative() ? (
-          <p className="border-t border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-muted)]">
+          <p className="border-t border-rule px-4 py-2 text-xs text-ink-3">
             This closing balance is an advance held{' '}
             {copy.role === 'customer'
               ? 'from the customer'
-              : 'with the subcontractor'}
+              : `with the ${copy.partyWord.toLowerCase()}`}
             .
           </p>
         ) : null}

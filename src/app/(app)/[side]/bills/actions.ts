@@ -14,6 +14,7 @@ import { billFormSchema, deleteSchema, firstError } from '@/lib/schemas';
 import { ForbiddenError, actingUser, actorOf } from '@/lib/session';
 import { type Side, copyFor, isSide } from '@/lib/side';
 import { z } from 'zod';
+import { flash } from '@/lib/flash';
 
 export type BillFormState = { error?: string };
 
@@ -39,6 +40,7 @@ function readBill(formData: FormData) {
   return billFormSchema.safeParse({
     partyId: text(formData, 'partyId'),
     direction: copyFor(sideOf(formData)).billDirection,
+    partyRole: copyFor(sideOf(formData)).role,
     status: text(formData, 'status') === 'draft' ? 'draft' : 'posted',
     billNo: text(formData, 'billNo'),
     natureOfWork: text(formData, 'natureOfWork') || 'dyeing_finishing',
@@ -74,6 +76,7 @@ export async function createBillAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Bill recorded.');
   redirect(`/${side}/bills/${id}`);
 }
 
@@ -97,6 +100,7 @@ export async function updateBillAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Bill saved.');
   redirect(`/${side}/bills/${id}`);
 }
 
@@ -115,6 +119,7 @@ export async function postBillAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Bill posted.');
   redirect(`/${side}/bills/${id}`);
 }
 
@@ -186,5 +191,6 @@ export async function deleteBillAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Bill removed.');
   redirect(`/${side}/bills`);
 }

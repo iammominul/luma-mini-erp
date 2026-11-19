@@ -117,24 +117,24 @@ export function RangePicker({
   range: ReportRange;
 }) {
   return (
-    <div className="mb-4 flex flex-wrap items-end gap-3 rounded border border-[var(--color-line)] bg-white p-3">
+    <div className="mb-4 flex flex-wrap items-end gap-3 rounded border border-rule bg-white p-3">
       <form action={basePath} className="flex flex-wrap items-end gap-3">
-        <label className="text-xs text-[var(--color-muted)]">
+        <label className="text-xs text-ink-3">
           <span className="mb-1 block font-medium">From</span>
           <input
             type="date"
             name="from"
             defaultValue={range.from}
-            className="rounded border border-[var(--color-line)] px-2 py-1.5 text-sm text-[var(--color-ink)]"
+            className="rounded border border-rule px-2 py-1.5 text-sm text-ink"
           />
         </label>
-        <label className="text-xs text-[var(--color-muted)]">
+        <label className="text-xs text-ink-3">
           <span className="mb-1 block font-medium">To</span>
           <input
             type="date"
             name="to"
             defaultValue={range.to}
-            className="rounded border border-[var(--color-line)] px-2 py-1.5 text-sm text-[var(--color-ink)]"
+            className="rounded border border-rule px-2 py-1.5 text-sm text-ink"
           />
         </label>
         <Button type="submit">Show</Button>
@@ -145,7 +145,7 @@ export function RangePicker({
           <Link
             key={shortcut.label}
             href={`${basePath}?${shortcut.query}`}
-            className="rounded border border-[var(--color-line)] px-2.5 py-1.5 text-xs hover:bg-gray-50"
+            className="rounded border border-rule px-2.5 py-1.5 text-xs hover:bg-surface-2"
           >
             {shortcut.label}
           </Link>

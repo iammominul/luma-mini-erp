@@ -14,9 +14,19 @@ dyeing trader, until the full ERP reaches its billing stage. It does two things:
 1. **Customer side.** Bill a customer, record money received, print a statement.
 2. **Subcontractor side.** Record a bill received, record money paid, print the
    same statement in the other direction.
+3. **Supplier side** (2026-10-06). The same as the subcontractor side, for the
+   spinners LUMA buys yarn from. LUMA now also sells finished fabric it has
+   knitted and dyed by subcontractors from yarn it bought against the order, as
+   well as dyeing customers' own fabric. See section 7.
 
 It answers "who owes what", nothing else. It is temporary by design: when the ERP
 takes over, the JSON export is imported there and this repository is archived.
+
+**Since 2026-10-29 it is also the full ERP's proving ground** (owner). The 22
+modules planned for the full ERP are built here first, in waves, so they are
+seen working on real orders and the full ERP is built from real cases. The book
+stays intact while that happens: see the fifth exception in section 7 and
+`docs/plans/2026-10-29-full-erp-modules.md`.
 
 **Scale:** about 15 to 20 customers, 5 to 10 subcontractors, a few internal
 users. Do not build for more.
@@ -61,17 +71,32 @@ users. Do not build for more.
    Edits and removals require a stated reason. The log is append only: nothing
    updates or deletes a row in it.
 6. **Validate at the boundary.** Zod in `src/lib/schemas.ts` for every input.
-7. **A bill carries two numbers, and both are load-bearing.** LUMA still writes
-   every bill by hand and sends that paper out, so `bill.bill_no` is the
-   hand-written number: it is what the party recognizes, what a statement quotes,
-   and what the PDF prints as the document number. Alongside it, `bill.doc_no` is
-   the system's own **gapless** series from the `counter` row bumped inside the
-   bill's own transaction. Do not switch that to a sequence, which leaves holes
-   when an insert fails, and never re-issue a `doc_no` on an edit. A
-   subcontractor bill has no `doc_no`: their paper number is its identity.
-   Uniqueness differs by side. A customer number is checked against every
-   customer bill, full stop; a subcontractor number is scoped to that
-   subcontractor.
+7. **The system number is the printed number** (2026-10-06, reversing the rule
+   that stood before it). Every document LUMA issues takes a number from a
+   `counter` row bumped inside its own transaction, `TYPE-YY-SERIAL`, and that
+   number is what the PDF prints, what a statement quotes and what the URL
+   carries: `CB` customer bill, `MR` money receipt, `PV` payment voucher, `BR`
+   bill received, `EXP`, `ADV`, `PR`, `FM`; `SO`, `PO` and `WO` arrive with
+   sales orders, and `DC`, `GP` and `PI` are reserved. A series is **gapless**
+   and **never resets**: `YY` is the document date's year, for reading only.
+   Do not switch a counter to a sequence, which leaves holes when an insert
+   fails, never re-issue a `doc_no` on an edit, and never put company initials
+   in a number, because the letterhead already names the company.
+   LUMA still writes a paper bill book and a receipt book. Their serial is kept
+   beside the system number as **Paper Ref**: `bill.bill_no` on a customer bill,
+   optional and unique across customer bills when present, and
+   `payment.reference` on a receipt. A bill received is the party's document,
+   so its `bill_no` is the party's own number, required and unique within that
+   party, and its `BR` number is the book's handle for it, never printed to
+   them. A customer draft takes its `CB` number when it is posted, so an
+   abandoned draft leaves no hole.
+   **A document records the role its party acted in** (`party_role`), because
+   `direction` cannot: a supplier's yarn bill and a knitter's bill are both
+   received. Read it with a fallback to the direction until the column is made
+   `NOT NULL` in a later release (rule 15).
+   **A party code is never printed** on a document or in a file name. It is the
+   book's key for telling two similar names apart and means nothing to the
+   party reading it.
    **There was a third number, `book_no`, and it is gone** (2026-08-15). LUMA
    ran several bill books at once, so a customer number used to be unique only
    within its book. It turned out to carry nothing: of 131 customer bills exactly
@@ -113,14 +138,15 @@ users. Do not build for more.
 11. **A URL names a record the way a person does.** A row's UUID is what foreign
     keys point at; it is not an address. What goes in the URL is the business
     key, because a URL gets read aloud, pasted into an email, and recognized on
-    a screen: `/parties/CUS-0001`, `/customers/bills/CB-26-0113`. A bill received
-    keeps its id, because the subcontractor's paper number is unique only within
-    that subcontractor and so cannot name a bill on its own.
+    a screen: `/parties/CUS-0001`, `/customers/bills/CB-26-0113`,
+    `/suppliers/bills/BR-26-0031`, `/customers/settlements/MR-26-0042`. Only a
+    customer draft, which has no number until it is posted, is addressed by its
+    id.
     The UUID still resolves, always, so nothing already sent out breaks. It
     answers with a permanent redirect to the business key rather than serving the
     page, because one record has one address.
     Collections are plural and consistent: `/parties`, `/customers/bills`,
-    `/subcontractors/settlements`. The lens in a URL is plural; the party role it
+    `/subcontractors/settlements`, `/suppliers/bills`. The lens in a URL is plural; the party role it
     looks at stays singular. Old singular URLs redirect in `src/proxy.ts`.
 12. **A form never loses what was typed.** Every field on a form that posts to a
     server action is controlled from `useKeptValues`, never `defaultValue`. A
@@ -304,17 +330,18 @@ formatters. Do not "improve" them here. If one has a bug, fix it in both.
   This rule is about **screen text**. The dense comments in the code are house
   style and stay: they are for the next person editing the file, not for
   somebody trying to get a bill out.
-  **The rail splits the two sides, and that is a knowing divergence**
-  (2026-08-15). The ERP's `11-navigation-and-admin.md` keeps one Money group
-  holding both. Here the first two groups are Receivables and Payables, because
-  every package this market has used splits the receivable side from the payable
-  side, and this app is two sides before it is anything else: a bill raised and
-  a bill received are opposite directions of money, and one group makes somebody
-  read the item label to work out which way a screen points. Each group holds
-  the whole of its side, bills, settlements, ledger and outstanding. Books is
-  Accounts, which is what the department is called and what Tally calls it, and
-  holds what belongs to neither side. If the ERP is made to agree, this is the
-  shape to move to.
+  **The rail is grouped by business function: Sales, Purchase, Work Orders**
+  (2026-10-06), the way the Bangladesh textile ERPs arrange it. It replaced
+  Receivables and Payables (2026-08-15), which suited an app that only billed
+  and had no home for orders. The rule that split existed for still holds:
+  **one side of the book never spreads across groups.** Sales is the whole
+  receivable side, Sales Orders to Outstanding. Purchase (spinners, yarn) and
+  Work Orders (knitters and dye houses) are the payable side, each whole: its
+  order document, its bills, its payments, its ledger, its outstanding, in the
+  same order in every group. Cash and Funds holds what belongs to none of them.
+  Commercial (LC, PI) and Store (challans) arrive later as groups of their own.
+  The ERP's `11-navigation-and-admin.md` keeps one Money group; if it is made to
+  agree, this is the shape to move to.
   **There is no Frequent block, and Parties is not pinned** (2026-08-15). The
   rail used to carry four shortcuts on a tinted strip above the groups. Every one
   of them was the first or second item of Receivables or Payables, which are the
@@ -339,6 +366,48 @@ formatters. Do not "improve" them here. If one has a bug, fix it in both.
   strong one closes a heading or a total and the soft one separates two ordinary
   rows, and `good` / `warn` / `crit` are reserved for state and are never a
   series color on a chart.
+- **The design system is `globals.css` plus `ui.tsx`, and a screen reaches
+  for them rather than writing its own** (2026-10-07). Colors are `@theme`
+  tokens and every one is a Tailwind utility of its own name: write
+  `text-ink-3`, `border-rule`, `bg-navy/5`, never `text-[var(--color-ink-3)]`
+  (411 of those were folded back). Type is the scale in `globals.css`:
+  `text-caption`, `text-meta`, `text-body`, `text-heading`, `text-title`,
+  `text-number`, `text-hero`; a pixel size in brackets is a defect. Repeated
+  looks are utilities there too: `eyebrow` for a caps label, `link` for a link
+  in text, `skeleton` for a loading shape. A record's state is `Tag` with one
+  of five tones (neutral, active, done, warn, crit), never a hand-colored
+  span. Every record view (bill, receipt, order, PO, WO) opens with
+  `RecordHead`: the way back, what it is, the number as the largest text, its
+  tags, label-and-value facts, a `StageBar` where the record moves through
+  stages, and one strip of key figures. One `loading.tsx` at `(app)` covers
+  every screen. Surfaces are `card` and `pop` (a menu, tooltip or dialog);
+  nothing draws its own border, corner and shadow.
+- **Enterprise first, modern second, and never AI made** (owner, 2026-10-07).
+  The navy bar and rail and the dense SAP-style type stay: a light frame was
+  built and turned down. What modernizes is inside the work area: cards with a
+  navy top rule on the headline tiles, charts with a headline figure, a
+  segmented Chart / Table switch, a ranked list and an ageing strip in place of
+  plain bar charts. The tells of a generated dashboard are banned outright: a
+  colored icon in a tinted square on a tile, pill chips with shadows, glossy
+  or glowing marks, gradient backgrounds, and decoration with no figure
+  behind it.
+  **Charts carry depth, never perspective.** A mark may be shaded a little
+  lighter at its top edge and lifted by a one pixel shadow (`depth.tsx`,
+  `chart-depth` in `globals.css`), so it reads as solid. Nothing may change
+  what a mark measures: no 3D bars, no tilted pies, because a tilted pie draws
+  its front slices larger than their share and a screen somebody bills from
+  cannot show a wrong size. The shading is the one place a gradient is
+  allowed, and only within a mark's own hue.
+- **A save says so.** A server action calls `flash()` from `src/lib/flash.ts`
+  before it redirects, and `FlashNotice` shows the sentence once. Ctrl+S saves
+  the form the cursor is in and `/` jumps to search (`Shortcuts.tsx`).
+- **A downloaded file is named by its number** (2026-10-06): `CB-26-0113.pdf`,
+  `MR-26-0042.pdf`. The number already says what the document is, and the
+  document names the company and the party. A document with no number of its
+  own takes a short hyphenated description with the party's or person's name:
+  `Statement-Rongdhonu-Dyeing-2026-07-01-to-2026-09-30.pdf`,
+  `Payslip-2026-09-Abdul-Karim.pdf`. Never a code or an id. `pdf/file-name.ts`
+  is the one place this is built.
 - **Documents are downloaded PDFs, never a printed screen.** A screen printed by
   the browser carries its headers, its margins and its own page breaks, which is
   not something to hand a customer. `src/lib/pdf/` renders A4 server-side with
@@ -369,7 +438,9 @@ formatters. Do not "improve" them here. If one has a bug, fix it in both.
 
 `db:pull` is read only against production and is how a change gets built against
 the real book. It restores production's schema rather than `db/schema.sql`, so
-running `db:setup` straight after it rehearses exactly what the deploy will do.
+running `db:setup` straight after it rehearses exactly what the deploy will do,
+book check included: it ends with "Book check: N figures read before and after,
+none moved", or names each figure that did.
 See rule 15 before writing the migration it is rehearsing.
 
 Run the full suite, including every SQL statement and server action, against a
@@ -398,7 +469,10 @@ customers are billed. Add the case to the tests.
 Every request to add fabric tracking, process loss, rate cards, or a
 double-entry ledger belongs in the **full ERP**, not here. If this app starts
 growing modules, the reason it exists has been lost. Say so rather than building
-it.
+it. The exceptions below were each decided by the owner with the reason on the
+record; fabric sales is the latest, and its phases 2 and 3 (kilos through the
+chain, process loss, pre-cost) are inside it. Anything outside a recorded
+exception still gets the warning.
 
 **The dashboard's trading summary is a view, not a module** (2026-08-12). LUMA
 subcontracts the dyeing it bills for, so a subcontractor's bill is its cost of
@@ -508,6 +582,54 @@ A staff reimbursement is an ordinary expense voucher with the employee as the
 payee, and the tier is overhead either way, so the profit statement is unaffected
 in shape. `audit/page.tsx` keeps its `expense_claim` label permanently: the
 activity log is append only by rule 5 and outlives the table.
+
+**Fabric sales and orders are the fourth exception** (owner, 2026-10-06). LUMA
+now sells finished fabric as well as dyeing customers' own: it buys yarn
+against an order, has it knitted and dyed by subcontractors, and sells the
+result. The owner decided this runs here rather than waiting for the ERP. It
+brought the Supplier side, Sales Orders (`SO`), Purchase Orders (`PO`) and Work
+Orders (`WO`), with every bill line and expense tied to an order line, and an
+order costed end to end. The plan, with every decision behind it, is
+`docs/plans/2026-10-06-fabric-sales-phase-1.md`. Five limits hold it:
+
+1. **No stock and no valuation.** Yarn is bought against one order, never held,
+   so a cost is tied to an order by reference and not valued through a store.
+   If yarn or chemicals are ever bought ahead and held, that is the ERP's
+   inventory module, not this app.
+2. **Everything an order shows is computed on read** (rule 2): booked value,
+   billed, every cost, contribution, and the **stage**, which is read off the
+   documents (a PO means Yarn Ordered, a dyeing WO means In Dyeing) and never
+   typed. The status column holds only what a person decides: open, closed,
+   cancelled. `order-costing.ts` is the arithmetic and is pure.
+3. **Contribution, never profit.** Overhead is never apportioned to an order,
+   and a cost filed against a whole order is never split across its lines.
+   Limit 3 of the trading summary above applies unchanged.
+4. **A cost never loses its order.** An order line something points at cannot
+   be removed; an order with documents on it cannot be cancelled, only closed;
+   a closed order takes no new links except the one a document already had.
+5. **Deliberately absent, each for later:** LC and PI (a Commercial module),
+   challans and kilos through the chain with process loss (phase 2), pre-cost
+   and budget against actual (phase 3), and chemicals, which may be a separate
+   company and would then run its own copy of this app.
+
+**The full ERP's modules are the fifth exception, and the widest** (owner,
+2026-10-29). Every module planned for the full ERP is built here in waves, each
+in the place the plan gives it: Live, Live in the book, Shadow, or Lab. The plan,
+the data shape every new table follows, and the waves are
+`docs/plans/2026-10-29-full-erp-modules.md`. The warning at the top of this
+section still applies to anything outside that plan. Four limits hold it:
+
+1. **The book stays intact.** `db:setup` and the deploy run the book check
+   (`scripts/book-check.mjs`): every bill, line, receipt, payment, expense,
+   advance, payroll line, fund movement, party balance and counter is read
+   before the schema is applied and again after, and a figure that moved fails
+   the run. The rehearsal on a pulled copy is where that is meant to happen.
+2. **New modules read the book and do not write it,** except the changes the
+   plan marks Live in the book, and those pass the book check first.
+3. **The shape is the full ERP's,** so data and test cases move across without
+   translation: the order line as the unit, one movement ledger, generic
+   process steps, dated settings.
+4. **A question goes into the full ERP's register,** not into a file here.
 
 **HR and payroll are separate.** HR holds the people: the personnel file and the
 salary structure on the `employee` row. Payroll works out the money, a month at

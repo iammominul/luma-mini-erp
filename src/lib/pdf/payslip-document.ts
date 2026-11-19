@@ -16,7 +16,7 @@ import {
   type MetaPair,
   tableLayout,
 } from './document';
-import { documentFileName } from './file-name';
+import { describedFileName } from './file-name';
 
 /**
  * The payslip an employee is handed when they are paid.
@@ -189,16 +189,13 @@ export function buildPayslipDocument({
   });
 }
 
-/** The download filename, which is what the person filing it will see. */
+/**
+ * The download filename. The PR number belongs to the whole month's run, not to
+ * one person, so a payslip is named for the month and the employee instead.
+ */
 export function payslipFileName(
   line: PayrollLineWithRun,
   employee: Employee,
-  company: Company,
 ): string {
-  return documentFileName({
-    company: company.name,
-    documentType: 'Payslip',
-    party: employee.code ?? employee.name,
-    identifiers: [line.period, line.docNo ?? ''].filter(Boolean),
-  });
+  return describedFileName(['Payslip', line.period, employee.name]);
 }

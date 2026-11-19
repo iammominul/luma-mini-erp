@@ -3,7 +3,13 @@ import { formatTaka } from '@/lib/format';
 import { formatQtyKg, parseQtyKg } from '@/lib/amount';
 import type { Column } from '@/components/DataTable';
 import { DataTable } from '@/components/DataTable';
-import { Card, DownloadIcon, LinkButton, PageTitle } from '@/components/ui';
+import {
+  Card,
+  DownloadIcon,
+  LinkButton,
+  PageTitle,
+  Tag,
+} from '@/components/ui';
 import { formatDate } from '@/lib/dates';
 import {
   type BillSort,
@@ -13,7 +19,7 @@ import {
   type SortDirection,
 } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
-import { natureOfWorkLabel } from '@/lib/types';
+import { billHandle, natureOfWorkLabel } from '@/lib/types';
 import { BillFilters } from '@/components/BillFilters';
 
 type Search = {
@@ -57,6 +63,7 @@ export default async function BillsPage({
     listParties({ role: copy.role, includeInactive: true }),
     listBills({
       direction: copy.billDirection,
+      role: copy.role,
       partyId: filters.party || null,
       natureOfWork: filters.work || null,
       search: filters.q || null,
@@ -125,20 +132,23 @@ export default async function BillsPage({
 
   type Bill = (typeof bills)[number];
 
-  // SL, Date, System Bill No, Party, Bill No, Status, Nature of Work, the two
-  // weights, Amount and the actions. The system's own number is customer side
-  // only, because a bill received does not have one.
+  // SL, Date, Bill No, Party, the paper number, Status, Nature of Work, the two
+  // weights, Amount and the actions.
   //
-  // The system number leads the two identifiers and the hand-written number
-  // follows the party, because that is the order somebody reads them in: the
-  // register's own serial, then who the bill is against, then the number
-  // written on the paper they are holding.
+  // Bill No is the system's number on every lens (2026-10-06): CB on a customer
+  // bill, where it is also the printed number, and BR on a bill received. It
+  // leads, and the number written on paper follows the party, because that is
+  // the order somebody reads them in: the register's own serial, then who the
+  // bill is against, then the paper they are holding. On a customer bill that
+  // paper is LUMA's bill book (Paper Ref); on a bill received it is the
+  // party's own bill (Their Bill No).
+  const paperHead = copy.billNoIsOurs ? 'Paper Ref' : 'Their Bill No';
   const columns: Column<Bill>[] = [
     {
       key: 'sl',
       head: 'SL',
       headClassName: 'w-12',
-      cellClassName: 'text-[var(--color-muted)]',
+      cellClassName: 'text-ink-3',
       // Numbered across the whole filter, so page two carries on from 50
       // rather than starting again at one. It is the register's own count and
       // means nothing away from the register, so a phone does without it.
@@ -153,36 +163,37 @@ export default async function BillsPage({
       phone: 'meta',
       cell: (bill) => formatDate(bill.billDate),
     },
-    ...(copy.billNoIsOurs
-      ? ([
-          {
-            key: 'docNo',
-            head: 'System Bill No',
-            headClassName: 'w-28',
-            cellClassName: 'text-[var(--color-muted)]',
-            phone: 'meta',
-            cell: (bill) => bill.docNo ?? '',
-          },
-        ] as Column<Bill>[])
-      : []),
     {
-      key: 'party',
-      head: copy.partyWord,
-      phone: 'title',
-      cell: (bill) => bill.partyName,
-    },
-    {
-      key: 'billNo',
+      key: 'docNo',
       head: 'Bill No',
-      headClassName: 'w-24',
-      cellClassName: 'font-medium',
+      headClassName: 'w-28',
+      cellClassName: 'whitespace-nowrap font-medium',
       sortHref: sortHref('billNo'),
       sorted: sortedAs('billNo'),
       // The party names the bill on the title line; the number identifies it
       // on the line under, beside the date it was written.
       phone: 'meta',
-      phoneClassName: 'font-medium text-[var(--color-ink)]',
-      cell: (bill) => bill.billNo,
+      phoneClassName: 'font-medium text-ink',
+      // A customer draft has no number until it is posted.
+      cell: (bill) => bill.docNo ?? '',
+    },
+    {
+      key: 'party',
+      head: copy.partyWord,
+      // A party name is read on one line. Wrapped, a long one made every row
+      // four lines tall while the narrow columns beside it sat half empty.
+      headClassName: 'min-w-48',
+      cellClassName: 'whitespace-nowrap',
+      phone: 'title',
+      cell: (bill) => bill.partyName,
+    },
+    {
+      key: 'billNo',
+      head: paperHead,
+      headClassName: 'w-24',
+      cellClassName: 'text-ink-3',
+      phone: 'meta',
+      cell: (bill) => bill.billNo ?? '',
     },
     {
       key: 'status',
@@ -193,11 +204,9 @@ export default async function BillsPage({
       phone: 'meta',
       cell: (bill) =>
         bill.status === 'draft' ? (
-          <span className="rounded border border-[var(--color-line)] bg-[var(--color-canvas)] px-1.5 py-0.5 text-xs font-medium">
-            Draft
-          </span>
+          <Tag tone="active">Draft</Tag>
         ) : bill.needsDetail ? (
-          <span className="text-xs text-[var(--color-muted)]">Needs detail</span>
+          <Tag tone="warn">Needs Detail</Tag>
         ) : (
           ''
         ),
@@ -251,7 +260,7 @@ export default async function BillsPage({
           </LinkButton>
           <DownloadIcon
             href={`/${side}/bills/${bill.docNo ?? bill.id}/pdf`}
-            label={`Download ${copy.billSingular} ${bill.billNo}`}
+            label={`Download ${copy.billSingular} ${billHandle(bill)}`}
           />
         </div>
       ),
@@ -262,11 +271,6 @@ export default async function BillsPage({
     <>
       <PageTitle
         title={copy.billTitle}
-        subtitle={
-          copy.billNoIsOurs
-            ? 'Bills raised on customers, under the number written in the bill book.'
-            : 'Bills received from subcontractors, recorded under their own number.'
-        }
         action={
           <LinkButton href={`/${side}/bills/new`} icon="plus">
             New {copy.billSingular}
@@ -290,7 +294,7 @@ export default async function BillsPage({
           columns={columns}
           rows={bills}
           rowKey={(bill) => bill.id}
-          rowClassName="hover:bg-[var(--color-canvas)]"
+          rowClassName="hover:bg-surface-2"
           // On a phone the whole row opens the bill, so a thumb has the row to
           // aim at rather than the word Open inside it. The download stays a
           // control of its own beside it.
@@ -298,7 +302,7 @@ export default async function BillsPage({
           rowAction={(bill) => (
             <DownloadIcon
               href={`/${side}/bills/${bill.docNo ?? bill.id}/pdf`}
-              label={`Download ${copy.billSingular} ${bill.billNo}`}
+              label={`Download ${copy.billSingular} ${billHandle(bill)}`}
             />
           )}
           empty="No bills recorded for this filter"
@@ -322,7 +326,7 @@ export default async function BillsPage({
 
       {pages > 1 ? (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
-          <span className="text-[var(--color-muted)]">
+          <span className="text-ink-3">
             Showing {firstOnPage} to {lastOnPage} of {matched}
           </span>
           <div className="flex items-center gap-2">
@@ -331,7 +335,7 @@ export default async function BillsPage({
                 Previous
               </LinkButton>
             ) : null}
-            <span className="text-[var(--color-muted)]">
+            <span className="text-ink-3">
               Page {page} of {pages}
             </span>
             {page < pages ? (

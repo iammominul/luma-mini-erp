@@ -2,7 +2,13 @@ import Link from 'next/link';
 import { formatTaka } from '@/lib/format';
 import type { Column } from '@/components/DataTable';
 import { DataTable } from '@/components/DataTable';
-import { Card, CardHeader, LinkButton, PageTitle } from '@/components/ui';
+import {
+  Card,
+  CardHeader,
+  LinkButton,
+  PageTitle,
+  Tag,
+} from '@/components/ui';
 import { listParties } from '@/lib/queries';
 import { rolesLabel } from '@/lib/types';
 import { togglePartyActiveAction } from './actions';
@@ -14,7 +20,7 @@ const columns: Column<Party>[] = [
     key: 'code',
     head: 'Code',
     headClassName: 'w-24',
-    cellClassName: 'text-[var(--color-muted)]',
+    cellClassName: 'text-ink-3',
     phone: 'meta',
     cell: (party) => party.code ?? '',
   },
@@ -25,7 +31,7 @@ const columns: Column<Party>[] = [
     cell: (party) => (
       <Link
         href={`/parties/${party.code ?? party.id}`}
-        className="font-medium text-[var(--color-navy)] hover:underline"
+        className="font-medium link"
       >
         {party.name}
       </Link>
@@ -56,15 +62,9 @@ const columns: Column<Party>[] = [
     key: 'status',
     head: 'Status',
     cell: (party) => (
-      <span
-        className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
-          party.active
-            ? 'bg-green-50 text-green-700'
-            : 'bg-gray-100 text-[var(--color-muted)]'
-        }`}
-      >
+      <Tag tone={party.active ? 'neutral' : 'done'}>
         {party.active ? 'Active' : 'Inactive'}
-      </span>
+      </Tag>
     ),
   },
   {
@@ -78,13 +78,13 @@ const columns: Column<Party>[] = [
             anybody finds out. */}
         <Link
           href={`/parties/${party.code ?? party.id}`}
-          className="text-sm text-[var(--color-navy)] hover:underline"
+          className="text-sm link"
         >
           Edit
         </Link>
         <Link
-          href={`/${party.roles.customer ? 'customer' : 'subcontractor'}/statement/${party.code ?? party.id}`}
-          className="text-sm text-[var(--color-navy)] hover:underline"
+          href={`/${party.roles.customer ? 'customers' : party.roles.subcontractor ? 'subcontractors' : 'suppliers'}/statement/${party.code ?? party.id}`}
+          className="text-sm link"
         >
           Statement
         </Link>
@@ -92,7 +92,7 @@ const columns: Column<Party>[] = [
         <form action={togglePartyActiveAction}>
           <input type="hidden" name="id" value={party.id} />
           <input type="hidden" name="active" value={String(!party.active)} />
-          <button className="text-sm text-[var(--color-muted)] hover:underline">
+          <button className="text-sm text-ink-3 hover:underline">
             {party.active ? 'Deactivate' : 'Reactivate'}
           </button>
         </form>

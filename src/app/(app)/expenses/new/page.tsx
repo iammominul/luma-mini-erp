@@ -3,9 +3,11 @@ import { PageTitle } from '@/components/ui';
 import { todayInDhaka } from '@/lib/dates';
 import { createExpenseAction } from '../actions';
 import { requirePermission } from '@/lib/session';
+import { expenseOrderOptions } from '../order-options';
 
 export default async function NewExpensePage() {
   await requirePermission('expense:manage');
+  const orderOptions = await expenseOrderOptions();
   return (
     <>
       <PageTitle title="New Expense" subtitle="Issued on save." />
@@ -13,6 +15,7 @@ export default async function NewExpensePage() {
         action={createExpenseAction}
         submitLabel="Save Expense"
         cancelHref="/expenses"
+        orderOptions={orderOptions}
         values={{
           spentOn: todayInDhaka(),
           category: 'other',
@@ -22,6 +25,8 @@ export default async function NewExpensePage() {
           mode: 'cash',
           reference: '',
           orderNo: '',
+          salesOrderId: '',
+          orderLineId: '',
           notes: '',
         }}
       />

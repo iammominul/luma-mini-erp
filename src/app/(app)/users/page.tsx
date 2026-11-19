@@ -1,7 +1,13 @@
 import Link from 'next/link';
 import type { Column } from '@/components/DataTable';
 import { DataTable } from '@/components/DataTable';
-import { Card, LinkButton, Notice, PageTitle } from '@/components/ui';
+import {
+  Card,
+  LinkButton,
+  Notice,
+  PageTitle,
+  Tag,
+} from '@/components/ui';
 import { listUsers } from '@/lib/queries';
 import { roleDescription, roleLabel, ROLES } from '@/lib/permissions';
 import { requirePermission } from '@/lib/session';
@@ -21,7 +27,7 @@ function columnsFor(meId: string): Column<User>[] {
             {user.name}
           </Link>
           {user.id === meId ? (
-            <span className="ml-2 text-xs text-[var(--color-muted)]">You</span>
+            <span className="ml-2 text-xs text-ink-3">You</span>
           ) : null}
         </>
       ),
@@ -40,7 +46,12 @@ function columnsFor(meId: string): Column<User>[] {
     {
       key: 'status',
       head: 'Status',
-      cell: (user) => (user.status === 'disabled' ? 'Disabled' : 'Active'),
+      cell: (user) =>
+        user.status === 'disabled' ? (
+          <Tag tone="crit">Disabled</Tag>
+        ) : (
+          <Tag>Active</Tag>
+        ),
     },
     {
       key: 'lastSignedIn',
@@ -49,10 +60,10 @@ function columnsFor(meId: string): Column<User>[] {
       cell: (user) => (
         <>
           {user.lastSignedInAt ?? (
-            <span className="text-[var(--color-muted)]">Never</span>
+            <span className="text-ink-3">Never</span>
           )}
           {user.hasLiveSession ? (
-            <span className="block text-xs text-[var(--color-muted)]">
+            <span className="block text-xs text-ink-3">
               Signed in now
             </span>
           ) : null}
@@ -120,7 +131,7 @@ export default async function UsersPage() {
           rowKey={(user) => user.id}
           rowClassName={(user) =>
             user.status === 'disabled'
-              ? 'bg-gray-50 text-[var(--color-muted)]'
+              ? 'bg-surface-2 text-ink-3'
               : ''
           }
           empty="No users yet."
@@ -133,13 +144,13 @@ export default async function UsersPage() {
           {ROLES.map((role) => (
             <div key={role} className="flex gap-2">
               <dt className="w-24 shrink-0 font-medium">{roleLabel(role)}</dt>
-              <dd className="text-[var(--color-muted)]">
+              <dd className="text-ink-3">
                 {roleDescription(role)}
               </dd>
             </div>
           ))}
         </dl>
-        <p className="mt-3 text-xs text-[var(--color-muted)]">
+        <p className="mt-3 text-xs text-ink-3">
           A role is checked on the server for every action, not only hidden from
           the menu.
         </p>

@@ -96,7 +96,7 @@ export function GeneratePayrollForm({
         />
         <span>
           Recover Advances
-          <span className="block text-xs text-[var(--color-muted)]">
+          <span className="block text-xs text-ink-3">
             Fills each line with what that employee&rsquo;s advances are due to
             take back this month. Leave it off in a month advances are not
             collected, such as when the festival bonus is paid. Either way the

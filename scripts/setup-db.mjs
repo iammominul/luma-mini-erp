@@ -22,7 +22,7 @@
  *
  *   DATABASE_URL="postgresql://..." pnpm db:setup --i-know-this-is-remote
  */
-import { applySchema, loadEnvFile, isLocalUrl } from './apply-schema.mjs';
+import { applySchemaChecked, loadEnvFile, isLocalUrl } from './apply-schema.mjs';
 
 loadEnvFile('.env.local');
 
@@ -54,7 +54,7 @@ if (!isLocalUrl(url) && !process.argv.includes('--i-know-this-is-remote')) {
 }
 
 try {
-  const tables = await applySchema(url);
+  const tables = await applySchemaChecked(url);
   console.log(`Done. The database now has ${tables} tables.`);
 } catch (error) {
   console.error(`\n${error.message}`);

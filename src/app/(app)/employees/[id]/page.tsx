@@ -182,7 +182,7 @@ export default async function EmployeePage({
             })}
           </tbody>
         </Table>
-        <p className="border-t border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-muted)]">
+        <p className="border-t border-rule px-4 py-2 text-xs text-ink-3">
           Leave is paid and never reduces a salary. Unpaid absence is keyed on
           the payroll for the month.
         </p>
@@ -204,7 +204,7 @@ export default async function EmployeePage({
               <EmptyRow columns={4}>No payroll has been run yet.</EmptyRow>
             ) : (
               runs.map((run) => (
-                <tr key={run.id} className="hover:bg-gray-50">
+                <tr key={run.id} className="hover:bg-surface-2">
                   <Td className="whitespace-nowrap">
                     {periodLabel(run.period)}
                   </Td>
@@ -240,7 +240,7 @@ export default async function EmployeePage({
               <EmptyRow columns={6}>No advance taken.</EmptyRow>
             ) : (
               advances.map((advance) => (
-                <tr key={advance.id} className="hover:bg-gray-50">
+                <tr key={advance.id} className="hover:bg-surface-2">
                   <Td className="whitespace-nowrap font-medium">
                     {advance.docNo ?? ''}
                   </Td>

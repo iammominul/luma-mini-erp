@@ -4,7 +4,7 @@ import {
   moneyReceiptFileName,
 } from '@/lib/pdf/money-receipt-document';
 import { renderPdf } from '@/lib/pdf/render';
-import { getParty, getPayment } from '@/lib/queries';
+import { findPayment, getParty } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
 
 /** The Money Receipt or Payment Voucher as a real A4 PDF, downloaded. */
@@ -17,8 +17,8 @@ export async function GET(
   const { side, id } = await params;
   if (!isSide(side)) return new Response('Not found', { status: 404 });
 
-  const payment = await getPayment(id);
-  if (!payment || payment.direction !== copyFor(side).paymentDirection) {
+  const payment = await findPayment(id);
+  if (!payment || payment.partyRole !== copyFor(side).role) {
     return new Response('Not found', { status: 404 });
   }
 
@@ -32,7 +32,7 @@ export async function GET(
   return new Response(new Uint8Array(pdf), {
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${moneyReceiptFileName(payment, party, company())}"`,
+      'Content-Disposition': `attachment; filename="${moneyReceiptFileName(payment, party)}"`,
       'Content-Length': String(pdf.byteLength),
       'Cache-Control': 'no-store',
     },

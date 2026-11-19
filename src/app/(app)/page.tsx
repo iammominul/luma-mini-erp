@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { CategoryBarChart } from '@/components/charts/CategoryBarChart';
 import { GroupedMonthChart } from '@/components/charts/GroupedMonthChart';
+import { AgeingStrip } from '@/components/charts/AgeingStrip';
+import { RankedList } from '@/components/charts/RankedList';
+import { ShareDonut } from '@/components/charts/ShareDonut';
 import { DataTable } from '@/components/DataTable';
 import {
   Band,
@@ -8,20 +11,27 @@ import {
   Card,
   CardHeader,
   FigureRows,
+  LinkButton,
   PageTitle,
   type StatDelta,
   StatTile,
 } from '@/components/ui';
 import { marginPercent } from '@/lib/costing';
 import {
+  CHART_COLORS,
+  CHART_COMPARE_COLOR,
   DASHBOARD_RANGES,
   type DashboardRange,
   datum,
+  foldToShares,
   foldToTop,
   isDashboardRange,
+  monthBounds,
   monthsBetween,
   previousRange,
   rangeFor,
+  sharesInOrder,
+  type ShareDatum,
   shortMonth,
 } from '@/lib/dashboard';
 import { formatDate, todayInDhaka } from '@/lib/dates';
@@ -29,19 +39,63 @@ import { formatTaka } from '@/lib/format';
 import { Money } from '@/lib/money';
 import { statementFor } from '@/lib/profit';
 import {
+  attentionCounts,
   bookSpan,
   cashMovements,
   listPartyBalances,
+  listSalesOrders,
   monthlyMovement,
   monthlyTrading,
   receivableAgeing,
+  topCustomers,
 } from '@/lib/queries';
+import { StageTag } from '@/components/OrderTags';
 import { buildCashBook } from '@/lib/cashbook';
 import { buildCashFlow } from '@/lib/cashflow';
 import { can } from '@/lib/permissions';
 import { requireUser } from '@/lib/session';
 import { copyFor, type Side } from '@/lib/side';
 import { type PartyBalance } from '@/lib/types';
+
+/**
+ * The Needs Attention strip (2026-10-06): one line of counts under the tiles,
+ * each a link to the screen that settles it. Every count is a question the
+ * book can answer from documents already in it; nothing here is typed by
+ * anyone or stored. A count of nothing is left out, and when every count is
+ * nothing the strip says so in one quiet line rather than disappearing, so its
+ * absence is never mistaken for it having failed to load.
+ */
+function AttentionStrip({
+  items,
+}: {
+  items: { count: number; label: string; href: string; figure?: string }[];
+}) {
+  const live = items.filter((item) => item.count > 0);
+  if (live.length === 0) {
+    return (
+      <div className="mt-4 flex items-center gap-2 text-meta text-ink-3">
+        <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-good" />
+        Nothing needs attention.
+      </div>
+    );
+  }
+  return (
+    // A ruled line of plain links with a warn rule down its left edge, the
+    // way an accounts system flags a queue. Not a row of pill chips: chips
+    // with shadows are the generated-dashboard look.
+    <div className="card mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-l-[3px] border-l-warn px-4 py-2.5 text-body">
+      <span className="font-semibold text-warn">Needs Attention</span>
+      {live.map((item) => (
+        <Link key={item.href + item.label} href={item.href} className="link">
+          <span className="figure font-semibold">
+            {item.figure ?? item.count}
+          </span>{' '}
+          {item.label}
+        </Link>
+      ))}
+    </div>
+  );
+}
 
 function outstanding(balances: PartyBalance[]): PartyBalance[] {
   return balances
@@ -92,7 +146,7 @@ function SectionLink({ href }: { href: string }) {
   return (
     <Link
       href={href}
-      className="text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--color-navy)] hover:underline"
+      className="text-caption font-medium uppercase tracking-[0.06em] link"
     >
       Open Report
     </Link>
@@ -116,7 +170,7 @@ function OutstandingCard({
         action={
           <Link
             href={`/${side}`}
-            className="text-sm text-[var(--color-navy)] hover:underline"
+            className="text-sm link"
           >
             View All
           </Link>
@@ -131,7 +185,7 @@ function OutstandingCard({
             cell: (row) => (
               <Link
                 href={`/${side}/statement/${row.party.code ?? row.party.id}`}
-                className="text-[var(--color-navy)] hover:underline"
+                className="link"
               >
                 {row.party.name}
               </Link>
@@ -140,7 +194,7 @@ function OutstandingCard({
           {
             key: 'lastActivity',
             head: 'Last Entry',
-            cellClassName: 'text-[var(--color-muted)]',
+            cellClassName: 'text-ink-3',
             phone: 'meta',
             cell: (row) => formatDate(row.lastActivity) || 'No entries',
           },
@@ -184,7 +238,7 @@ function RangeFilter({
   custom: boolean;
 }) {
   const CONTROL =
-    'min-h-11 w-full rounded border border-[var(--color-rule)] bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:h-[26px] md:px-2 md:py-0 md:text-[12.5px]';
+    'min-h-11 w-full rounded border border-rule bg-white px-3 py-2.5 text-base sm:w-auto md:min-h-0 md:h-[26px] md:px-2 md:py-0 md:text-body';
 
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
@@ -193,10 +247,10 @@ function RangeFilter({
           <Link
             key={range.value}
             href={range.value === 'last12' ? '/' : `/?range=${range.value}`}
-            className={`inline-flex min-h-11 items-center rounded border px-3 text-sm md:h-[26px] md:min-h-0 md:px-2.5 md:text-[12px] ${
+            className={`inline-flex min-h-11 items-center rounded border px-3 text-sm md:h-[26px] md:min-h-0 md:px-2.5 md:text-meta ${
               !custom && range.value === active
-                ? 'border-[var(--color-navy)] bg-[var(--color-navy)] text-white'
-                : 'border-[var(--color-rule)] bg-white hover:bg-[var(--color-surface-2)]'
+                ? 'border-navy bg-navy text-white'
+                : 'border-rule bg-white hover:bg-surface-2'
             }`}
           >
             {range.label}
@@ -215,7 +269,7 @@ function RangeFilter({
             className={CONTROL}
           />
         </label>
-        <span className="hidden text-[12px] text-[var(--color-ink-3)] md:inline">
+        <span className="hidden text-meta text-ink-3 md:inline">
           to
         </span>
         <label className="block w-full sm:w-auto">
@@ -289,14 +343,19 @@ export default async function DashboardPage({
   const [
     customers,
     subcontractors,
+    suppliers,
     movement,
     ageing,
     result,
     priorResult,
     tradingByMonth,
+    attention,
+    pipeline,
+    top,
   ] = await Promise.all([
     listPartyBalances('customer'),
     listPartyBalances('subcontractor'),
+    listPartyBalances('supplier'),
     monthlyMovement('customer', from, to),
     receivableAgeing(today),
     // The statement is assembled in profit.ts and nowhere else, so this screen,
@@ -305,6 +364,9 @@ export default async function DashboardPage({
     statementFor(from, to),
     statementFor(before.from, before.to),
     monthlyTrading(from, to),
+    attentionCounts(today),
+    listSalesOrders({ status: 'open' }),
+    topCustomers(from, to),
   ]);
 
   // The cash position, and only for a role entitled to it. It is a balance as
@@ -329,7 +391,15 @@ export default async function DashboardPage({
   ];
 
   const receivable = total(customers);
-  const payable = total(subcontractors);
+  // Everyone LUMA pays, once each. A balance is the party's whole ledger
+  // whatever roles it holds, so a dye house that also sells yarn appears in
+  // both lists and adding the two would count it twice.
+  const payees = [
+    ...new Map(
+      [...subcontractors, ...suppliers].map((row) => [row.party.id, row]),
+    ).values(),
+  ];
+  const payable = total(payees);
 
   /**
    * The oldest of the receivable, as the composition line on that tile.
@@ -360,6 +430,12 @@ export default async function DashboardPage({
   // Every month in the range, so a quiet month is a gap rather than a column
   // the axis quietly leaves out.
   const months = monthsBetween(from, to);
+  // A click on a month opens the customer bills dated in it, held inside the
+  // range on screen, so the list is exactly what the bar counted.
+  const billsIn = (period: string) => {
+    const bounds = monthBounds(period, from, to);
+    return `/customers/bills?from=${bounds.from}&to=${bounds.to}`;
+  };
   const byPeriod = new Map(movement.map((row) => [row.period, row]));
   const movementPoints = months.map((period) => {
     const row = byPeriod.get(period);
@@ -367,6 +443,7 @@ export default async function DashboardPage({
     const settled = row?.settled ?? Money.ZERO;
     return {
       label: shortMonth(period),
+      href: billsIn(period),
       billed: datum(period, billed).value,
       billedDisplay: formatTaka(billed),
       settled: datum(period, settled).value,
@@ -388,6 +465,7 @@ export default async function DashboardPage({
     const margin = revenue.subtract(directCost);
     return {
       label: shortMonth(period),
+      href: billsIn(period),
       revenue: datum(period, revenue).value,
       revenueDisplay: formatTaka(revenue),
       directCost: datum(period, directCost).value,
@@ -400,11 +478,42 @@ export default async function DashboardPage({
   // Every cost in the period regardless of tier, the dyeing bought in included:
   // leaving any of it off would make the chart say the wrong thing about what
   // the period cost.
-  const costByCategory = foldToTop(
-    costs.map((line) => ({ label: line.label, amount: line.amount })),
+  const costRows = costs.map((line) => ({
+    label: line.label,
+    amount: line.amount,
+  }));
+  const expensesHref = `/reports/expenses?from=${from}&to=${to}`;
+  // A donut when every cost is a positive part of the whole, which is every
+  // ordinary period. A credit that takes a category below zero has no slice,
+  // and the bars, which can show it, stand in.
+  const costShares = foldToShares(costRows);
+  const costByCategory = foldToTop(costRows);
+
+  // The age of what is owed, youngest first, each with its share of the
+  // whole. The order is the meaning here, so it is never re-ranked by size.
+  const ageingShares = sharesInOrder(
+    ageing.map((row) => ({ label: row.bucket, amount: row.amount })),
   );
 
-  const ageingPoints = ageing.map((row) => datum(row.bucket, row.amount));
+  // Who the period's billing went to, with each share of everything billed.
+  const topRows: ShareDatum[] = top.customers.map((row) => ({
+    ...datum(row.name, row.billed),
+    share: marginPercent(row.billed, top.total) ?? '0.0%',
+    href: `/customers/bills?party=${row.partyId}&from=${from}&to=${to}`,
+  }));
+
+  // What came in against what was billed, over the range, for the headline
+  // over the collections chart. Added as Money from the same rows the chart
+  // draws, so the headline and the months under it cannot disagree.
+  const billedInRange = movement.reduce(
+    (sum, row) => sum.add(row.billed),
+    Money.ZERO,
+  );
+  const receivedInRange = movement.reduce(
+    (sum, row) => sum.add(row.settled),
+    Money.ZERO,
+  );
+  const collected = marginPercent(receivedInRange, billedInRange);
 
   return (
     <>
@@ -414,31 +523,56 @@ export default async function DashboardPage({
         controls={
           <RangeFilter active={range} from={from} to={to} custom={custom} />
         }
+        action={
+          can(user.role, 'bill:manage') ? (
+            <div className="flex flex-wrap gap-2">
+              <LinkButton href="/orders/new" icon="plus">
+                New Sales Order
+              </LinkButton>
+              <LinkButton
+                href="/customers/bills/new"
+                variant="secondary"
+                icon="plus"
+              >
+                New Customer Bill
+              </LinkButton>
+              {can(user.role, 'settlement:manage') ? (
+                <LinkButton
+                  href="/customers/settlements/new"
+                  variant="secondary"
+                  icon="plus"
+                >
+                  New Receipt
+                </LinkButton>
+              ) : null}
+            </div>
+          ) : undefined
+        }
       />
 
       {/* Four figures lead, and they are the four a person opens this screen
           for: what is owed to us, what we owe, what we are holding, and whether
-          the trading made anything. Everything else is a section under them
-          with its own heading and its own way through to the report that owns
-          it. Net Position is not up here: it is Receivable minus Payable, both
-          of which are already in the row, so a tile for it repeats two figures
-          the eye has just read. */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          the trading made anything. Each tile opens the screen that explains
+          it. */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
           label="Receivable"
+          href="/customers"
           value={formatTaka(receivable)}
           note={`${outstanding(customers).length} customers | ${ageingNote}`}
         />
         <StatTile
           label="Payable"
+          href="/subcontractors"
           value={formatTaka(payable)}
-          note={`${outstanding(subcontractors).length} subcontractors`}
+          note={`${outstanding(payees).length} ${outstanding(payees).length === 1 ? 'party' : 'parties'}`}
         />
         {mayReadFunds ? (
           <StatTile
             label="Cash and Bank"
+            href="/reports/cash-book"
             value={formatTaka(cashPosition)}
-            note="Cash and bank, as keyed"
+            note="As keyed in the cash book"
           />
         ) : (
           <StatTile
@@ -449,126 +583,299 @@ export default async function DashboardPage({
         )}
         <StatTile
           label={result.netResult.isNegative() ? 'Net Loss' : 'Net Result'}
+          href={`/reports?from=${from}&to=${to}`}
           value={formatTaka(result.netResult)}
           note={rangeLabel}
           delta={deltaOf(result.netResult, priorResult.netResult)}
         />
       </div>
 
-      <div className="mt-2">
-        <Band title="Trading" action={<SectionLink href="/reports" />}>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <FigureRows
-              rows={[
-                { label: 'Billed', value: formatTaka(result.revenue) },
-                {
-                  label: 'Cost of Sales',
-                  value: formatTaka(result.directCost),
-                },
-                {
-                  label: 'Gross Margin',
-                  value: formatTaka(result.grossMargin),
-                  note: result.grossMarginPercent ?? undefined,
-                },
-                {
-                  label: 'Operating Cost',
-                  value: formatTaka(
-                    result.sellingCost.add(result.operatingCost),
-                  ),
-                },
-                {
-                  label: result.netResult.isNegative()
-                    ? 'Net Loss'
-                    : 'Net Result',
-                  value: formatTaka(result.netResult),
-                  note: result.netResultPercent ?? undefined,
-                  strong: true,
-                },
-              ]}
-            />
+      <AttentionStrip
+        items={[
+          {
+            count: attention.draftBills,
+            label: `draft ${attention.draftBills === 1 ? 'bill' : 'bills'} not posted`,
+            href: '/customers/bills?status=draft',
+          },
+          {
+            count: attention.billsNeedingDetail,
+            label: `${attention.billsNeedingDetail === 1 ? 'bill' : 'bills'} missing detail`,
+            href: '/customers/bills?status=needs_detail',
+          },
+          {
+            count: overSixtyDays.isZero() ? 0 : 1,
+            figure: formatTaka(overSixtyDays),
+            label: 'receivable over 60 days',
+            href: '/customers',
+          },
+          {
+            count: attention.overdueWorkOrders,
+            label: `${attention.overdueWorkOrders === 1 ? 'work order' : 'work orders'} past delivery`,
+            href: '/work-orders?status=open',
+          },
+          {
+            count: attention.unbilledOrderLines,
+            label: `order ${attention.unbilledOrderLines === 1 ? 'line' : 'lines'} with work billed and nothing billed to the customer`,
+            href: '/orders?status=open',
+          },
+        ]}
+      />
+
+      <Band title="Trading" action={<SectionLink href="/reports" />}>
+        <div className="grid gap-4 xl:grid-cols-3">
+          <div className="xl:col-span-2">
             <GroupedMonthChart
               title="Margin by Month"
+              headline={formatTaka(result.grossMargin)}
+              headlineNote={
+                result.grossMarginPercent
+                  ? `gross margin, ${result.grossMarginPercent} of billing`
+                  : 'gross margin'
+              }
               series={[
                 { key: 'revenue', label: 'Billed Out' },
-                { key: 'directCost', label: 'Cost of Sales' },
-                { key: 'margin', label: 'Gross Margin' },
+                {
+                  key: 'directCost',
+                  label: 'Cost of Sales',
+                  color: CHART_COMPARE_COLOR,
+                },
+                {
+                  key: 'margin',
+                  label: 'Gross Margin',
+                  kind: 'line',
+                  color: CHART_COLORS[1],
+                },
               ]}
               points={marginPoints}
+              action="Click to open this month's bills"
             />
           </div>
-        </Band>
-
-        {mayReadFunds && flow ? (
-          <Band
-            title="Money Movement"
-            action={<SectionLink href="/reports/cash-flow" />}
-          >
-            <div className="grid gap-4 lg:grid-cols-2">
+          <Card className="flex flex-col">
+            <CardHeader title="Trading Summary" />
+            <div className="flex-1 px-5 py-3">
               <FigureRows
                 rows={[
+                  { label: 'Billed', value: formatTaka(result.revenue) },
                   {
-                    label: 'Opening',
-                    value: formatTaka(flow.opening),
-                    muted: true,
-                  },
-                  { label: 'Money In', value: formatTaka(flow.totalIn) },
-                  { label: 'Money Out', value: formatTaka(flow.totalOut) },
-                  {
-                    label: 'Net from Trading',
-                    value: formatTaka(flow.groups[0]!.net),
+                    label: 'Cost of Sales',
+                    value: formatTaka(result.directCost),
                   },
                   {
-                    label: 'Net from Funding',
-                    value: formatTaka(flow.groups[1]!.net),
+                    label: 'Gross Margin',
+                    value: formatTaka(result.grossMargin),
+                    note: result.grossMarginPercent ?? undefined,
                   },
                   {
-                    label: 'Closing',
-                    value: formatTaka(flow.closing),
+                    label: 'Operating Cost',
+                    value: formatTaka(
+                      result.sellingCost.add(result.operatingCost),
+                    ),
+                  },
+                  {
+                    label: result.netResult.isNegative()
+                      ? 'Net Loss'
+                      : 'Net Result',
+                    value: formatTaka(result.netResult),
+                    note: result.netResultPercent ?? undefined,
                     strong: true,
                   },
                 ]}
               />
-              <GroupedMonthChart
-                title="Billed and Received"
-                series={[
-                  { key: 'billed', label: 'Billed' },
-                  { key: 'settled', label: 'Received' },
-                ]}
-                points={movementPoints}
-              />
             </div>
-          </Band>
-        ) : null}
+          </Card>
+        </div>
+      </Band>
 
-        <Band
-          title="Cost by Category"
-          action={<SectionLink href="/reports/expenses" />}
-        >
-          <CategoryBarChart
-            title="Every Cost in the Period"
-            columnLabel="Category"
-            valueLabel="Amount"
-            points={costByCategory}
-          />
-        </Band>
-
-        <Band title="Outstanding">
-          <div className="mb-4">
-            <CategoryBarChart
-              title="Receivable Ageing"
-              columnLabel="Age"
-              valueLabel="Receivable"
-              points={ageingPoints}
-              singleColor
-              emptyMessage="Nothing outstanding"
+      <Band title="Collections" action={<SectionLink href="/customers/settlements" />}>
+        <div className="grid gap-4 xl:grid-cols-3">
+          <div className="xl:col-span-2">
+            <GroupedMonthChart
+              title="Billed and Received"
+              headline={formatTaka(receivedInRange)}
+              headlineNote={
+                collected
+                  ? `received, ${collected} of ${formatTaka(billedInRange)} billed`
+                  : 'received'
+              }
+              series={[
+                { key: 'billed', label: 'Billed', kind: 'area' },
+                {
+                  key: 'settled',
+                  label: 'Received',
+                  kind: 'area',
+                  color: CHART_COLORS[1],
+                },
+              ]}
+              points={movementPoints}
+              action="Click to open this month's bills"
             />
           </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            <OutstandingCard side="customers" balances={customers} />
-            <OutstandingCard side="subcontractors" balances={subcontractors} />
+          <RankedList
+            title="Top Customers"
+            headline={top.total.isZero() ? undefined : formatTaka(top.total)}
+            headlineNote="billed in the period"
+            rows={topRows}
+            emptyMessage="Nothing billed in this period"
+          />
+        </div>
+      </Band>
+
+      <Band
+        title="Costs"
+        action={<SectionLink href="/reports/expenses" />}
+      >
+        <div className="grid gap-4 xl:grid-cols-3">
+          <div className="xl:col-span-2">
+            {costShares ? (
+              <ShareDonut
+                title="Where the Money Went"
+                columnLabel="Category"
+                totalLabel="Total Cost"
+                totalDisplay={costShares.totalDisplay}
+                slices={costShares.slices.map((slice) => ({
+                  ...slice,
+                  href: expensesHref,
+                }))}
+              />
+            ) : (
+              <CategoryBarChart
+                title="Every Cost in the Period"
+                columnLabel="Category"
+                valueLabel="Amount"
+                points={costByCategory}
+              />
+            )}
           </div>
-        </Band>
-      </div>
+          <Card className="flex flex-col">
+            <CardHeader title="Cost by Tier" />
+            <div className="flex-1 px-5 py-3">
+              <FigureRows
+                rows={[
+                  {
+                    label: 'Cost of Sales',
+                    value: formatTaka(result.directCost),
+                  },
+                  {
+                    label: 'Selling Cost',
+                    value: formatTaka(result.sellingCost),
+                  },
+                  {
+                    label: 'Operating Cost',
+                    value: formatTaka(result.operatingCost),
+                  },
+                  {
+                    label: 'Total Cost',
+                    value: formatTaka(
+                      result.directCost
+                        .add(result.sellingCost)
+                        .add(result.operatingCost),
+                    ),
+                    strong: true,
+                  },
+                ]}
+              />
+            </div>
+          </Card>
+        </div>
+      </Band>
+
+      <Band title="Outstanding" action={<SectionLink href="/customers" />}>
+        <AgeingStrip
+          title="Receivable by Age"
+          headline={ageingShares?.totalDisplay}
+          headlineNote="in posted bills not yet received"
+          buckets={ageingShares?.slices ?? []}
+          href="/customers"
+        />
+        <div className="mt-4 grid gap-4 xl:grid-cols-3">
+          <OutstandingCard side="customers" balances={customers} />
+          <OutstandingCard side="subcontractors" balances={subcontractors} />
+          {suppliers.length > 0 ? (
+            <OutstandingCard side="suppliers" balances={suppliers} />
+          ) : null}
+        </div>
+      </Band>
+
+      <Band title="Orders" action={<SectionLink href="/orders" />}>
+        <div className="grid gap-4 xl:grid-cols-3">
+          <Card className={mayReadFunds && flow ? 'xl:col-span-2' : 'xl:col-span-3'}>
+            <CardHeader title="Order Pipeline" />
+            <DataTable
+              columns={[
+                {
+                  key: 'docNo',
+                  head: 'SO No',
+                  headClassName: 'w-28',
+                  phone: 'meta',
+                  cell: (order) => (
+                    <Link href={`/orders/${order.docNo}`} className="link font-medium">
+                      {order.docNo}
+                    </Link>
+                  ),
+                },
+                {
+                  key: 'party',
+                  head: 'Customer',
+                  phone: 'title',
+                  cell: (order) => order.partyName,
+                },
+                {
+                  key: 'booked',
+                  head: 'Booked',
+                  numeric: true,
+                  phone: 'amount',
+                  cell: (order) => formatTaka(order.bookedValue),
+                },
+                {
+                  key: 'stage',
+                  head: 'Stage',
+                  headClassName: 'w-28',
+                  phone: 'meta',
+                  cell: (order) => <StageTag stage={order.stage} />,
+                },
+              ]}
+              rows={pipeline.slice(0, 8)}
+              rowKey={(order) => order.id}
+              rowHref={(order) => `/orders/${order.docNo}`}
+              empty="No open orders"
+            />
+          </Card>
+          {mayReadFunds && flow ? (
+            <Card className="flex flex-col">
+              <CardHeader
+                title="Money Movement"
+                action={<SectionLink href="/reports/cash-flow" />}
+              />
+              <div className="flex-1 px-5 py-3">
+                <FigureRows
+                  rows={[
+                    {
+                      label: 'Opening',
+                      value: formatTaka(flow.opening),
+                      muted: true,
+                    },
+                    { label: 'Money In', value: formatTaka(flow.totalIn) },
+                    { label: 'Money Out', value: formatTaka(flow.totalOut) },
+                    {
+                      label: 'Net from Trading',
+                      value: formatTaka(flow.groups[0]!.net),
+                    },
+                    {
+                      label: 'Net from Funding',
+                      value: formatTaka(flow.groups[1]!.net),
+                    },
+                    {
+                      label: 'Closing',
+                      value: formatTaka(flow.closing),
+                      strong: true,
+                    },
+                  ]}
+                />
+              </div>
+            </Card>
+          ) : null}
+        </div>
+      </Band>
     </>
   );
 }

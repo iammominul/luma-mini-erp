@@ -1,3 +1,4 @@
+import { marginPercent } from './costing';
 import { Money } from './money';
 import { formatTaka } from './format';
 
@@ -28,6 +29,8 @@ export type ChartDatum = {
   value: number;
   /** The figure, formatted. This is what a reader sees, everywhere. */
   display: string;
+  /** Where a click on this mark goes: the documents the figure is made of. */
+  href?: string;
 };
 
 /** A datum from a Money, with the number kept for geometry alone. */
@@ -45,6 +48,12 @@ export type ChartSeries = {
   label: string;
   /** A --color-chart-* token name, assigned in fixed order, never cycled. */
   color: string;
+  /**
+   * How the series is drawn. A bar for an amount in a month; a line for the
+   * one series read as a trend across the months, such as a margin drawn over
+   * the billing and cost it is the difference of. Both on the one axis.
+   */
+  kind?: 'bar' | 'line' | 'area';
 };
 
 export const CHART_COLORS = [
@@ -55,6 +64,23 @@ export const CHART_COLORS = [
 ] as const;
 
 export const CHART_OTHER_COLOR = 'var(--color-chart-other)';
+
+/**
+ * The comparison tone: a lighter step of the first hue, for the series a chart
+ * sets the main one against (cost beside billing). Same hue family, apart in
+ * lightness, so the pair reads as "this, against that" rather than as two
+ * unrelated things. Validated as a trio with chart-1 and chart-2.
+ */
+export const CHART_COMPARE_COLOR = 'var(--color-chart-compare)';
+
+/** The one-hue ramp, light to dark, for a measure with an order. */
+export const CHART_SEQUENCE = [
+  'var(--color-seq-1)',
+  'var(--color-seq-2)',
+  'var(--color-seq-3)',
+  'var(--color-seq-4)',
+  'var(--color-seq-5)',
+] as const;
 
 /**
  * Keeps the largest few and adds the rest up as Other.
@@ -70,19 +96,102 @@ export function foldToTop(
   rows: { label: string; amount: Money }[],
   keep = 4,
 ): ChartDatum[] {
+  return foldAmounts(rows, keep).map((r) => datum(r.label, r.amount));
+}
+
+function foldAmounts(
+  rows: { label: string; amount: Money }[],
+  keep: number,
+): { label: string; amount: Money }[] {
   const ranked = [...rows]
     .filter((row) => !row.amount.isZero())
     .sort((a, b) => b.amount.compare(a.amount));
 
-  if (ranked.length <= keep) return ranked.map((r) => datum(r.label, r.amount));
+  if (ranked.length <= keep) return ranked;
 
   const rest = ranked
     .slice(keep)
     .reduce((total, row) => total.add(row.amount), Money.ZERO);
   return [
-    ...ranked.slice(0, keep).map((r) => datum(r.label, r.amount)),
-    datum(`Other (${ranked.length - keep})`, rest),
+    ...ranked.slice(0, keep),
+    { label: `Other (${ranked.length - keep})`, amount: rest },
   ];
+}
+
+/** A slice of a whole: the datum, and its share of the whole, as text. */
+export type ShareDatum = ChartDatum & { share: string };
+
+/**
+ * The parts of a whole, folded to the top few, each with its share of the
+ * total, for a donut.
+ *
+ * A donut answers one question, how the whole divides, and only holds up when
+ * every part is a positive piece of it. A negative row has no slice to draw, so
+ * a set carrying one comes back as null and the caller draws bars instead,
+ * which can show a figure below zero honestly.
+ *
+ * The total and every share are worked out as Money, through marginPercent,
+ * which rounds at the tenth with no float in the path. The shares are printed
+ * as given and are never added up on screen, so a set whose rounded shares sum
+ * to 99.9% is not a fault: each one is the nearest tenth of its own part.
+ */
+export function foldToShares(
+  rows: { label: string; amount: Money }[],
+  keep = 4,
+): { total: Money; totalDisplay: string; slices: ShareDatum[] } | null {
+  if (rows.some((row) => row.amount.isNegative())) return null;
+  const folded = foldAmounts(rows, keep);
+  const total = folded.reduce((sum, row) => sum.add(row.amount), Money.ZERO);
+  if (total.isZero()) return null;
+  return {
+    total,
+    totalDisplay: formatTaka(total),
+    slices: folded.map((row) => ({
+      ...datum(row.label, row.amount),
+      share: marginPercent(row.amount, total) ?? '0.0%',
+    })),
+  };
+}
+
+/**
+ * The parts of a whole in the order given, each with its share, for a measure
+ * whose order means something: the age buckets of a receivable read youngest
+ * to oldest and must not be re-ranked by size. Nothing is folded, because an
+ * ordered set is short by nature. Null when there is nothing to divide or a
+ * part is negative, as for `foldToShares`.
+ */
+export function sharesInOrder(
+  rows: { label: string; amount: Money }[],
+): { total: Money; totalDisplay: string; slices: ShareDatum[] } | null {
+  if (rows.some((row) => row.amount.isNegative())) return null;
+  const total = rows.reduce((sum, row) => sum.add(row.amount), Money.ZERO);
+  if (total.isZero()) return null;
+  return {
+    total,
+    totalDisplay: formatTaka(total),
+    slices: rows.map((row) => ({
+      ...datum(row.label, row.amount),
+      share: marginPercent(row.amount, total) ?? '0.0%',
+    })),
+  };
+}
+
+/**
+ * The first and last day of one month, held inside the range on screen, so a
+ * click on a month's bar opens the bills behind that bar and no others. The
+ * first and last months of a custom range are partial, and opening them whole
+ * would list bills the bar never counted.
+ */
+export function monthBounds(
+  period: string,
+  from: string,
+  to: string,
+): { from: string; to: string } {
+  const [year, month] = period.split('-').map(Number);
+  if (!year || !month) return { from, to };
+  const start = `${period}-01`;
+  const end = lastDayOf(year, month);
+  return { from: start < from ? from : start, to: end > to ? to : end };
 }
 
 /** The periods the dashboard filter offers. */

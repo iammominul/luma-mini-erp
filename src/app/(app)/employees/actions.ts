@@ -11,6 +11,7 @@ import {
 } from '@/lib/mutations';
 import { employeeFormSchema, firstError } from '@/lib/schemas';
 import { ForbiddenError, actingUser, actorOf } from '@/lib/session';
+import { flash } from '@/lib/flash';
 
 export type EmployeeFormState = { error?: string };
 
@@ -63,6 +64,7 @@ export async function createEmployeeAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Employee added.');
   redirect('/employees');
 }
 
@@ -85,6 +87,7 @@ export async function updateEmployeeAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Employee saved.');
   redirect('/employees');
 }
 
@@ -111,5 +114,6 @@ export async function setEmployeeActiveAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Employee status changed.');
   redirect('/employees');
 }

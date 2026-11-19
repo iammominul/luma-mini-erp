@@ -30,7 +30,7 @@ type Editable = Omit<
 >;
 
 const CELL =
-  'w-full border border-[var(--color-line)] bg-white px-1.5 py-1 text-right text-sm';
+  'w-full border border-rule bg-white px-1.5 py-1 text-right text-sm';
 
 /**
  * One keyed figure on a phone, with its label above rather than in a heading
@@ -57,10 +57,10 @@ function PhoneCell({
         onChange={(event) => onChange(event.target.value)}
         inputMode="decimal"
         readOnly={readOnly}
-        className="min-h-11 w-full rounded border border-[var(--color-line)] bg-white px-3 py-2.5 text-right text-base"
+        className="min-h-11 w-full rounded border border-rule bg-white px-3 py-2.5 text-right text-base"
       />
       {note ? (
-        <span className="mt-0.5 block text-xs text-[var(--color-muted)]">
+        <span className="mt-0.5 block text-xs text-ink-3">
           {note}
         </span>
       ) : null}
@@ -224,10 +224,10 @@ export function PayrollGrid({
               const row = rows[line.id]!;
               const figures = figuresFor(line);
               return (
-                <tr key={line.id} className="hover:bg-gray-50">
+                <tr key={line.id} className="hover:bg-surface-2">
                   <Td>
                     <div className="font-medium">{line.employeeName}</div>
-                    <div className="text-xs text-[var(--color-muted)]">
+                    <div className="text-xs text-ink-3">
                       {[line.employeeCode, line.designation]
                         .filter(Boolean)
                         .join(' - ')}
@@ -247,7 +247,7 @@ export function PayrollGrid({
                     />
                   </Td>
 
-                  <Td numeric className="text-[var(--color-muted)]">
+                  <Td numeric className="text-ink-3">
                     {figures && !figures.absence.isZero()
                       ? formatTaka(figures.absence)
                       : ''}
@@ -287,7 +287,7 @@ export function PayrollGrid({
                       title={`Outstanding advance: ${line.advanceOutstanding}`}
                     />
                     {line.advanceOutstanding !== '0.00' ? (
-                      <div className="mt-0.5 text-[10px] text-[var(--color-muted)]">
+                      <div className="mt-0.5 text-caption text-ink-3">
                         owes {line.advanceOutstanding}
                       </div>
                     ) : null}
@@ -317,7 +317,7 @@ export function PayrollGrid({
 
                   <Td
                     numeric
-                    className={`font-semibold ${figures?.negative ? 'text-red-700' : ''}`}
+                    className={`font-semibold ${figures?.negative ? 'text-crit' : ''}`}
                   >
                     {figures ? formatTaka(figures.net) : ''}
                   </Td>
@@ -346,21 +346,21 @@ export function PayrollGrid({
 
         {/* One employee at a time on a phone. Ten columns of money side by side
             is how a figure lands against the wrong person. */}
-        <div className="divide-y divide-[var(--color-line)] md:hidden">
+        <div className="divide-y divide-rule md:hidden">
           {lines.map((line) => {
             const row = rows[line.id]!;
             const figures = figuresFor(line);
             return (
               <div key={line.id} className="p-3">
                 <div className="font-medium">{line.employeeName}</div>
-                <div className="text-xs text-[var(--color-muted)]">
+                <div className="text-xs text-ink-3">
                   {[line.employeeCode, line.designation]
                     .filter(Boolean)
                     .join(' - ')}
                 </div>
 
                 <div className="mt-2 flex items-baseline justify-between text-sm">
-                  <span className="text-[var(--color-muted)]">Gross</span>
+                  <span className="text-ink-3">Gross</span>
                   <span className="whitespace-nowrap font-medium">
                     {formatTaka(Money.fromDecimal(line.gross))}
                   </span>
@@ -413,15 +413,15 @@ export function PayrollGrid({
                       }
                       maxLength={300}
                       readOnly={readOnly}
-                      className="min-h-11 w-full rounded border border-[var(--color-line)] bg-white px-3 py-2.5 text-base"
+                      className="min-h-11 w-full rounded border border-rule bg-white px-3 py-2.5 text-base"
                     />
                   </div>
                 </div>
 
-                <div className="mt-3 border-t border-[var(--color-line)] pt-2">
+                <div className="mt-3 border-t border-rule pt-2">
                   {figures && !figures.absence.isZero() ? (
                     <div className="flex items-baseline justify-between text-sm">
-                      <span className="text-[var(--color-muted)]">
+                      <span className="text-ink-3">
                         Absence Deduction
                       </span>
                       <span className="whitespace-nowrap">
@@ -432,8 +432,8 @@ export function PayrollGrid({
                   <div className="flex items-baseline justify-between">
                     <span className="text-sm font-medium">Net Payable</span>
                     <span
-                      className={`whitespace-nowrap text-base font-semibold ${
-                        figures?.negative ? 'text-red-700' : ''
+                      className={`whitespace-nowrap text-title font-semibold ${
+                        figures?.negative ? 'text-crit' : ''
                       }`}
                     >
                       {figures ? formatTaka(figures.net) : ''}
@@ -444,7 +444,7 @@ export function PayrollGrid({
             );
           })}
 
-          <div className="bg-[var(--color-canvas)] px-3 py-3 text-sm font-semibold">
+          <div className="bg-surface-2 px-3 py-3 text-sm font-semibold">
             <div className="flex items-baseline justify-between">
               <span>Total Gross</span>
               <span className="whitespace-nowrap">

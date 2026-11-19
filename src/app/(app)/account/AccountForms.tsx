@@ -59,9 +59,9 @@ export function AccountForms({
       <Card className="p-4 text-sm">
         <p>
           Your role is <span className="font-medium">{role}</span>.{' '}
-          <span className="text-[var(--color-muted)]">{roleNote}</span>
+          <span className="text-ink-3">{roleNote}</span>
         </p>
-        <p className="mt-1 text-[var(--color-muted)]">
+        <p className="mt-1 text-ink-3">
           A role is changed by an Owner, never by the person holding it. Last
           signed in: {lastSignedInAt ?? 'not recorded'}.
         </p>
@@ -161,7 +161,7 @@ function SignOutOthers() {
 
   return (
     <form action={action} className="space-y-3">
-      <p className="text-sm text-[var(--color-muted)]">
+      <p className="text-sm text-ink-3">
         Signs out every other browser and device this account is open in. This
         one stays signed in. Use it after working on a shared machine.
       </p>

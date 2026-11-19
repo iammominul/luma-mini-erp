@@ -50,9 +50,9 @@ export default async function CashFlowPage({
       </div>
 
       <Card className="max-w-3xl">
-        <table className="w-full border-collapse text-sm md:text-[12.5px]">
+        <table className="w-full border-collapse text-sm md:text-body">
           <tbody>
-            <tr className="border-b border-[var(--color-rule)]">
+            <tr className="border-b border-rule">
               <td className="px-4 py-2 font-medium">Opening Cash and Bank</td>
               <td className="numeric px-4 py-2 text-right font-medium">
                 {formatTaka(flow.opening)}
@@ -64,7 +64,7 @@ export default async function CashFlowPage({
                 <tr>
                   <td
                     colSpan={2}
-                    className="px-4 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-[0.09em] text-[var(--color-ink-3)]"
+                    className="px-4 pb-1 pt-4 eyebrow"
                   >
                     {group.label}
                   </td>
@@ -74,7 +74,7 @@ export default async function CashFlowPage({
                   <tr>
                     <td
                       colSpan={2}
-                      className="px-4 py-2 text-[var(--color-ink-3)]"
+                      className="px-4 py-2 text-ink-3"
                     >
                       Nothing in this range
                     </td>
@@ -83,7 +83,7 @@ export default async function CashFlowPage({
                   group.lines.map((line) => (
                     <tr
                       key={line.source}
-                      className="border-b border-[var(--color-rule-soft)]"
+                      className="border-b border-rule-soft"
                     >
                       <td className="px-4 py-1.5">
                         <Link
@@ -102,7 +102,7 @@ export default async function CashFlowPage({
                   ))
                 )}
 
-                <tr className="border-b border-[var(--color-rule)]">
+                <tr className="border-b border-rule">
                   <td className="px-4 py-1.5 font-medium">
                     Net from {group.label}
                   </td>
@@ -113,7 +113,7 @@ export default async function CashFlowPage({
               </Fragment>
             ))}
 
-            <tr className="border-b border-[var(--color-rule)]">
+            <tr className="border-b border-rule">
               <td className="px-4 py-2 font-medium">Net Movement</td>
               <td className="numeric px-4 py-2 text-right font-medium">
                 {formatTaka(flow.netMovement)}
@@ -128,7 +128,7 @@ export default async function CashFlowPage({
           </tbody>
         </table>
 
-        <p className="border-t border-[var(--color-rule-soft)] px-4 py-2 text-[11px] text-[var(--color-ink-3)]">
+        <p className="border-t border-rule-soft px-4 py-2 text-caption text-ink-3">
           Figures in brackets are money out. A transfer between cash and the
           bank is not a flow and is not counted. Cash Book has the rows.
         </p>

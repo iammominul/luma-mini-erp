@@ -143,7 +143,7 @@ export function DataTable<T>({
           sticky ? 'max-h-[70vh] overflow-auto' : 'overflow-x-auto'
         }`}
       >
-        <table className="w-full border-collapse text-[12.5px]">
+        <table className="w-full border-collapse text-body">
           <thead>
             <tr>
               {tableColumns.map((column) => (
@@ -156,7 +156,7 @@ export function DataTable<T>({
                   {column.sortHref ? (
                     <Link
                       href={column.sortHref}
-                      className="inline-flex items-center gap-1 uppercase tracking-wide hover:text-[var(--color-navy)]"
+                      className="inline-flex items-center gap-1 uppercase tracking-wide hover:text-navy"
                     >
                       {column.head}
                       {/* The mark is drawn on every sortable heading and only
@@ -166,7 +166,7 @@ export function DataTable<T>({
                         aria-hidden="true"
                         className={
                           column.sorted && column.sorted !== 'none'
-                            ? 'text-[var(--color-navy)]'
+                            ? 'text-navy'
                             : 'text-transparent'
                         }
                       >
@@ -203,7 +203,7 @@ export function DataTable<T>({
             <tfoot>
               {/* A total is closed off from the rows above it with the strong
                   rule, not the soft one that separates two ordinary rows. */}
-              <tr className="border-t border-[var(--color-rule)] bg-[var(--color-surface-3)] font-semibold">
+              <tr className="border-t border-rule bg-surface-3 font-semibold">
                 {firstTotal > 0 ? (
                   <Td colSpan={firstTotal}>{total.label}</Td>
                 ) : null}
@@ -224,8 +224,8 @@ export function DataTable<T>({
             here, so a register that can be sorted says so in a row of its own.
             These are the same links, so the URL still carries the order. */}
         {sortable.length > 0 && rows.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-2 border-b border-[var(--color-line)] bg-[var(--color-canvas)] px-3 py-2">
-            <span className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
+          <div className="flex flex-wrap items-center gap-2 border-b border-rule bg-surface-2 px-3 py-2">
+            <span className="eyebrow">
               Sort
             </span>
             {sortable.map((column) => {
@@ -237,8 +237,8 @@ export function DataTable<T>({
                   aria-label={`Sort by ${column.head}`}
                   className={`inline-flex min-h-8 items-center gap-1 rounded border px-2.5 py-1 text-xs font-medium ${
                     on
-                      ? 'border-[var(--color-navy)] bg-white text-[var(--color-navy)]'
-                      : 'border-[var(--color-line)] bg-white text-[var(--color-muted)]'
+                      ? 'border-navy bg-white text-navy'
+                      : 'border-rule bg-white text-ink-3'
                   }`}
                 >
                   {column.head}
@@ -254,11 +254,11 @@ export function DataTable<T>({
         ) : null}
 
         {rows.length === 0 ? (
-          <p className="px-3 py-6 text-center text-sm text-[var(--color-muted)]">
+          <p className="px-3 py-6 text-center text-sm text-ink-3">
             {empty}
           </p>
         ) : (
-          <ul className="divide-y divide-[var(--color-line)]">
+          <ul className="divide-y divide-rule">
             {rows.map((row, index) => {
               const body = (
                 <>
@@ -292,7 +292,7 @@ export function DataTable<T>({
                   ) : null}
 
                   {metas.length > 0 ? (
-                    <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-xs text-[var(--color-muted)]">
+                    <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 text-xs text-ink-3">
                       {metas.map((column) => {
                         // A meta that has nothing to say says nothing. Status
                         // is empty on a bill that is posted and complete, and
@@ -332,7 +332,7 @@ export function DataTable<T>({
                   {rowHref ? (
                     <Link
                       href={rowHref(row)}
-                      className="min-w-0 flex-1 px-3 py-3 active:bg-[var(--color-canvas)]"
+                      className="min-w-0 flex-1 px-3 py-3 active:bg-surface-2"
                     >
                       {body}
                     </Link>
@@ -351,8 +351,8 @@ export function DataTable<T>({
         )}
 
         {total && rows.length > 0 ? (
-          <div className="border-t border-[var(--color-line)] bg-[var(--color-canvas)] px-3 py-3">
-            <div className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">
+          <div className="border-t border-rule bg-surface-2 px-3 py-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-ink-3">
               {total.label}
             </div>
             <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2">
@@ -360,7 +360,7 @@ export function DataTable<T>({
                 .filter((column) => column.key in total.cells)
                 .map((column) => (
                   <div key={column.key} className="min-w-0">
-                    <dt className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
+                    <dt className="eyebrow">
                       {column.head}
                     </dt>
                     <dd className="figure mt-0.5 whitespace-nowrap text-sm font-medium">
@@ -393,7 +393,7 @@ function Pair<T>({
   return (
     <div className={`min-w-0 ${full ? 'col-span-2' : ''}`}>
       {column.head ? (
-        <dt className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
+        <dt className="eyebrow">
           {column.head}
         </dt>
       ) : null}

@@ -98,6 +98,7 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
       {
         partyId: customerId,
         direction: 'issued',
+        partyRole: 'customer',
         status: 'posted' as const,
         billNo: '889',
         natureOfWork: 'dyeing_finishing',
@@ -112,6 +113,8 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
             challanNo: '1042',
             orderNo: '75-T',
             lotNo: null,
+            orderLineId: null,
+            sourceLineId: null,
             greyKg: '1250.5',
             finishedKg: '1201.25',
             rate: '45.5',
@@ -122,6 +125,8 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
             challanNo: '1043',
             orderNo: '75-T',
             lotNo: null,
+            orderLineId: null,
+            sourceLineId: null,
             greyKg: '880',
             finishedKg: null,
             rate: '52.25',
@@ -153,6 +158,7 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
       {
         partyId: customerId,
         direction: 'issued',
+        partyRole: 'customer',
         status: 'posted' as const,
         billNo: '890',
         natureOfWork: 'dyeing_finishing',
@@ -167,6 +173,8 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
             challanNo: '1050',
             orderNo: '76-T',
             lotNo: null,
+            orderLineId: null,
+            sourceLineId: null,
             greyKg: '500',
             finishedKg: null,
             rate: '60',
@@ -181,6 +189,7 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
       {
         partyId: customerId,
         direction: 'in' as const,
+        partyRole: 'customer' as const,
         reference: 'MR 5501',
         paidOn: '2026-07-20',
         amount: '100000.00',
@@ -208,17 +217,20 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
     expect(statement.closing.toDecimalString()).toBe('82877.75');
     expect(statement.closing.equals(balances[0]!.balance)).toBe(true);
 
-    // The ledger quotes the hand-written bill number and names the order and
-    // challan the bill covered, which is how a party recognizes the row.
+    // The ledger quotes the number printed on the bill, which is the system's
+    // since 2026-10-06, with the paper book's number beside it so a party
+    // still holding the paper can match the row.
     const billRow = statement.rows.find((row) => row.kind === 'bill');
-    expect(billRow!.reference).toBe('Bill No. 889');
+    expect(billRow!.reference).toBe('CB-26-0001 / 889');
     // The challan and order belong to the bill; the ledger row says what the
     // work was and leaves the column room to breathe.
     expect(billRow!.particulars).toBe('Dyeing & Finishing Bill');
     expect(billRow!.debit!.toDecimalString()).toBe('102877.75');
 
+    // A receipt quotes its MR number, issued on save, with the paper receipt
+    // book's serial beside it.
     const receiptRow = statement.rows.find((row) => row.kind === 'payment');
-    expect(receiptRow!.reference).toBe('MR 5501');
+    expect(receiptRow!.reference).toBe('MR-26-0001 / MR 5501');
     // What it is, how the money moved, then whatever was noted about it.
     expect(receiptRow!.particulars).toBe('Payment Received / Cheque');
     expect(receiptRow!.credit!.toDecimalString()).toBe('100000.00');
@@ -239,6 +251,7 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
       {
         partyId: customerId,
         direction: 'issued',
+        partyRole: 'customer',
         status: 'posted' as const,
         billNo: '890',
         natureOfWork: 'dyeing_finishing',
@@ -253,6 +266,8 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
             challanNo: '1050',
             orderNo: '76-T',
             lotNo: null,
+            orderLineId: null,
+            sourceLineId: null,
             greyKg: '520',
             finishedKg: '505.5',
             rate: '60',
@@ -305,6 +320,7 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
       {
         partyId: subId,
         direction: 'received',
+        partyRole: 'subcontractor',
         status: 'posted' as const,
         billNo: 'RD-889',
         natureOfWork: 'dyeing_finishing',
@@ -319,6 +335,8 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
             challanNo: '1042',
             orderNo: '75-T',
             lotNo: null,
+            orderLineId: null,
+            sourceLineId: null,
             greyKg: '1250.5',
             finishedKg: '1201.25',
             rate: '28',
@@ -328,16 +346,53 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
       TEST_ACTOR,
     );
 
-    // Their paper number is the bill's identity, and no system number is issued.
+    // Their paper number is how they know the bill, and the book gives it a BR
+    // number of its own beside it (2026-10-06), which is its address here.
     const bill = await getBill(billId);
     expect(bill!.billNo).toBe('RD-889');
-    expect(bill!.docNo).toBeNull();
+    expect(bill!.docNo).toBe('BR-26-0001');
+    expect(bill!.partyRole).toBe('subcontractor');
+
+    // On a bill received the party's number is required: it is the only thing
+    // on their paper that names the bill.
+    await expect(
+      createBill(
+        {
+          partyId: subId,
+          direction: 'received',
+          partyRole: 'subcontractor',
+          status: 'posted' as const,
+          billNo: null,
+          natureOfWork: 'dyeing_finishing',
+          billDate: '2026-07-07',
+          narration: null,
+          notes: null,
+          reason: null,
+          lines: [
+            {
+              description: 'No number',
+              color: null,
+              challanNo: null,
+              orderNo: null,
+              lotNo: null,
+              orderLineId: null,
+              sourceLineId: null,
+              greyKg: '10',
+              finishedKg: null,
+              rate: '10',
+            },
+          ],
+        },
+        TEST_ACTOR,
+      ),
+    ).rejects.toThrow(/bill number/i);
 
     await expect(
       createBill(
         {
           partyId: subId,
           direction: 'received',
+          partyRole: 'subcontractor',
           status: 'posted' as const,
           billNo: 'RD-889',
           natureOfWork: 'dyeing_finishing',
@@ -352,6 +407,8 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
               challanNo: null,
               orderNo: null,
               lotNo: null,
+              orderLineId: null,
+              sourceLineId: null,
               greyKg: '10',
               finishedKg: null,
               rate: '10',
@@ -387,6 +444,7 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
         {
           partyId: otherId,
           direction: 'received',
+          partyRole: 'subcontractor',
           status: 'posted' as const,
           billNo: 'RD-889',
           natureOfWork: 'dyeing_finishing',
@@ -401,6 +459,8 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
               challanNo: null,
               orderNo: null,
               lotNo: null,
+              orderLineId: null,
+              sourceLineId: null,
               greyKg: '10',
               finishedKg: null,
               rate: '10',
@@ -437,6 +497,8 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
       challanNo: null,
       orderNo: null,
       lotNo: null,
+      orderLineId: null,
+      sourceLineId: null,
       greyKg: '100',
       finishedKg: null,
       rate: '50',
@@ -451,6 +513,7 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
       {
         partyId,
         direction: 'issued',
+        partyRole: 'customer',
         status: 'draft',
         billNo: 'D-1',
         natureOfWork: 'dyeing_finishing',
@@ -509,6 +572,8 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
       challanNo: null,
       orderNo: null,
       lotNo: null,
+      orderLineId: null,
+      sourceLineId: null,
       greyKg: '100',
       finishedKg: null,
       rate: '50',
@@ -545,6 +610,7 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
       {
         partyId: first,
         direction: 'issued',
+        partyRole: 'customer',
         status: 'posted' as const,
         billNo: '1201',
         natureOfWork: 'dyeing_finishing',
@@ -566,6 +632,7 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
         {
           partyId: second,
           direction: 'issued',
+          partyRole: 'customer',
           status: 'posted' as const,
           billNo: '1201',
           natureOfWork: 'dyeing_finishing',
@@ -585,6 +652,7 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
         {
           partyId: second,
           direction: 'issued',
+          partyRole: 'customer',
           status: 'posted' as const,
           billNo: '1202',
           natureOfWork: 'dyeing_finishing',
@@ -706,6 +774,7 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
       {
         partyId,
         direction: 'issued',
+        partyRole: 'customer',
         status: 'posted',
         billNo: 'HANDLE-1',
         natureOfWork: 'dyeing_finishing',
@@ -720,6 +789,8 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
             challanNo: null,
             orderNo: null,
             lotNo: null,
+            orderLineId: null,
+            sourceLineId: null,
             greyKg: '10',
             finishedKg: null,
             rate: '10',
@@ -779,6 +850,7 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
         {
           partyId,
           direction: 'issued',
+          partyRole: 'customer',
           status: 'posted',
           billNo,
           natureOfWork: 'dyeing_finishing',
@@ -793,6 +865,8 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
               challanNo: null,
               orderNo: null,
               lotNo: null,
+              orderLineId: null,
+              sourceLineId: null,
               greyKg: '100',
               finishedKg: null,
               rate: '50',
@@ -817,16 +891,18 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
       '85',
     ]);
 
-    // A bill number sorts as a number. Ordered as text, 195 would lead.
+    // Bill No is the system number (2026-10-06), so ordering on it follows
+    // the order the bills were saved in, whatever the paper said: 195 was
+    // saved first and took the first serial.
     expect(await numbers({ ...mine, sort: 'billNo', dir: 'desc' })).toEqual([
-      '195',
       '85',
       '7',
+      '195',
     ]);
     expect(await numbers({ ...mine, sort: 'billNo', dir: 'asc' })).toEqual([
+      '195',
       '7',
       '85',
-      '195',
     ]);
   }, 60_000);
 
@@ -855,6 +931,7 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
       {
         partyId,
         direction: 'issued',
+        partyRole: 'customer',
         status: 'posted',
         billNo: 'RATE-1',
         natureOfWork: 'dyeing_finishing',
@@ -869,6 +946,8 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
             challanNo: null,
             orderNo: null,
             lotNo: null,
+            orderLineId: null,
+            sourceLineId: null,
             greyKg: '5141',
             finishedKg: null,
             rate: '125.228166',
@@ -946,6 +1025,7 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
     ) => ({
       partyId,
       direction,
+      partyRole: direction === 'issued' ? ('customer' as const) : ('subcontractor' as const),
       status: 'posted' as const,
       billNo,
       natureOfWork,
@@ -960,6 +1040,8 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
           challanNo: null,
           orderNo: 'ORD-COST-1',
           lotNo: null,
+          orderLineId: null,
+          sourceLineId: null,
           greyKg: '1000',
           finishedKg: null,
           rate: amount,
@@ -994,6 +1076,8 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
       mode: 'cash' as const,
       reference: null,
       orderNo,
+      salesOrderId: null,
+      orderLineId: null,
       notes: null,
       reason: null,
     });
@@ -1087,6 +1171,8 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
         mode: 'cash' as const,
         reference: null,
         orderNo: null,
+        salesOrderId: null,
+        orderLineId: null,
         notes: null,
         reason: null,
       },
@@ -1123,6 +1209,8 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
         mode: 'cash' as const,
         reference: null,
         orderNo: null,
+        salesOrderId: null,
+        orderLineId: null,
         notes: null,
         reason: null,
       },
@@ -1146,6 +1234,7 @@ describe.skipIf(!CONNECTION)('the database layer', () => {
       {
         partyId: party,
         direction: 'in' as const,
+        partyRole: 'customer' as const,
         reference: 'MR SPAN',
         paidOn: '2030-06-20',
         amount: '100.00',

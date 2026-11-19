@@ -12,6 +12,7 @@ import {
 } from '@/lib/amount';
 import type { SideCopy } from '@/lib/side';
 import { NATURE_OF_WORK } from '@/lib/types';
+import { PartyPicker } from './PartyPicker';
 import { useKeptValues } from './use-kept-values';
 import {
   Button,
@@ -32,6 +33,11 @@ import {
 export type BillFormState = { error?: string };
 
 export type BillFormLine = {
+  /**
+   * The order line this line is tied to: a Sales Order line on a customer
+   * bill, a PO or WO line on a bill received. Blank when it is tied to none.
+   */
+  linkId: string;
   description: string;
   color: string;
   challanNo: string;
@@ -54,6 +60,7 @@ export type BillFormValues = {
 };
 
 const EMPTY_LINE: BillFormLine = {
+  linkId: '',
   description: '',
   color: '',
   challanNo: '',
@@ -97,6 +104,65 @@ function previewDocNo(billDate: string, serial: number): string | null {
   return `CB-${year}-${digits.padStart(Math.max(4, digits.length), '0')}`;
 }
 
+/**
+ * One choice in a line's Order picker (2026-10-06): a Sales Order line on a
+ * customer bill, a PO line on a supplier's, a WO line on a subcontractor's.
+ */
+export type BillLinkOption = {
+  id: string;
+  partyId: string;
+  label: string;
+  open: boolean;
+  description: string;
+  color: string | null;
+  quantityKg: string | null;
+  rate: string | null;
+};
+
+/**
+ * The Order cell on a bill line. A picker of the orders this bill can be tied
+ * to; a line tied to none keeps the free text box beneath it, which is how
+ * every bill was costed before orders were records and how one still can be.
+ */
+function OrderLinkCell({
+  line,
+  options,
+  onPick,
+  onText,
+}: {
+  line: BillFormLine;
+  options: BillLinkOption[];
+  onPick: (id: string) => void;
+  onText: (orderNo: string) => void;
+}) {
+  const linked = line.linkId !== '';
+  return (
+    <div className="space-y-1">
+      {options.length > 0 || linked ? (
+        <Select value={line.linkId} onChange={(e) => onPick(e.target.value)}>
+          <option value="">Not tied to an order</option>
+          {options.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+            </option>
+          ))}
+        </Select>
+      ) : null}
+      {linked ? null : (
+        <TextInput
+          type="text"
+          value={line.orderNo}
+          onChange={(e) => onText(e.target.value)}
+          maxLength={40}
+          autoComplete="off"
+          aria-label="Order No as written"
+          placeholder={options.length > 0 ? 'or Order No as written' : undefined}
+        />
+      )}
+    </div>
+  );
+}
+
 export function BillForm({
   copy,
   parties,
@@ -109,6 +175,8 @@ export function BillForm({
   docNo,
   nextSerial,
   checkBillNo,
+  linkOptions = [],
+  canCreateParty = false,
 }: {
   copy: SideCopy;
   parties: { id: string; name: string }[];
@@ -124,6 +192,10 @@ export function BillForm({
   /** The serial the next customer bill would take. Null on the other side. */
   nextSerial?: number | null;
   /** Asks whether the number is already in the book. A warning, not a gate. */
+  /** What each line can be tied to, for every party on this lens. */
+  linkOptions?: BillLinkOption[];
+  /** Whether New Party is offered beside the party select. */
+  canCreateParty?: boolean;
   checkBillNo?: (input: {
     side: string;
     billNo: string;
@@ -213,6 +285,36 @@ export function BillForm({
       current.map((line, i) => (i === index ? { ...line, ...patch } : line)),
     );
 
+  // What a line can be tied to: the open orders of this bill's party, and
+  // whatever the line is already tied to even if that order has since closed.
+  const linkFor = (line: BillFormLine) =>
+    linkOptions.filter(
+      (option) =>
+        option.id === line.linkId ||
+        (option.open && option.partyId === header.partyId),
+    );
+
+  // Tying a line fills what is still blank from the order; nothing typed is
+  // overwritten, because the bill states what was actually charged.
+  const pick = (index: number, linkId: string) => {
+    const option = linkOptions.find((o) => o.id === linkId);
+    const line = lines[index]!;
+    update(index, {
+      linkId,
+      description: line.description || option?.description || '',
+      color: line.color || option?.color || '',
+      greyKg: line.greyKg || option?.quantityKg || '',
+      rate: line.rate || option?.rate || '',
+    });
+  };
+
+  // What is posted: the link goes in the field the lens uses for it.
+  const postedLines = lines.map(({ linkId, ...line }) => ({
+    ...line,
+    orderLineId: copy.role === 'customer' ? linkId : '',
+    sourceLineId: copy.role === 'customer' ? '' : linkId,
+  }));
+
   const amounts = lines.map(safeAmount);
   const total = sumMoney(amounts.filter((a): a is Money => a !== null));
   const totalGrey = sumGrams(lines.map((line) => safeGrams(line.greyKg)));
@@ -220,15 +322,25 @@ export function BillForm({
     lines.map((line) => safeGrams(line.finishedKg)),
   );
 
-  const systemBillNo = copy.billNoIsOurs
-    ? (docNo ?? (nextSerial ? previewDocNo(header.billDate, nextSerial) : null))
-    : null;
+  // The number the bill is printed under (CB), or, on a bill received, the
+  // book's own handle for it (BR). A new bill received is numbered on save and
+  // has no preview, because nothing is printed under it.
+  const systemBillNo =
+    docNo ??
+    (copy.billNoIsOurs && nextSerial
+      ? previewDocNo(header.billDate, nextSerial)
+      : null);
+
+  // A yarn bill from a supplier has no color and no finished weight, and the
+  // weight it is billed on is yarn, not grey fabric.
+  const isYarn = copy.role === 'supplier';
+  const weightLabel = isYarn ? 'Yarn kg' : 'G/Weight kg';
 
   return (
     <form action={submit} className="space-y-4">
       <input type="hidden" name="side" value={copy.side} />
       {billId ? <input type="hidden" name="id" value={billId} /> : null}
-      <input type="hidden" name="linesJson" value={JSON.stringify(lines)} />
+      <input type="hidden" name="linesJson" value={JSON.stringify(postedLines)} />
 
       {/* Three blocks rather than one row of five. Who the bill is against and
           when, then what identifies it, then what it is for. They were one flat
@@ -236,26 +348,19 @@ export function BillForm({
           five fields belonged together. */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="p-4">
-          <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">
+          <h3 className="mb-3 eyebrow">
             Party and Date
           </h3>
           <div className="space-y-3">
-            <Field label={copy.partyWord}>
-              <Select
-                ref={register('partyId')}
-                name="partyId"
-                value={header.partyId}
-                onChange={(e) => setField({ partyId: e.target.value })}
-                required
-              >
-                <option value="">Select {copy.partyWord}</option>
-                {parties.map((party) => (
-                  <option key={party.id} value={party.id}>
-                    {party.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+            <PartyPicker
+              role={copy.role}
+              label={copy.partyWord}
+              parties={parties}
+              value={header.partyId}
+              onChange={(partyId) => setField({ partyId })}
+              selectRef={register('partyId')}
+              canCreate={canCreateParty}
+            />
 
             <Field label="Bill Date">
               <TextInput
@@ -270,18 +375,30 @@ export function BillForm({
         </Card>
 
         <Card className="p-4">
-          <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">
+          <h3 className="mb-3 eyebrow">
             Bill Number
           </h3>
           <div className="space-y-3">
-            <Field
-              label="Bill No"
-              hint={
-                copy.billNoIsOurs
-                  ? 'As written on the paper bill sent to the customer.'
-                  : 'As written on the bill they sent.'
-              }
-            >
+            {/* The system number leads on a customer bill, because it is the
+                one printed (2026-10-06). The paper book's number is a
+                reference beside it. A bill received leads with the party's
+                own number, which is how they know the bill. */}
+            {copy.billNoIsOurs && systemBillNo ? (
+              <Field
+                label="Bill No"
+                hint={
+                  docNo
+                    ? 'Issued, never changes'
+                    : 'Issued on save; the next free number if another is saved first'
+                }
+              >
+                <div className="figure rounded border border-rule bg-surface-2 px-3 py-2 text-sm text-ink-3">
+                  {systemBillNo}
+                </div>
+              </Field>
+            ) : null}
+
+            <Field label={copy.billNoIsOurs ? 'Paper Ref' : 'Their Bill No'}>
               <TextInput
                 type="text"
                 name="billNo"
@@ -290,7 +407,7 @@ export function BillForm({
                   touched.current = true;
                   setField({ billNo: e.target.value });
                 }}
-                required
+                required={!copy.billNoIsOurs}
                 maxLength={40}
                 autoComplete="off"
                 aria-invalid={duplicate ? true : undefined}
@@ -298,22 +415,15 @@ export function BillForm({
               {/* Under the field it is about. A repeated number used to be
                   found only when the whole bill was submitted. */}
               {duplicate ? (
-                <span className="mt-1 block text-xs font-medium text-[var(--color-crit)]">
+                <span className="mt-1 block text-xs font-medium text-crit">
                   {duplicate}
                 </span>
               ) : null}
             </Field>
 
-            {copy.billNoIsOurs && systemBillNo ? (
-              <Field
-                label="System Bill No"
-                hint={
-                  docNo
-                    ? 'Issued when this bill was posted. It never changes.'
-                    : 'Issued when this bill is saved. If somebody else saves first, this bill takes the next one.'
-                }
-              >
-                <div className="figure rounded border border-[var(--color-line)] bg-[var(--color-canvas)] px-3 py-2 text-sm text-[var(--color-muted)]">
+            {!copy.billNoIsOurs && systemBillNo ? (
+              <Field label="Bill No">
+                <div className="figure rounded border border-rule bg-surface-2 px-3 py-2 text-sm text-ink-3">
                   {systemBillNo}
                 </div>
               </Field>
@@ -322,23 +432,32 @@ export function BillForm({
         </Card>
 
         <Card className="p-4">
-          <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">
+          <h3 className="mb-3 eyebrow">
             Work
           </h3>
-          <Field label="Nature of Work" hint="What this bill is for.">
-            <Select
-              ref={register('natureOfWork')}
-              name="natureOfWork"
-              value={header.natureOfWork}
-              onChange={(e) => setField({ natureOfWork: e.target.value })}
-            >
-              {NATURE_OF_WORK.map((service) => (
-                <option key={service.value} value={service.value}>
-                  {service.label}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          {/* A supplier's bill is yarn, set on the server and never chosen. */}
+          {isYarn ? (
+            <Field label="Nature of Work">
+              <div className="rounded border border-rule bg-surface-2 px-3 py-2 text-sm text-ink-3">
+                Yarn
+              </div>
+            </Field>
+          ) : (
+            <Field label="Nature of Work">
+              <Select
+                ref={register('natureOfWork')}
+                name="natureOfWork"
+                value={header.natureOfWork}
+                onChange={(e) => setField({ natureOfWork: e.target.value })}
+              >
+                {NATURE_OF_WORK.map((service) => (
+                  <option key={service.value} value={service.value}>
+                    {service.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
         </Card>
       </div>
 
@@ -367,18 +486,20 @@ export function BillForm({
               <tr>
                 <Th className="w-8">No</Th>
                 <Th>Description</Th>
-                <Th className="w-24">Order No</Th>
+                <Th className="w-48">Order</Th>
                 <Th className="w-24">Challan No</Th>
                 <Th className="w-24">LOT No</Th>
-                <Th className="w-24">Color</Th>
+                {isYarn ? null : <Th className="w-24">Color</Th>}
                 {/* The finished weight is recorded, not billed on. The grey
                     weight sits next to the rate next to the amount, so the
                     arithmetic the bill is built on reads left to right. */}
+                {isYarn ? null : (
+                  <Th numeric className="w-24">
+                    F/Weight kg
+                  </Th>
+                )}
                 <Th numeric className="w-24">
-                  F/Weight kg
-                </Th>
-                <Th numeric className="w-24">
-                  G/Weight kg
+                  {weightLabel}
                 </Th>
                 <Th numeric className="w-24">
                   Unit Rate
@@ -392,7 +513,7 @@ export function BillForm({
             <tbody>
               {lines.map((line, index) => (
                 <tr key={index}>
-                  <Td className="text-[var(--color-muted)]">{index + 1}</Td>
+                  <Td className="text-ink-3">{index + 1}</Td>
                   {/* Plain text fields, and deliberately no placeholders: what
                       goes in a bill line is whatever the paper bill says, and an
                       example sitting in an empty cell reads as a rule about the
@@ -409,14 +530,11 @@ export function BillForm({
                     />
                   </Td>
                   <Td>
-                    <TextInput
-                      type="text"
-                      value={line.orderNo}
-                      onChange={(e) =>
-                        update(index, { orderNo: e.target.value })
-                      }
-                      maxLength={40}
-                      autoComplete="off"
+                    <OrderLinkCell
+                      line={line}
+                      options={linkFor(line)}
+                      onPick={(id) => pick(index, id)}
+                      onText={(orderNo) => update(index, { orderNo })}
                     />
                   </Td>
                   <Td>
@@ -439,26 +557,32 @@ export function BillForm({
                       autoComplete="off"
                     />
                   </Td>
-                  <Td>
-                    <TextInput
-                      type="text"
-                      value={line.color}
-                      onChange={(e) => update(index, { color: e.target.value })}
-                      maxLength={60}
-                      autoComplete="off"
-                    />
-                  </Td>
-                  <Td>
-                    <TextInput
-                      value={line.finishedKg}
-                      onChange={(e) =>
-                        update(index, { finishedKg: e.target.value })
-                      }
-                      inputMode="decimal"
-                      className="text-right"
-                      placeholder="0.000"
-                    />
-                  </Td>
+                  {isYarn ? null : (
+                    <Td>
+                      <TextInput
+                        type="text"
+                        value={line.color}
+                        onChange={(e) =>
+                          update(index, { color: e.target.value })
+                        }
+                        maxLength={60}
+                        autoComplete="off"
+                      />
+                    </Td>
+                  )}
+                  {isYarn ? null : (
+                    <Td>
+                      <TextInput
+                        value={line.finishedKg}
+                        onChange={(e) =>
+                          update(index, { finishedKg: e.target.value })
+                        }
+                        inputMode="decimal"
+                        className="text-right"
+                        placeholder="0.000"
+                      />
+                    </Td>
+                  )}
                   <Td>
                     <TextInput
                       value={line.greyKg}
@@ -489,7 +613,7 @@ export function BillForm({
                         onClick={() =>
                           setLines((c) => c.filter((_, i) => i !== index))
                         }
-                        className="text-sm text-red-700 hover:underline"
+                        className="text-sm text-crit hover:underline"
                       >
                         Remove
                       </button>
@@ -499,11 +623,13 @@ export function BillForm({
               ))}
             </tbody>
             <tfoot>
-              <tr className="bg-[var(--color-canvas)] font-semibold">
-                <Td colSpan={6}>Total</Td>
-                <Td numeric>
-                  {totalFinished > 0n ? formatQtyKg(totalFinished) : ''}
-                </Td>
+              <tr className="bg-surface-2 font-semibold">
+                <Td colSpan={isYarn ? 5 : 6}>Total</Td>
+                {isYarn ? null : (
+                  <Td numeric>
+                    {totalFinished > 0n ? formatQtyKg(totalFinished) : ''}
+                  </Td>
+                )}
                 <Td numeric>{formatQtyKg(totalGrey)}</Td>
                 <Td />
                 <Td numeric>{formatTaka(total)}</Td>
@@ -518,21 +644,21 @@ export function BillForm({
             wrong one; ten fields all open at once is a bill you scroll for
             a minute and a half to reach the bottom of. A finished line closes
             to what it is worth, which is what you check it by. */}
-        <div className="divide-y divide-[var(--color-line)] md:hidden">
+        <div className="divide-y divide-rule md:hidden">
           {lines.map((line, index) =>
             index !== openLine ? (
               <button
                 key={index}
                 type="button"
                 onClick={() => setOpenLine(index)}
-                className="flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left active:bg-[var(--color-canvas)]"
+                className="flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left active:bg-surface-2"
               >
-                <span className="w-5 shrink-0 text-sm text-[var(--color-muted)]">
+                <span className="w-5 shrink-0 text-sm text-ink-3">
                   {index + 1}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-sm">
                   {line.description || (
-                    <span className="text-[var(--color-muted)]">
+                    <span className="text-ink-3">
                       Line {index + 1}
                     </span>
                   )}
@@ -544,7 +670,7 @@ export function BillForm({
             ) : (
               <div key={index} className="space-y-3 p-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-[var(--color-muted)]">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-ink-3">
                     Line {index + 1}
                   </span>
                   {lines.length > 1 ? (
@@ -556,7 +682,7 @@ export function BillForm({
                         // card is never left with nothing expanded.
                         setOpenLine(Math.max(0, index - 1));
                       }}
-                      className="-mr-2 inline-flex min-h-11 items-center px-2 text-sm text-red-700"
+                      className="-mr-2 inline-flex min-h-11 items-center px-2 text-sm text-crit"
                     >
                       Remove
                     </button>
@@ -576,15 +702,12 @@ export function BillForm({
                 </Field>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Order No">
-                    <TextInput
-                      type="text"
-                      value={line.orderNo}
-                      onChange={(e) =>
-                        update(index, { orderNo: e.target.value })
-                      }
-                      maxLength={40}
-                      autoComplete="off"
+                  <Field label="Order">
+                    <OrderLinkCell
+                      line={line}
+                      options={linkFor(line)}
+                      onPick={(id) => pick(index, id)}
+                      onText={(orderNo) => update(index, { orderNo })}
                     />
                   </Field>
                   <Field label="Challan No">
@@ -607,27 +730,33 @@ export function BillForm({
                       autoComplete="off"
                     />
                   </Field>
-                  <Field label="Color">
-                    <TextInput
-                      type="text"
-                      value={line.color}
-                      onChange={(e) => update(index, { color: e.target.value })}
-                      maxLength={60}
-                      autoComplete="off"
-                    />
-                  </Field>
-                  <Field label="F/Weight kg">
-                    <TextInput
-                      value={line.finishedKg}
-                      onChange={(e) =>
-                        update(index, { finishedKg: e.target.value })
-                      }
-                      inputMode="decimal"
-                      className="text-right"
-                      placeholder="0.000"
-                    />
-                  </Field>
-                  <Field label="G/Weight kg">
+                  {isYarn ? null : (
+                    <Field label="Color">
+                      <TextInput
+                        type="text"
+                        value={line.color}
+                        onChange={(e) =>
+                          update(index, { color: e.target.value })
+                        }
+                        maxLength={60}
+                        autoComplete="off"
+                      />
+                    </Field>
+                  )}
+                  {isYarn ? null : (
+                    <Field label="F/Weight kg">
+                      <TextInput
+                        value={line.finishedKg}
+                        onChange={(e) =>
+                          update(index, { finishedKg: e.target.value })
+                        }
+                        inputMode="decimal"
+                        className="text-right"
+                        placeholder="0.000"
+                      />
+                    </Field>
+                  )}
+                  <Field label={weightLabel}>
                     <TextInput
                       value={line.greyKg}
                       onChange={(e) =>
@@ -651,7 +780,7 @@ export function BillForm({
                     <span className="mb-1 block text-sm font-medium">
                       Amount
                     </span>
-                    <div className="whitespace-nowrap py-2.5 text-right text-base font-semibold">
+                    <div className="whitespace-nowrap py-2.5 text-right text-title font-semibold">
                       {amounts[index] ? formatTaka(amounts[index]!) : '-'}
                     </div>
                   </div>
@@ -668,16 +797,16 @@ export function BillForm({
               setLines((c) => [...c, { ...EMPTY_LINE }]);
               setOpenLine(lines.length);
             }}
-            className="flex min-h-14 w-full items-center justify-center gap-1.5 px-3 py-3 text-sm font-medium text-[var(--color-navy)] active:bg-[var(--color-canvas)]"
+            className="flex min-h-14 w-full items-center justify-center gap-1.5 px-3 py-3 text-sm font-medium text-navy active:bg-surface-2"
           >
             Add Line
           </button>
         </div>
 
-        <p className="border-t border-[var(--color-line)] px-4 py-2 text-xs text-[var(--color-muted)]">
-          The amount is the rate per kg on the grey weight, the same basis the
-          full ERP bills on. Finished weight is recorded, not billed on, and can
-          be left blank until it is known.
+        <p className="border-t border-rule px-4 py-2 text-xs text-ink-3">
+          {isYarn
+            ? 'Amount is rate per kg of yarn.'
+            : 'Amount is rate per kg on the grey weight. Finished weight is recorded, not billed on.'}
         </p>
       </Card>
 
@@ -689,31 +818,33 @@ export function BillForm({
         <div className="p-4">
           <dl className="grid gap-3 sm:grid-cols-3">
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
-                Grey Weight
+              <dt className="eyebrow">
+                {isYarn ? 'Yarn Weight' : 'Grey Weight'}
               </dt>
               <dd className="figure mt-0.5 text-sm">
                 {formatQtyKg(totalGrey)} kg
               </dd>
             </div>
+            {isYarn ? null : (
+              <div>
+                <dt className="eyebrow">
+                  Finished Weight
+                </dt>
+                <dd className="figure mt-0.5 text-sm">
+                  {totalFinished > 0n ? `${formatQtyKg(totalFinished)} kg` : ''}
+                </dd>
+              </div>
+            )}
             <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
-                Finished Weight
-              </dt>
-              <dd className="figure mt-0.5 text-sm">
-                {totalFinished > 0n ? `${formatQtyKg(totalFinished)} kg` : ''}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[11px] font-medium uppercase tracking-wide text-[var(--color-muted)]">
+              <dt className="eyebrow">
                 Bill Amount
               </dt>
-              <dd className="figure mt-0.5 text-base font-semibold">
+              <dd className="figure mt-0.5 text-title font-semibold">
                 {formatTaka(total)}
               </dd>
             </div>
           </dl>
-          <div className="mt-3 border-t border-[var(--color-line)] pt-3 text-sm">
+          <div className="mt-3 border-t border-rule pt-3 text-sm">
             <span className="font-medium">In Words (BDT): </span>
             {amountInWords(total)}
           </div>
@@ -749,12 +880,12 @@ export function BillForm({
 
         {/* Narration is a control on what the ledger prints, not a note, and
             most bills never need one. It stays reachable and out of the way. */}
-        <div className="mt-4 border-t border-[var(--color-line)] pt-3">
+        <div className="mt-4 border-t border-rule pt-3">
           <button
             type="button"
             onClick={() => setShowMore((was) => !was)}
             aria-expanded={showMore}
-            className="text-sm font-medium text-[var(--color-navy)] hover:underline"
+            className="text-sm font-medium link"
           >
             {showMore ? 'Hide More Options' : 'More Options'}
           </button>
@@ -791,7 +922,7 @@ export function BillForm({
 
       {/* Pinned to the foot of the work area. A bill with twenty lines had its
           Save two screens below the line being keyed. */}
-      <div className="sticky bottom-0 -mx-4 border-t border-[var(--color-rule)] bg-[var(--color-surface-2)] px-4 py-3 md:-mx-6 md:px-6">
+      <div className="sticky bottom-0 -mx-4 border-t border-rule bg-surface-2 px-4 py-3 md:-mx-6 md:px-6">
         <FormActions>
           <Button
             type="submit"

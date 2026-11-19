@@ -22,7 +22,7 @@
  * in CLAUDE.md. The backup branch below does not prevent that mistake, it only
  * makes it survivable.
  */
-import { applySchema, loadEnvFile } from './apply-schema.mjs';
+import { applySchemaChecked, loadEnvFile } from './apply-schema.mjs';
 import { staleBackups } from './backup-branches.mjs';
 
 const NEON_API = 'https://console.neon.tech/api/v2';
@@ -87,6 +87,7 @@ async function backup(key) {
   });
 
   console.log(`migrate: restore point created, Neon branch "${name}".`);
+  return name;
 }
 
 /**
@@ -137,8 +138,9 @@ if (!url) {
 }
 
 const key = process.env.NEON_API_KEY;
+let restorePoint = null;
 if (key) {
-  await backup(key);
+  restorePoint = await backup(key);
   // Tidying up is not worth a failed release. backup() above throws on purpose
   // because a migration without a restore point is a different deploy; this one
   // only keeps the branch count down, and next release will try again.
@@ -156,10 +158,20 @@ if (key) {
   );
 }
 
+// Held to the book check: a schema change that moves a figure already in the
+// book fails the build here, before the new code serves anyone. The previous
+// release keeps serving, against the changed rows, until the restore point
+// below is restored; the rehearsal on a pulled copy is what stops it getting
+// this far.
 try {
-  const tables = await applySchema(url);
+  const tables = await applySchemaChecked(url);
   console.log(`migrate: schema applied, ${tables} tables.`);
 } catch (error) {
   console.error(`\nmigrate: ${error.message}`);
+  console.error(
+    restorePoint
+      ? `\nmigrate: restore the book from Neon branch "${restorePoint}".`
+      : '\nmigrate: no restore point was taken for this release (NEON_API_KEY unset).',
+  );
   process.exit(1);
 }

@@ -15,17 +15,17 @@ import {
   type MetaPair,
   tableLayout,
 } from './document';
-import { documentFileName } from './file-name';
+import { describedFileName, numberedFileName } from './file-name';
 
 /**
  * The Bill, as an A4 document, for either side of the business.
  *
- * The bill LUMA sends is still hand-written, so the number on this document is
- * that hand-written number: paper and PDF have to agree when a customer holds
- * both. The system's own number is recorded but deliberately not printed. When
- * billing moves fully into the ERP the hand-written bill retires, and the system
- * number becomes the number on this line without anything else about the
- * document changing.
+ * The number printed is the system's CB number (owner, 2026-10-06), the way an
+ * established ERP prints its own. LUMA still writes a paper bill book, so its
+ * number rides beside the CB number as Paper Ref and a customer holding the
+ * paper can match the two. A bill received is printed under the party's own
+ * number, because it is their document; its BR number is noted as where it is
+ * filed.
  *
  * Figures come off the saved bill, computed once at posting. Nothing is
  * recalculated here.
@@ -101,10 +101,24 @@ export function buildBillDocument(
     ),
   ];
 
-  const meta: MetaPair[] = [
-    { label: 'Bill No', value: bill.billNo },
-    { label: 'Nature of Work', value: natureOfWorkLabel(bill.natureOfWork) },
-  ];
+  // The number printed is the system's on a customer bill (2026-10-06): its CB
+  // number, or DRAFT until it is posted. The paper book's number rides beside
+  // it as Paper Ref. A bill received is the party's document, so it leads with
+  // their own number; this copy is LUMA's record of it and carries the BR
+  // number it is filed under.
+  const meta: MetaPair[] = isCustomer
+    ? [
+        { label: 'Bill No', value: bill.docNo ?? 'DRAFT' },
+        ...(bill.billNo ? [{ label: 'Paper Ref', value: bill.billNo }] : []),
+      ]
+    : [
+        { label: 'Bill No', value: bill.billNo ?? '' },
+        ...(bill.docNo ? [{ label: 'Filed As', value: bill.docNo }] : []),
+      ];
+  meta.push({
+    label: 'Nature of Work',
+    value: natureOfWorkLabel(bill.natureOfWork),
+  });
   if (orderNos.length > 0) {
     meta.push({
       label: orderNos.length > 1 ? 'Order Nos' : 'Order No',
@@ -136,7 +150,10 @@ export function buildBillDocument(
           ]
         : []),
       {
-        text: 'Rate is per kilogram on the gross (greige) weight.',
+        text:
+          bill.natureOfWork === 'yarn'
+            ? 'Rate is per kilogram of yarn.'
+            : 'Rate is per kilogram on the gross (greige) weight.',
         style: 'note',
         margin: [0, 5, 0, 0] as [number, number, number, number],
       },
@@ -149,13 +166,11 @@ export function buildBillDocument(
   });
 }
 
-/** The download filename, which is what the person filing it will see. */
-export function billFileName(bill: Bill, company: Company): string {
-  return documentFileName({
-    company: company.name,
-    documentType:
-      bill.direction === 'issued' ? 'Bill' : 'Subcontract-Bill',
-    party: bill.party.code ?? bill.party.name,
-    identifiers: [bill.billNo, bill.billDate],
-  });
+/**
+ * The download filename: the number printed on the bill. A customer draft has
+ * none yet, so it is named for what it is and its date.
+ */
+export function billFileName(bill: Bill): string {
+  if (bill.docNo) return numberedFileName(bill.docNo);
+  return describedFileName(['CB', 'DRAFT', bill.billDate]);
 }

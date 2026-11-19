@@ -3,12 +3,15 @@ import { Money } from './money';
 import {
   allDatesRange,
   datum,
+  foldToShares,
   foldToTop,
   isDashboardRange,
   lastDayOf,
+  monthBounds,
   monthsBetween,
   previousRange,
   rangeFor,
+  sharesInOrder,
   shortMonth,
 } from './dashboard';
 
@@ -237,5 +240,108 @@ describe('months across a range', () => {
 
   it('labels a month the way it reads under a bar', () => {
     expect(shortMonth('2026-08')).toBe('Aug 26');
+  });
+});
+
+describe('shares of a whole, for the donut', () => {
+  it('gives each part its share of the total, worked out as money', () => {
+    const shares = foldToShares([
+      { label: 'Dyeing', amount: tk('600000.00') },
+      { label: 'Freight', amount: tk('250000.00') },
+      { label: 'Rent', amount: tk('150000.00') },
+    ]);
+    expect(shares?.totalDisplay).toBe('10,00,000.00');
+    expect(shares?.slices.map((s) => [s.label, s.display, s.share])).toEqual([
+      ['Dyeing', '6,00,000.00', '60.0%'],
+      ['Freight', '2,50,000.00', '25.0%'],
+      ['Rent', '1,50,000.00', '15.0%'],
+    ]);
+  });
+
+  it('folds past the fourth into Other, and the total still adds up', () => {
+    const shares = foldToShares(
+      ['A', 'B', 'C', 'D', 'E', 'F'].map((label, i) => ({
+        label,
+        amount: tk(`${(6 - i) * 100}.00`),
+      })),
+    );
+    expect(shares?.slices.map((s) => s.label)).toEqual([
+      'A',
+      'B',
+      'C',
+      'D',
+      'Other (2)',
+    ]);
+    // 600 + 500 + 400 + 300 + (200 + 100) = 2100
+    expect(shares?.total.toDecimalString()).toBe('2100.00');
+    expect(shares?.slices[4]?.display).toBe('300.00');
+    expect(shares?.slices[4]?.share).toBe('14.3%');
+  });
+
+  it('rounds a share at the tenth, half up, with no float in the path', () => {
+    const shares = foldToShares([
+      { label: 'One', amount: tk('1.00') },
+      { label: 'Two', amount: tk('2.00') },
+    ]);
+    expect(shares?.slices.map((s) => s.share)).toEqual(['66.7%', '33.3%']);
+  });
+
+  it('refuses a negative part, which no slice can show', () => {
+    expect(
+      foldToShares([
+        { label: 'Cost', amount: tk('500.00') },
+        { label: 'Refund', amount: tk('-50.00') },
+      ]),
+    ).toBeNull();
+  });
+
+  it('has nothing to draw when everything is zero', () => {
+    expect(foldToShares([])).toBeNull();
+    expect(foldToShares([{ label: 'Nil', amount: Money.ZERO }])).toBeNull();
+  });
+});
+
+describe('one month inside the range', () => {
+  it('is the whole month when the range covers it', () => {
+    expect(monthBounds('2026-02', '2026-01-01', '2026-12-31')).toEqual({
+      from: '2026-02-01',
+      to: '2026-02-28',
+    });
+  });
+
+  it('is cut to a custom range that starts or ends inside it', () => {
+    expect(monthBounds('2026-03', '2026-03-10', '2026-03-20')).toEqual({
+      from: '2026-03-10',
+      to: '2026-03-20',
+    });
+  });
+});
+
+describe('shares in a fixed order, for the ageing strip', () => {
+  it('keeps the order given rather than ranking by size', () => {
+    const shares = sharesInOrder([
+      { label: '0 to 30 Days', amount: tk('100.00') },
+      { label: '31 to 60 Days', amount: tk('300.00') },
+      { label: 'Over 90 Days', amount: tk('600.00') },
+    ]);
+    expect(shares?.slices.map((s) => [s.label, s.share])).toEqual([
+      ['0 to 30 Days', '10.0%'],
+      ['31 to 60 Days', '30.0%'],
+      ['Over 90 Days', '60.0%'],
+    ]);
+    expect(shares?.totalDisplay).toBe('1,000.00');
+  });
+
+  it('keeps an empty bucket, so the strip always shows every age', () => {
+    const shares = sharesInOrder([
+      { label: 'Current', amount: tk('50.00') },
+      { label: 'Old', amount: Money.ZERO },
+    ]);
+    expect(shares?.slices.map((s) => s.share)).toEqual(['100.0%', '0.0%']);
+  });
+
+  it('has nothing to show for a negative part or an empty whole', () => {
+    expect(sharesInOrder([{ label: 'A', amount: tk('-1.00') }])).toBeNull();
+    expect(sharesInOrder([])).toBeNull();
   });
 });

@@ -44,7 +44,7 @@ export function TradingSummary({
 
           {result.directLines.map((line) => (
             <tr key={line.label}>
-              <Td className="pl-6 text-[var(--color-muted)]">
+              <Td className="pl-6 text-ink-3">
                 Less: {line.label}
               </Td>
               <Td numeric>({formatTaka(line.amount)})</Td>
@@ -58,7 +58,7 @@ export function TradingSummary({
 
           {result.sellingLines.map((line) => (
             <tr key={line.label}>
-              <Td className="pl-6 text-[var(--color-muted)]">
+              <Td className="pl-6 text-ink-3">
                 Less: {line.label}
               </Td>
               <Td numeric>({formatTaka(line.amount)})</Td>
@@ -72,7 +72,7 @@ export function TradingSummary({
 
           {result.operatingLines.map((line) => (
             <tr key={line.label}>
-              <Td className="pl-6 text-[var(--color-muted)]">
+              <Td className="pl-6 text-ink-3">
                 Less: {line.label}
               </Td>
               <Td numeric>({formatTaka(line.amount)})</Td>
@@ -87,7 +87,7 @@ export function TradingSummary({
         </tbody>
       </Table>
 
-      <div className="border-t border-[var(--color-line)] px-4 py-3 text-xs text-[var(--color-muted)]">
+      <div className="border-t border-rule px-4 py-3 text-xs text-ink-3">
         Bills count in the month they are raised; expenses, salary and loan
         interest count when they are paid. A customer bill and
         the subcontract bill behind it can fall in different months, so a single
@@ -116,19 +116,19 @@ function Subtotal({
   const negative = amount.isNegative();
   return (
     <tr
-      className={`border-t border-[var(--color-line)] font-semibold ${
-        strong ? 'bg-[var(--color-canvas)]' : ''
+      className={`border-t border-rule font-semibold ${
+        strong ? 'bg-surface-2' : ''
       }`}
     >
       <Td>
         {label}
         {share ? (
-          <span className="ml-2 text-xs font-normal text-[var(--color-muted)]">
+          <span className="ml-2 text-xs font-normal text-ink-3">
             {share} of billing
           </span>
         ) : null}
       </Td>
-      <Td numeric className={negative ? 'text-red-700' : undefined}>
+      <Td numeric className={negative ? 'text-crit' : undefined}>
         {formatTaka(amount)}
       </Td>
     </tr>

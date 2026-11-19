@@ -34,7 +34,10 @@ export type Permission =
   | 'payroll:approve'
   | 'report:read'
   | 'activity:read'
-  | 'user:manage';
+  | 'user:manage'
+  // Switching the full ERP's modules on and off (2026-10-29). Owner only: who
+  // sees a module still being tried is the owner's call.
+  | 'module:manage';
 
 // 'fund:read' is deliberately not in here, and it is the only read that is not.
 // Capital, drawings and the loan book say what the owner has put in and taken
@@ -64,6 +67,7 @@ const MATRIX: Record<Role, readonly Permission[]> = {
     'payroll:approve',
     'activity:read',
     'user:manage',
+    'module:manage',
   ],
   // Accounts runs the book: bills, receipts, expenses, and the payroll month up
   // to the point of approval. Two things are held back.

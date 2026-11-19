@@ -11,6 +11,7 @@ import {
 } from '@/lib/mutations';
 import { deleteSchema, firstError, ownerMovementSchema } from '@/lib/schemas';
 import { ForbiddenError, actingUser, actorOf } from '@/lib/session';
+import { flash } from '@/lib/flash';
 
 export type OwnerFormState = { error?: string };
 
@@ -57,6 +58,7 @@ export async function recordCapitalAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Capital recorded.');
   redirect('/owner');
 }
 
@@ -75,6 +77,7 @@ export async function recordDrawingAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Drawing recorded.');
   redirect('/owner');
 }
 
@@ -96,5 +99,6 @@ export async function removeOwnerEntryAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Entry removed.');
   redirect('/owner');
 }

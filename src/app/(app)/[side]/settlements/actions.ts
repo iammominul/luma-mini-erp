@@ -12,6 +12,7 @@ import {
 import { deleteSchema, firstError, paymentFormSchema } from '@/lib/schemas';
 import { ForbiddenError, actingUser, actorOf } from '@/lib/session';
 import { type Side, copyFor, isSide } from '@/lib/side';
+import { flash } from '@/lib/flash';
 
 export type PaymentFormState = { error?: string };
 
@@ -28,6 +29,7 @@ function readPayment(formData: FormData) {
   return paymentFormSchema.safeParse({
     partyId: text(formData, 'partyId'),
     direction: copyFor(sideOf(formData)).paymentDirection,
+    partyRole: copyFor(sideOf(formData)).role,
     paidOn: text(formData, 'paidOn'),
     amount: text(formData, 'amount'),
     mode: text(formData, 'mode'),
@@ -61,7 +63,18 @@ export async function createPaymentAction(
   }
 
   revalidatePath('/', 'layout');
-  redirect(`/${side}/settlements`);
+  await flash('Payment recorded.');
+  redirect(returnTo(formData) ?? `/${side}/settlements`);
+}
+
+/**
+ * Where a receipt recorded from the dialog on a statement or a bill goes back
+ * to (2026-10-06): the screen it was opened from. Only a path within this app
+ * is honored, so the field cannot be used to send anybody elsewhere.
+ */
+function returnTo(formData: FormData): string | null {
+  const path = text(formData, 'returnTo');
+  return path.startsWith('/') && !path.startsWith('//') ? path : null;
 }
 
 export async function updatePaymentAction(
@@ -84,6 +97,7 @@ export async function updatePaymentAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Payment saved.');
   redirect(`/${side}/settlements`);
 }
 
@@ -106,5 +120,6 @@ export async function deletePaymentAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Payment removed.');
   redirect(`/${side}/settlements`);
 }

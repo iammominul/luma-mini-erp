@@ -21,6 +21,7 @@ import {
   loanRepaymentSchema,
 } from '@/lib/schemas';
 import { ForbiddenError, actingUser, actorOf } from '@/lib/session';
+import { flash } from '@/lib/flash';
 
 export type LoanFormState = { error?: string };
 
@@ -65,6 +66,7 @@ export async function createLoanAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Lender added.');
   redirect('/loans');
 }
 
@@ -95,6 +97,7 @@ export async function updateLoanAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Lender saved.');
   redirect('/loans');
 }
 
@@ -125,6 +128,7 @@ export async function recordRepaymentAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Repayment recorded.');
   redirect(code ? `/loans/${code}` : '/loans');
 }
 
@@ -154,6 +158,7 @@ export async function recordDrawdownAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Drawdown recorded.');
   redirect(code ? `/loans/${code}` : '/loans');
 }
 
@@ -175,6 +180,7 @@ export async function removeLoanEntryAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Loan entry removed.');
   redirect('/loans');
 }
 
@@ -196,5 +202,6 @@ export async function deleteLoanAction(
   }
 
   revalidatePath('/', 'layout');
+  await flash('Lender removed.');
   redirect('/loans');
 }

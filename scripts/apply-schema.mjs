@@ -12,6 +12,12 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { neon } from '@neondatabase/serverless';
 import { splitSqlStatements } from './split-sql.mjs';
+import {
+  allowedFromEnv,
+  compareBooks,
+  describeChanges,
+  fingerprintBook,
+} from './book-check.mjs';
 
 const root = join(import.meta.dirname, '..');
 
@@ -105,4 +111,29 @@ export async function applySchema(url) {
     "SELECT count(*)::int AS count FROM information_schema.tables WHERE table_schema = 'public'",
   );
   return count;
+}
+
+/**
+ * applySchema, held to the book check (book-check.mjs): the book is read
+ * before and after, and a figure that moved throws, naming each one.
+ *
+ * Both callers go through this, so the rehearsal on a pulled copy of
+ * production fails on exactly what the deploy would fail on. The schema has
+ * been applied by the time it throws: on the rehearsal that is a local copy,
+ * and on the deploy the restore point taken first is what puts it back.
+ */
+export async function applySchemaChecked(url, { allow = allowedFromEnv() } = {}) {
+  const sql = await connect(url);
+  const query = (text) => sql.query(text);
+
+  const before = await fingerprintBook(query);
+  const tables = await applySchema(url);
+  const after = await fingerprintBook(query, before.shape);
+
+  const changes = compareBooks(before, after, allow);
+  if (changes.length > 0) throw new Error(describeChanges(changes));
+
+  const held = Object.keys(before.figures).length;
+  console.log(`Book check: ${held} figures read before and after, none moved.`);
+  return tables;
 }

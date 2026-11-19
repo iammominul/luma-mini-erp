@@ -2,18 +2,22 @@ import Link from 'next/link';
 import { GeneratePayrollForm } from '@/components/GeneratePayrollForm';
 import type { Column } from '@/components/DataTable';
 import { DataTable } from '@/components/DataTable';
-import { Card, CardHeader, PageTitle } from '@/components/ui';
+import {
+  Card,
+  CardHeader,
+  PageTitle,
+  Tag,
+  type TagTone,
+} from '@/components/ui';
 import { todayInDhaka } from '@/lib/dates';
 import { formatTaka } from '@/lib/format';
 import { listPayrollRuns } from '@/lib/queries';
 import { payrollStatusLabel, periodLabel } from '@/lib/types';
 import { generatePayrollRunAction } from './actions';
 
-/** The color a status reads in, kept plain: this is an accounts screen. */
-function statusClass(status: string): string {
-  if (status === 'paid') return 'text-green-800';
-  if (status === 'approved') return 'text-[var(--color-navy)]';
-  return 'text-[var(--color-muted)]';
+/** The tone a run's status reads in: in hand while open, out of the way once paid. */
+function statusTone(status: string): TagTone {
+  return status === 'paid' ? 'done' : 'active';
 }
 
 type Run = Awaited<ReturnType<typeof listPayrollRuns>>[number];
@@ -47,9 +51,9 @@ const columns: Column<Run>[] = [
     cellClassName: 'whitespace-nowrap',
     phone: 'meta',
     cell: (run) => (
-      <span className={statusClass(run.status)}>
+      <Tag tone={statusTone(run.status)}>
         {payrollStatusLabel(run.status)}
-      </span>
+      </Tag>
     ),
   },
   {
@@ -85,7 +89,7 @@ const columns: Column<Run>[] = [
     cellClassName: 'font-semibold',
     phone: 'full',
     phoneClassName:
-      'border-t border-[var(--color-line)] pt-2 text-base font-semibold',
+      'border-t border-rule pt-2 text-title font-semibold',
     cell: (run) => formatTaka(run.netPaid),
   },
   {
@@ -131,7 +135,7 @@ export default async function PayrollPage() {
           columns={columns}
           rows={runs}
           rowKey={(run) => run.id}
-          rowClassName="hover:bg-gray-50"
+          rowClassName="hover:bg-surface-2"
           empty="No payroll has been run yet. Generate a month above."
         />
       </Card>

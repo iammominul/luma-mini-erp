@@ -36,7 +36,7 @@ function initials(name: string): string {
 }
 
 const ROW =
-  'block w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--color-surface-2)] md:py-2';
+  'block w-full px-3 py-2.5 text-left text-sm hover:bg-surface-2 md:py-2';
 
 export function AccountMenu({
   userName,
@@ -101,10 +101,10 @@ export function AccountMenu({
         title={userName}
         className="flex h-11 items-center gap-2 rounded px-1.5 text-white/80 hover:bg-white/10 hover:text-white md:h-9"
       >
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/30 text-[11px] font-medium">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/30 text-caption font-medium">
           {initials(userName)}
         </span>
-        <span className="hidden max-w-[9rem] truncate text-[12px] lg:block">
+        <span className="hidden max-w-[9rem] truncate text-meta lg:block">
           {userName}
         </span>
         <Icon name="caret" className="hidden md:block" />
@@ -113,14 +113,14 @@ export function AccountMenu({
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 top-full z-50 mt-1 w-72 max-w-[calc(100vw-1rem)] rounded border border-[var(--color-rule)] bg-white text-[var(--color-ink)] shadow-lg"
+          className="absolute right-0 top-full z-50 mt-1 w-72 max-w-[calc(100vw-1rem)] rounded border border-rule bg-white text-ink shadow-lg"
         >
-          <div className="border-b border-[var(--color-rule)] px-3 py-2.5">
+          <div className="border-b border-rule px-3 py-2.5">
             <div className="truncate text-sm font-semibold">{userName}</div>
-            <div className="truncate text-xs text-[var(--color-ink-3)]">
+            <div className="truncate text-xs text-ink-3">
               {userEmail}
             </div>
-            <div className="mt-1 text-[11px] font-medium uppercase tracking-wide text-[var(--color-ink-2)]">
+            <div className="mt-1 eyebrow-strong">
               {roleLabel(role)}
             </div>
           </div>
@@ -158,7 +158,7 @@ export function AccountMenu({
             </Link>
           ) : null}
 
-          <form action={signOut} className="border-t border-[var(--color-rule)]">
+          <form action={signOut} className="border-t border-rule">
             <button
               data-menu-item
               role="menuitem"

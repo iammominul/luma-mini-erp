@@ -110,7 +110,7 @@ export default async function OrderDetailPage({
                   <Td className="whitespace-nowrap">{formatDate(row.billDate)}</Td>
                   <Td>
                     {row.partyName}
-                    <span className="block text-xs text-[var(--color-muted)]">
+                    <span className="block text-xs text-ink-3">
                       {row.direction === 'issued'
                         ? 'Billed to customer'
                         : 'Billed by subcontractor'}
@@ -154,7 +154,7 @@ export default async function OrderDetailPage({
                   <Td>
                     {expenseCategoryLabel(row.category)}
                     {expenseCategoryTier(row.category) === 'operating' ? (
-                      <span className="block text-xs text-[var(--color-muted)]">
+                      <span className="block text-xs text-ink-3">
                         Overhead, not counted against this order
                       </span>
                     ) : null}
@@ -166,7 +166,7 @@ export default async function OrderDetailPage({
             )}
           </tbody>
         </Table>
-        <div className="border-t border-[var(--color-line)] px-4 py-3 text-xs text-[var(--color-muted)]">
+        <div className="border-t border-rule px-4 py-3 text-xs text-ink-3">
           A cost recorded under an overhead category is listed here because it
           carries this order reference, but it is left out of the contribution
           above. Overhead is never split across orders.

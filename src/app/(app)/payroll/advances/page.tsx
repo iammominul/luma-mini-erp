@@ -89,7 +89,7 @@ export default async function AdvancesPage() {
           columns={columns}
           rows={advances}
           rowKey={(advance) => advance.id}
-          rowClassName="hover:bg-gray-50"
+          rowClassName="hover:bg-surface-2"
           empty={
             <>
               No advances recorded yet.{' '}

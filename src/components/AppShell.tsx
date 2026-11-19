@@ -5,10 +5,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { AccountMenu } from './AccountMenu';
 import { AppNav } from './AppNav';
+import { FlashNotice } from './FlashNotice';
 import { Icon } from './Icon';
 import { RecentChanges } from './RecentChanges';
 import { SearchBox } from './SearchBox';
+import { Shortcuts } from './Shortcuts';
 import { useIsWide } from './use-is-wide';
+import type { Audience } from '@/lib/modules';
 import type { ActivityEntry } from '@/lib/types';
 
 /**
@@ -45,6 +48,7 @@ export function AppShell({
   userName,
   userEmail,
   role,
+  modules,
   recent,
   children,
 }: {
@@ -53,6 +57,8 @@ export function AppShell({
   userName: string;
   userEmail: string;
   role: string;
+  /** Who is offered each full ERP module, for the rail (modules.ts). */
+  modules: Record<string, Audience>;
   /** The newest activity rows, or null for a role that may not read the log. */
   recent: ActivityEntry[] | null;
   children: ReactNode;
@@ -192,7 +198,7 @@ export function AppShell({
           company on every screen. */}
       <header
         data-app-chrome
-        className="sticky top-0 z-30 flex items-center gap-2 border-b border-[var(--color-navy-3)] bg-[var(--color-navy)] px-2 py-2 text-white md:col-span-2 md:static md:grid md:h-11 md:grid-cols-[15rem_minmax(0,1fr)_15rem] md:gap-3 md:px-3 md:py-0"
+        className="sticky top-0 z-30 flex items-center gap-2 border-b border-navy-3 bg-navy px-2 py-2 text-white md:col-span-2 md:static md:grid md:h-11 md:grid-cols-[15rem_minmax(0,1fr)_15rem] md:gap-3 md:px-3 md:py-0"
       >
         <button
           type="button"
@@ -221,7 +227,7 @@ export function AppShell({
             height={26}
             className="h-[26px] w-[26px] shrink-0"
           />
-          <span className="min-w-0 truncate text-[13px] font-semibold leading-tight tracking-wide">
+          <span className="min-w-0 truncate text-body font-semibold leading-tight tracking-wide">
             {companyName}
           </span>
         </div>
@@ -244,6 +250,7 @@ export function AppShell({
       <AppNav
         companyName={companyName}
         role={role}
+        modules={modules}
         drawerOpen={open}
         isWide={isWide}
         collapsed={collapsed}
@@ -269,6 +276,8 @@ export function AppShell({
       <main className="min-w-0 flex-1 overflow-x-auto px-4 py-4 md:overflow-auto md:px-6 md:pb-6 md:pt-0">
         {children}
       </main>
+      <FlashNotice />
+      <Shortcuts />
     </div>
   );
 }

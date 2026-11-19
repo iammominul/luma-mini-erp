@@ -20,3 +20,7 @@ coverage/
 # the only copy of the book that does not depend on the local Postgres.
 sample-pdfs/
 backups/
+.vercel
+.env*
+# The template is committed and kept current (CLAUDE.md rule 9).
+!.env.example

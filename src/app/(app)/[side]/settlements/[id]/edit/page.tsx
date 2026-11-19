@@ -3,7 +3,7 @@ import { DeleteBox } from '@/components/DeleteBox';
 import { PaymentForm } from '@/components/PaymentForm';
 import { PageTitle } from '@/components/ui';
 import { formatDate } from '@/lib/dates';
-import { getPayment, listParties } from '@/lib/queries';
+import { findPayment, listParties } from '@/lib/queries';
 import { copyFor, isSide } from '@/lib/side';
 import { deletePaymentAction, updatePaymentAction } from '../../actions';
 import { requirePermission } from '@/lib/session';
@@ -19,16 +19,16 @@ export default async function EditSettlementPage({
   const copy = copyFor(side);
 
   const [payment, parties] = await Promise.all([
-    getPayment(id),
+    findPayment(id),
     listParties({ role: copy.role, includeInactive: true }),
   ]);
-  if (!payment || payment.direction !== copy.paymentDirection) notFound();
+  if (!payment || payment.partyRole !== copy.role) notFound();
 
   return (
     <>
       <PageTitle
-        title={`Edit ${copy.settlementSingular}`}
-        subtitle={`${payment.partyName}, ${formatDate(payment.paidOn)}. The old and new values are both kept in the activity log.`}
+        title={`Edit ${copy.settlementSingular} ${payment.docNo ?? ''}`.trim()}
+        subtitle={`${payment.partyName}, ${formatDate(payment.paidOn)}`}
       />
 
       <PaymentForm
@@ -36,7 +36,7 @@ export default async function EditSettlementPage({
         parties={parties.map((p) => ({ id: p.id, name: p.name }))}
         action={updatePaymentAction}
         submitLabel="Save Changes"
-        cancelHref={`/${side}/settlements`}
+        cancelHref={`/${side}/settlements/${payment.docNo ?? payment.id}`}
         requireReason
         paymentId={payment.id}
         values={{

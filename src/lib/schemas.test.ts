@@ -78,6 +78,7 @@ describe('billFormSchema', () => {
   const bill = {
     partyId: '11111111-1111-4111-8111-111111111111',
     direction: 'issued' as const,
+    partyRole: 'customer' as const,
     billNo: '889',
     billDate: '2026-07-28',
     notes: '',
@@ -85,18 +86,25 @@ describe('billFormSchema', () => {
     lines: [line],
   };
 
-  it('accepts a bill with its hand-written number', () => {
+  it('accepts a bill with its paper number', () => {
     const parsed = billFormSchema.parse(bill);
     expect(parsed.billNo).toBe('889');
     expect(parsed.lines).toHaveLength(1);
   });
 
-  it('requires the hand-written bill number on both sides', () => {
-    const result = billFormSchema.safeParse({ ...bill, billNo: '' });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(firstError(result.error)).toMatch(/bill number/i);
-    }
+  // The printed number is the system's since 2026-10-06, so a customer bill's
+  // paper number is an optional Paper Ref. A bill received still needs the
+  // party's number; that rule turns on the direction and lives in the
+  // mutation, where database.integration.test.ts holds it.
+  it('takes a bill with no paper number as a blank, not an error', () => {
+    const parsed = billFormSchema.parse({ ...bill, billNo: '' });
+    expect(parsed.billNo).toBeNull();
+  });
+
+  it('refuses a role it does not know', () => {
+    expect(
+      billFormSchema.safeParse({ ...bill, partyRole: 'agent' }).success,
+    ).toBe(false);
   });
 
   it('keeps the lot number off a line that has none', () => {

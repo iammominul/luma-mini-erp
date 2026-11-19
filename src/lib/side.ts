@@ -1,7 +1,7 @@
 import type { BillDirection, PartyRole, PaymentDirection } from './types';
 
 /**
- * The two lenses the app is read through, and what each one means.
+ * The three lenses the app is read through, and what each one means.
  *
  * A lens is not a property of a party any more. It is a view: which role we are
  * looking at, and therefore which way a bill or a payment created here runs. A
@@ -9,8 +9,9 @@ import type { BillDirection, PartyRole, PaymentDirection } from './types';
  * with the documents raised in each keeping their own direction, and one ledger
  * adding them all up.
  *
- * A supplier lens will slot in here when there is a supplier to trade with. It
- * behaves exactly as the subcontractor lens does: bills received, money out.
+ * The supplier lens (2026-10-06) runs the way the subcontractor lens does,
+ * bills received and money out, which is exactly why a document records its
+ * party_role: direction alone cannot tell a yarn bill from a knitting bill.
  *
  * The lens is plural because it names a collection in a URL, the same as
  * `/parties` does: `/customers/bills`, `/subcontractors/settlements`. The role it
@@ -18,7 +19,7 @@ import type { BillDirection, PartyRole, PaymentDirection } from './types';
  * apart is what stops the URL vocabulary drifting from the domain vocabulary.
  */
 
-export type Side = 'customers' | 'subcontractors';
+export type Side = 'customers' | 'subcontractors' | 'suppliers';
 
 /**
  * What the old singular URLs map to. They were live before the plural ones, so
@@ -79,9 +80,28 @@ const COPY: Record<Side, SideCopy> = {
     paymentDirection: 'out',
     partyWord: 'Subcontractor',
     partyPlural: 'Subcontractors',
-    billTitle: 'Bills Received',
-    billSingular: 'Bill Received',
-    settlementTitle: 'Payments',
+    // Named for the party since suppliers arrived, so the two payable lenses
+    // never share a title (2026-10-06).
+    billTitle: 'Subcontractor Bills',
+    billSingular: 'Subcontractor Bill',
+    settlementTitle: 'Subcontractor Payments',
+    settlementSingular: 'Payment',
+    settlementColumn: 'Amount Paid',
+    balanceWord: 'Balance Payable',
+    outstandingWord: 'Payable',
+    direction: 'to',
+    billNoIsOurs: false,
+  },
+  suppliers: {
+    side: 'suppliers',
+    role: 'supplier',
+    billDirection: 'received',
+    paymentDirection: 'out',
+    partyWord: 'Supplier',
+    partyPlural: 'Suppliers',
+    billTitle: 'Supplier Bills',
+    billSingular: 'Supplier Bill',
+    settlementTitle: 'Supplier Payments',
     settlementSingular: 'Payment',
     settlementColumn: 'Amount Paid',
     balanceWord: 'Balance Payable',
@@ -91,10 +111,21 @@ const COPY: Record<Side, SideCopy> = {
   },
 };
 
+export const SIDES: readonly Side[] = ['customers', 'subcontractors', 'suppliers'];
+
 export function isSide(value: string): value is Side {
-  return value === 'customers' || value === 'subcontractors';
+  return (SIDES as readonly string[]).includes(value);
 }
 
 export function copyFor(side: Side): SideCopy {
   return COPY[side];
+}
+
+/** The lens a party role is read through. */
+export function sideForRole(role: PartyRole): Side {
+  return role === 'customer'
+    ? 'customers'
+    : role === 'supplier'
+      ? 'suppliers'
+      : 'subcontractors';
 }

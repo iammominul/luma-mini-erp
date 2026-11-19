@@ -138,12 +138,15 @@ export function PaymentForm({
             </Select>
           </Field>
 
+          {/* The voucher number (MR, PV) is issued on save and printed. This
+              is the paper beside it: the receipt book serial, a cheque number
+              or a bank reference. */}
           <Field
-            label="Reference"
+            label="Paper Ref / Cheque"
             hint={
               copy.role === 'customer'
-                ? 'Money Receipt serial, cheque number, or bank reference.'
-                : 'Cheque number or bank reference.'
+                ? 'Receipt book serial, cheque or bank ref'
+                : 'Cheque or bank ref'
             }
           >
             <TextInput

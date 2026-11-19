@@ -25,11 +25,12 @@ export async function statementFor(
   const figures = await profitFigures(from, to);
 
   const costs: CostLine[] = [
-    // A subcontractor's bill is cost of sales whatever the work was, and it is
-    // split by nature of work so knitting reads apart from dyeing.
+    // A bill received is cost of sales whatever it was for, and it is split by
+    // nature of work so knitting reads apart from dyeing. A supplier's bill is
+    // always yarn (2026-10-06), so Yarn is its own direct cost line.
     ...figures.subcontract.map((row) => ({
       label: natureOfWorkLabel(row.natureOfWork),
-      note: 'Subcontractor bills',
+      note: row.natureOfWork === 'yarn' ? 'Supplier bills' : 'Subcontractor bills',
       amount: row.amount,
       tier: 'direct' as const,
     })),

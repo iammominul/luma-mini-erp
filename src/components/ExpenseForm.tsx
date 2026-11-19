@@ -26,8 +26,29 @@ export type ExpenseFormValues = {
   mode: string;
   reference: string;
   orderNo: string;
+  /** The order or order line it is filed against, when it is (2026-10-06). */
+  salesOrderId: string;
+  orderLineId: string;
   notes: string;
 };
+
+/** An order as the expense form offers it: the whole order, or one line. */
+export type ExpenseOrderOption = {
+  orderId: string;
+  label: string;
+  open: boolean;
+  lines: { id: string; label: string }[];
+};
+
+/**
+ * The For Order value carries which of the two it is, because one select
+ * offers both: 'order:<id>' for the whole order, 'line:<id>' for one line.
+ */
+function pickOf(values: { salesOrderId: string; orderLineId: string }): string {
+  if (values.orderLineId) return `line:${values.orderLineId}`;
+  if (values.salesOrderId) return `order:${values.salesOrderId}`;
+  return '';
+}
 
 export function ExpenseForm({
   action,
@@ -36,6 +57,7 @@ export function ExpenseForm({
   cancelHref,
   requireReason = false,
   expenseId,
+  orderOptions = [],
 }: {
   action: (
     state: ExpenseFormState,
@@ -46,6 +68,7 @@ export function ExpenseForm({
   cancelHref: string;
   requireReason?: boolean;
   expenseId?: string;
+  orderOptions?: ExpenseOrderOption[];
 }) {
   const [state, submit, pending] = useActionState<ExpenseFormState, FormData>(
     action,
@@ -67,10 +90,20 @@ export function ExpenseForm({
       mode: values.mode,
       reference: values.reference,
       orderNo: values.orderNo,
+      orderPick: pickOf(values),
       notes: values.notes,
       reason: '',
     },
     state,
+  );
+
+  const [pickKind, pickId] = field.orderPick.split(':');
+  // Open orders only, and whatever this expense is already filed against.
+  const offered = orderOptions.filter(
+    (order) =>
+      order.open ||
+      field.orderPick === `order:${order.orderId}` ||
+      order.lines.some((line) => field.orderPick === `line:${line.id}`),
   );
 
   return (
@@ -150,19 +183,55 @@ export function ExpenseForm({
             />
           </Field>
 
-          <Field
-            label="Order Reference"
-            hint="As written on the bill. Blank if not for one order."
-          >
-            <TextInput
-              type="text"
-              name="orderNo"
-              value={field.orderNo}
-              onChange={(e) => set({ orderNo: e.target.value })}
-              maxLength={60}
-              autoComplete="off"
-            />
-          </Field>
+          {/* The order record when there is one; the server writes the text
+              reference from it. The text box is kept for a cost against an
+              order that predates order records. */}
+          <input
+            type="hidden"
+            name="salesOrderId"
+            value={pickKind === 'order' ? (pickId ?? '') : ''}
+          />
+          <input
+            type="hidden"
+            name="orderLineId"
+            value={pickKind === 'line' ? (pickId ?? '') : ''}
+          />
+          {offered.length > 0 ? (
+            <Field label="For Order">
+              <Select
+                ref={register('orderPick')}
+                value={field.orderPick}
+                onChange={(e) => set({ orderPick: e.target.value })}
+              >
+                <option value="">Not for one order</option>
+                {offered.map((order) => (
+                  <optgroup key={order.orderId} label={order.label}>
+                    <option value={`order:${order.orderId}`}>Whole order</option>
+                    {order.lines.map((line) => (
+                      <option key={line.id} value={`line:${line.id}`}>
+                        {line.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </Select>
+            </Field>
+          ) : null}
+          {field.orderPick ? null : (
+            <Field
+              label="Order Reference"
+              hint={offered.length > 0 ? 'Only for an order with no record' : 'As written on the bill'}
+            >
+              <TextInput
+                type="text"
+                name="orderNo"
+                value={field.orderNo}
+                onChange={(e) => set({ orderNo: e.target.value })}
+                maxLength={60}
+                autoComplete="off"
+              />
+            </Field>
+          )}
 
           <Field label="Reference" hint="Cheque or bank reference.">
             <TextInput

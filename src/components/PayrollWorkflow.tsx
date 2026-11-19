@@ -73,7 +73,7 @@ export function PayrollWorkflow({
     return (
       <Card className="mb-4 p-4 text-sm">
         {status === 'draft' ? (
-          <p className="text-[var(--color-muted)]">
+          <p className="text-ink-3">
             This payroll is a draft. An Owner approves it once the figures are
             right.
           </p>
@@ -109,10 +109,10 @@ export function PayrollWorkflow({
       {status === 'draft' ? (
         <form action={approveSubmit} className="space-y-3">
           {hidden}
-          <p className="text-sm text-[var(--color-muted)]">
+          <p className="text-sm text-ink-3">
             Approving freezes every figure on this payroll. Reopen it if a
             correction is needed afterwards. It will be recorded as approved by{' '}
-            <span className="font-medium text-[var(--color-ink)]">
+            <span className="font-medium text-ink">
               {approverName}
             </span>
             , which prints on the payslip and goes in the activity log.
@@ -209,7 +209,7 @@ function ReopenForm({
   return (
     <form
       action={submit}
-      className="space-y-3 border-t border-[var(--color-line)] pt-4"
+      className="space-y-3 border-t border-rule pt-4"
     >
       {hidden}
       <div className="flex flex-wrap items-end gap-3">

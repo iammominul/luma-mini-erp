@@ -3,7 +3,7 @@ import { AppShell } from '@/components/AppShell';
 import { Notice } from '@/components/ui';
 import { company } from '@/lib/env';
 import { can } from '@/lib/permissions';
-import { recentActivity } from '@/lib/queries';
+import { listModuleSwitches, recentActivity } from '@/lib/queries';
 import { checkReady } from '@/lib/ready';
 import { requireUser } from '@/lib/session';
 import { signOutAction } from '../login/actions';
@@ -34,6 +34,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     ? await recentActivity(5)
     : null;
 
+  // Which of the full ERP's modules this person is offered in the rail. One
+  // small table, read once for the whole group like the peek above.
+  const modules = await listModuleSwitches();
+
   // The shell is a client component because the drawer has state. `children`
   // goes through it as a slot, so every page inside stays a server component.
   return (
@@ -43,6 +47,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       userName={user.name}
       userEmail={user.email}
       role={user.role}
+      modules={modules}
       recent={recent}
     >
       {children}
@@ -53,9 +58,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 function SetupNeeded({ message }: { message: string }) {
   return (
     <main className="min-h-screen space-y-3 px-4 py-4 md:px-6 md:py-6">
-      <h1 className="text-lg font-semibold">Setup Needed</h1>
+      <h1 className="text-title font-semibold">Setup Needed</h1>
       <Notice tone="error">{message}</Notice>
-      <p className="text-sm text-[var(--color-muted)]">
+      <p className="text-sm text-ink-3">
         The steps are listed in README.md.
       </p>
     </main>
